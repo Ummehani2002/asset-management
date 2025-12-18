@@ -1,22 +1,16 @@
+# Create render.yaml file
+@'
 services:
   - type: web
     name: final-asset
-    runtime: php
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     plan: free
-    buildCommand: |
-      composer install --no-dev --optimize-autoloader
-      npm install
-      npm run build
-      php artisan migrate --force
-      php artisan storage:link
-    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
     envVars:
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
         value: false
-      - key: LOG_LEVEL
-        value: error
       - key: APP_TIMEZONE
         value: Asia/Dubai
       - key: APP_NAME
@@ -26,9 +20,9 @@ services:
 
   - type: worker
     name: final-asset-scheduler
-    runtime: php
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     plan: free
-    buildCommand: composer install --no-dev --optimize-autoloader
     startCommand: php artisan schedule:work
     envVars:
       - key: APP_ENV
@@ -45,3 +39,7 @@ databases:
     plan: free
     databaseName: final_asset
     user: finalassetuser
+'@ | Out-File -FilePath render.yaml -Encoding UTF8
+
+# Verify
+Get-Content render.yaml
