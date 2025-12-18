@@ -1,5 +1,3 @@
-# Create render.yaml file
-@'
 services:
   - type: web
     name: final-asset
@@ -13,33 +11,11 @@ services:
         value: false
       - key: APP_TIMEZONE
         value: Asia/Dubai
-      - key: APP_NAME
-        value: "Tanseeq Asset Management"
       - key: APP_KEY
         generateValue: true
-
-  - type: worker
-    name: final-asset-scheduler
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    plan: free
-    startCommand: php artisan schedule:work
-    envVars:
-      - key: APP_ENV
-        value: production
-      - key: APP_DEBUG
-        value: false
-      - key: APP_TIMEZONE
-        value: Asia/Dubai
-      - key: APP_NAME
-        value: "Tanseeq Asset Management"
 
 databases:
   - name: finalassetdb
     plan: free
     databaseName: final_asset
     user: finalassetuser
-'@ | Out-File -FilePath render.yaml -Encoding UTF8
-
-# Verify
-Get-Content render.yaml
