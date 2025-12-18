@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('asset_transactions', function (Blueprint $table) {
+            if (!Schema::hasColumn('asset_transactions', 'maintenance_notes')) {
+                $table->text('maintenance_notes')->nullable()->after('repair_type');
+            }
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('asset_transactions', function (Blueprint $table) {
+            if (Schema::hasColumn('asset_transactions', 'maintenance_notes')) {
+                $table->dropColumn('maintenance_notes');
+            }
+        });
+    }
+};
