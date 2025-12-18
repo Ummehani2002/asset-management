@@ -1,7 +1,7 @@
 services:
   - type: web
     name: final-asset
-    runtime: php-8.2  # ← CHANGE HERE
+    runtime: php # ← CHANGE HERE
     plan: free
     buildCommand: |
       composer install --no-dev --optimize-autoloader
