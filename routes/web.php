@@ -240,3 +240,21 @@ use App\Http\Controllers\ReportController;
 Route::get('/reports/simcard', [ReportController::class, 'simcard'])->name('reports.simcard');
 Route::get('/reports/internet', [ReportController::class, 'internet'])->name('reports.internet');
 Route::get('/reports/asset-summary', [ReportController::class, 'assetSummary'])->name('reports.asset-summary');
+
+// Debug routes - REMOVE AFTER FIXING
+Route::get('/debug', function() {
+    return response()->json([
+        'php_version' => phpversion(),
+        'laravel_version' => app()->version(),
+        'environment' => app()->environment(),
+        'debug_mode' => config('app.debug'),
+        'app_key_set' => !empty(config('app.key')),
+        'database_connected' => \Illuminate\Support\Facades\DB::connection()->getPdo() ? 'Yes' : 'No',
+        'storage_writable' => is_writable(storage_path()),
+        'cache_writable' => is_writable(base_path('bootstrap/cache')),
+    ]);
+});
+
+Route::get('/test', function() {
+    return 'Laravel is working!';
+});
