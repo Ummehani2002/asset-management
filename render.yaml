@@ -1,7 +1,7 @@
 services:
   - type: web
     name: final-asset
-    runtime: php  # ← Change "env" to "runtime"
+    runtime: php-8.2  # ← CHANGE HERE
     plan: free
     buildCommand: |
       composer install --no-dev --optimize-autoloader
@@ -26,7 +26,7 @@ services:
 
   - type: worker
     name: final-asset-scheduler
-    runtime: php  # ← Change "env" to "runtime"
+    runtime: php-8.2  # ← CHANGE HERE
     plan: free
     buildCommand: composer install --no-dev --optimize-autoloader
     startCommand: php artisan schedule:work
