@@ -7,20 +7,38 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $categoryCounts = AssetCategory::withCount('assets')->get();
+        try {
+            // Check if required tables exist
+            if (!$this->checkDatabaseTables(['asset_categories'])) {
+                return redirect()->route('login')->withErrors(['error' => 'Database tables not found. Please run migrations: php artisan migrate --force']);
+            }
 
-        return view('dashboard', compact('categoryCounts'));
+            $categoryCounts = AssetCategory::withCount('assets')->get();
+
+            return view('dashboard', compact('categoryCounts'));
+        } catch (\Exception $e) {
+            return $this->handleDatabaseError($e);
+        }
     }
 
     public function export(Request $request)
     {
-        $categoryCounts = AssetCategory::withCount('assets')->get();
-        $format = $request->get('format', 'pdf');
+        try {
+            // Check if required tables exist
+            if (!$this->checkDatabaseTables(['asset_categories'])) {
+                return redirect()->route('dashboard')->withErrors(['error' => 'Database tables not found. Please run migrations: php artisan migrate --force']);
+            }
 
-        if ($format === 'csv') {
-            return $this->exportCsv($categoryCounts);
-        } else {
-            return $this->exportPdf($categoryCounts);
+            $categoryCounts = AssetCategory::withCount('assets')->get();
+            $format = $request->get('format', 'pdf');
+
+            if ($format === 'csv') {
+                return $this->exportCsv($categoryCounts);
+            } else {
+                return $this->exportPdf($categoryCounts);
+            }
+        } catch (\Exception $e) {
+            return $this->handleDatabaseError($e, 'dashboard');
         }
     }
 
