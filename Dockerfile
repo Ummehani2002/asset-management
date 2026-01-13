@@ -1,18 +1,19 @@
 ﻿FROM php:8.2-cli
 
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpq-dev \
-    zip \
-    unzip
-
+RUN apt-get update && apt-get install -y libpq-dev zip unzip
 RUN docker-php-ext-install pdo pdo_pgsql
-
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
+
+# CRITICAL: Create Laravel directories
+RUN mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
+RUN chmod -R 777 storage bootstrap/cache
+
 COPY . .
+
+# Set ownership
+RUN chown -R www-data:www-data storage bootstrap/cache
 
 # Create .env file from environment variables
 RUN if [ ! -f .env ]; then \
@@ -29,7 +30,13 @@ RUN if [ ! -f .env ]; then \
     echo "DB_PASSWORD=${DB_PASSWORD}" >> .env; \
     fi
 
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --no-scripts
+
+# Initialize Laravel caches
+RUN php artisan config:clear
+RUN php artisan cache:clear
+RUN php artisan view:clear
+RUN php artisan config:cache
 
 EXPOSE 8000
 
