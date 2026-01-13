@@ -8,27 +8,47 @@ use App\Models\Asset;
 use App\Imports\EmployeesImport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 
 class EmployeeController extends Controller
 {
 
     public function index(Request $request)
     {
-        $query = Employee::query();
+        try {
+            // Check if employees table exists
+            if (!Schema::hasTable('employees')) {
+                Log::warning('employees table does not exist');
+                $employees = collect([]); // Empty collection
+                return view('employees.index', compact('employees'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
 
-        // Search filter
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('employee_id', 'LIKE', "%{$search}%")
-                  ->orWhere('entity_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%");
-            });
+            $query = Employee::query();
+
+            // Search filter
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('employee_id', 'LIKE', "%{$search}%")
+                      ->orWhere('entity_name', 'LIKE', "%{$search}%")
+                      ->orWhere('email', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $employees = $query->orderBy('id', 'desc')->get();
+            return view('employees.index', compact('employees'));
+        } catch (\Exception $e) {
+            Log::error('Employee index error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return empty list instead of crashing
+            $employees = collect([]);
+            return view('employees.index', compact('employees'))
+                ->with('warning', 'Unable to load employees. Please ensure migrations are run: php artisan migrate --force');
         }
-
-        $employees = $query->orderBy('id', 'desc')->get();
-        return view('employees.index', compact('employees'));
     }
    public function create()
     {
