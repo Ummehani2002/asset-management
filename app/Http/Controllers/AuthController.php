@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Models\User;
 
 class AuthController extends Controller
@@ -40,6 +41,17 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
+            // Check if users table exists and has username column
+            if (!Schema::hasTable('users')) {
+                Log::error('Users table does not exist');
+                return back()->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate'])->withInput();
+            }
+            
+            if (!Schema::hasColumn('users', 'username')) {
+                Log::error('Username column does not exist in users table');
+                return back()->withErrors(['error' => 'Database column missing. Please run migrations: php artisan migrate'])->withInput();
+            }
+            
             $request->validate([
                 'name' => 'required',
                 'username' => 'required|unique:users',
@@ -55,14 +67,24 @@ class AuthController extends Controller
             ]);
 
             return redirect()->route('login')->with('success', 'User registered successfully. Please login.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Re-throw validation exceptions to show field-specific errors
+            throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
             // Handle database errors
             Log::error('Registration database error: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Database error. Please check if migrations have been run.'])->withInput();
+            $errorMessage = 'Database error: ' . $e->getMessage();
+            // Show more helpful message for common issues
+            if (str_contains($e->getMessage(), 'no such column: username')) {
+                $errorMessage = 'Username column missing. Please run: php artisan migrate';
+            } elseif (str_contains($e->getMessage(), 'no such table: users')) {
+                $errorMessage = 'Users table missing. Please run: php artisan migrate';
+            }
+            return back()->withErrors(['error' => $errorMessage])->withInput();
         } catch (\Exception $e) {
             // Handle other errors
             Log::error('Registration error: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'An error occurred during registration. Please try again.'])->withInput();
+            return back()->withErrors(['error' => 'An error occurred: ' . $e->getMessage()])->withInput();
         }
     }
 
