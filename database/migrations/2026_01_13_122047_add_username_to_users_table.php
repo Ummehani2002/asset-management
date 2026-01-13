@@ -13,8 +13,31 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'username')) {
-                $table->string('username')->unique()->after('name');
+                // First add the column as nullable
+                $table->string('username')->nullable()->after('name');
             }
+        });
+        
+        // Update existing users to have unique usernames based on their email or id
+        \DB::table('users')->whereNull('username')->orWhere('username', '')->chunkById(100, function ($users) {
+            foreach ($users as $user) {
+                $username = $user->email ? explode('@', $user->email)[0] : 'user_' . $user->id;
+                $counter = 1;
+                $originalUsername = $username;
+                
+                // Ensure uniqueness
+                while (\DB::table('users')->where('username', $username)->where('id', '!=', $user->id)->exists()) {
+                    $username = $originalUsername . '_' . $counter;
+                    $counter++;
+                }
+                
+                \DB::table('users')->where('id', $user->id)->update(['username' => $username]);
+            }
+        });
+        
+        // Now make it unique and not nullable
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('username')->nullable(false)->unique()->change();
         });
     }
 
@@ -23,25 +46,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // SQLite has limitations with dropping columns that have unique indexes
-        // For SQLite, we need to handle this differently
-        $driver = Schema::getConnection()->getDriverName();
-        
-        if ($driver === 'sqlite') {
-            // SQLite doesn't support dropping columns easily, especially with indexes
-            // We'll skip the rollback for SQLite to avoid errors
-            // The column will remain but won't cause issues
-            return;
-        }
-        
         Schema::table('users', function (Blueprint $table) {
             if (Schema::hasColumn('users', 'username')) {
-                // For other databases, try to drop unique constraint first
-                try {
-                    $table->dropUnique(['username']);
-                } catch (\Exception $e) {
-                    // Index might not exist or have different name, continue
-                }
+                // MySQL automatically drops indexes when dropping a column
+                // So we can just drop the column directly
                 $table->dropColumn('username');
             }
         });

@@ -14,10 +14,20 @@ return new class extends Migration
         Schema::table('internet_services', function (Blueprint $table) {
             // Add columns for PM and DM IDs (without foreign key constraint to avoid compatibility issues)
             if (!Schema::hasColumn('internet_services', 'project_manager_id')) {
-                $table->unsignedBigInteger('project_manager_id')->nullable()->after('person_in_charge_id');
+                // Only use 'after' if the column exists, otherwise add at the end
+                if (Schema::hasColumn('internet_services', 'person_in_charge_id')) {
+                    $table->unsignedBigInteger('project_manager_id')->nullable()->after('person_in_charge_id');
+                } else {
+                    $table->unsignedBigInteger('project_manager_id')->nullable();
+                }
             }
             if (!Schema::hasColumn('internet_services', 'document_controller_id')) {
-                $table->unsignedBigInteger('document_controller_id')->nullable()->after('project_manager_id');
+                // Only use 'after' if project_manager_id exists, otherwise add at the end
+                if (Schema::hasColumn('internet_services', 'project_manager_id')) {
+                    $table->unsignedBigInteger('document_controller_id')->nullable()->after('project_manager_id');
+                } else {
+                    $table->unsignedBigInteger('document_controller_id')->nullable();
+                }
             }
         });
     }

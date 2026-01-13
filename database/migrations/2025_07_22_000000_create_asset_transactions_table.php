@@ -11,11 +11,46 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('asset_transactions', function (Blueprint $table) {
+        if (Schema::hasTable('asset_transactions')) {
+            return; // Table already exists, skip creation
+        }
+        
+        // Check the type of assets.id to match it
+        $useIntegerForAsset = false;
+        if (Schema::hasTable('assets')) {
+            $assetIdType = \DB::select("SHOW COLUMNS FROM assets WHERE Field = 'id'");
+            if (!empty($assetIdType) && str_contains(strtolower($assetIdType[0]->Type), 'int') && !str_contains(strtolower($assetIdType[0]->Type), 'bigint')) {
+                $useIntegerForAsset = true; // assets.id is int
+            }
+        }
+        
+        // Check the type of employees.id to match it
+        $useIntegerForEmployee = false;
+        if (Schema::hasTable('employees')) {
+            $employeeIdType = \DB::select("SHOW COLUMNS FROM employees WHERE Field = 'id'");
+            if (!empty($employeeIdType) && str_contains(strtolower($employeeIdType[0]->Type), 'int') && !str_contains(strtolower($employeeIdType[0]->Type), 'bigint')) {
+                $useIntegerForEmployee = true; // employees.id is int
+            }
+        }
+        
+        Schema::create('asset_transactions', function (Blueprint $table) use ($useIntegerForAsset, $useIntegerForEmployee) {
             $table->id();
             $table->string('transaction_type'); // assign, return, system_maintenance
-            $table->foreignId('asset_id')->constrained('assets')->onDelete('cascade');
-            $table->foreignId('employee_id')->nullable()->constrained('employees')->onDelete('set null');
+            
+            // Use the appropriate type based on assets.id
+            if ($useIntegerForAsset) {
+                $table->unsignedInteger('asset_id');
+            } else {
+                $table->unsignedBigInteger('asset_id');
+            }
+            
+            // Use the appropriate type based on employees.id
+            if ($useIntegerForEmployee) {
+                $table->unsignedInteger('employee_id')->nullable();
+            } else {
+                $table->unsignedBigInteger('employee_id')->nullable();
+            }
+            
             $table->string('project_name')->nullable();
             $table->date('issue_date')->nullable();
             $table->date('return_date')->nullable();
@@ -27,6 +62,28 @@ return new class extends Migration
             $table->string('image_path')->nullable();
             $table->timestamps();
         });
+        
+        // Add foreign key constraints separately after table creation
+        // This allows us to catch errors properly
+        if (Schema::hasTable('assets')) {
+            try {
+                Schema::table('asset_transactions', function (Blueprint $table) {
+                    $table->foreign('asset_id')->references('id')->on('assets')->onDelete('cascade');
+                });
+            } catch (\Exception $e) {
+                // Foreign key might fail due to type incompatibility, continue without it
+            }
+        }
+        
+        if (Schema::hasTable('employees')) {
+            try {
+                Schema::table('asset_transactions', function (Blueprint $table) {
+                    $table->foreign('employee_id')->references('id')->on('employees')->onDelete('set null');
+                });
+            } catch (\Exception $e) {
+                // Foreign key might fail due to type incompatibility, continue without it
+            }
+        }
     }
 
     /**

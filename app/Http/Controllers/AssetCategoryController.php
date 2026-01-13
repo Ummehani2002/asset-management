@@ -5,23 +5,13 @@ use App\Models\AssetCategory;
 use App\Models\Brand;
 use App\Models\CategoryFeature;
 use App\Models\Asset;
-
 class AssetCategoryController extends Controller
 {
     public function index()
     {
-        try {
-            // Check if required tables exist
-            if (!$this->checkDatabaseTables(['asset_categories'])) {
-                return redirect()->route('login')->withErrors(['error' => 'Database tables not found. Please run migrations: php artisan migrate --force']);
-            }
-
-            $categories = AssetCategory::with(['brands.features'])->get();
-            $assets = Asset::with(['latestTransaction.location', 'assetCategory'])->get();
-            return view('categories.manage', compact('categories', 'assets'));
-        } catch (\Exception $e) {
-            return $this->handleDatabaseError($e);
-        }
+        $categories = AssetCategory::with(['brands.features'])->get();
+        $assets = Asset::with(['latestTransaction.location', 'assetCategory'])->get();
+        return view('categories.manage', compact('categories', 'assets'));
     }
     public function storeCategory(Request $request)
     {

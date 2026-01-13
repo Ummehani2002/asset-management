@@ -26,7 +26,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Check if table exists before trying to modify it
+        if (!Schema::hasTable('internet_services')) {
+            return;
+        }
+        
         Schema::table('internet_services', function (Blueprint $table) {
+            // Only drop columns if they exist
             $columnsToDrop = [];
             if (Schema::hasColumn('internet_services', 'transaction_type')) {
                 $columnsToDrop[] = 'transaction_type';

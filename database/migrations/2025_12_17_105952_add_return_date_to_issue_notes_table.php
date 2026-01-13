@@ -38,15 +38,20 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Check if table exists before trying to modify it
+        if (!Schema::hasTable('issue_notes')) {
+            return;
+        }
+        
         Schema::table('issue_notes', function (Blueprint $table) {
-            // Check if foreign key exists before trying to drop it
-            if (Schema::hasColumn('issue_notes', 'issue_note_id')) {
-                try {
-                    $table->dropForeign(['issue_note_id']);
-                } catch (\Exception $e) {
-                    // Foreign key might not exist, continue
-                }
+            // Try to drop foreign key if it exists
+            try {
+                $table->dropForeign(['issue_note_id']);
+            } catch (\Exception $e) {
+                // Foreign key might not exist, continue
             }
+            
+            // Drop columns if they exist
             if (Schema::hasColumn('issue_notes', 'return_date')) {
                 $table->dropColumn('return_date');
             }
