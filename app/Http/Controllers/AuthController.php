@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 
 class AuthController extends Controller
@@ -38,21 +39,31 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
-            'username' => 'required|unique:users',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6|confirmed'
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required',
+                'username' => 'required|unique:users',
+                'email' => 'required|email|unique:users',
+                'password' => 'required|min:6|confirmed'
+            ]);
 
-        User::create([
-            'name' => $request->name,
-            'username' => $request->username,
-            'email' => $request->email,
-            'password' => Hash::make($request->password)
-        ]);
+            User::create([
+                'name' => $request->name,
+                'username' => $request->username,
+                'email' => $request->email,
+                'password' => Hash::make($request->password)
+            ]);
 
-        return redirect()->route('login')->with('success', 'User registered successfully. Please login.');
+            return redirect()->route('login')->with('success', 'User registered successfully. Please login.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle database errors
+            Log::error('Registration database error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Database error. Please check if migrations have been run.'])->withInput();
+        } catch (\Exception $e) {
+            // Handle other errors
+            Log::error('Registration error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'An error occurred during registration. Please try again.'])->withInput();
+        }
     }
 
     public function logout()
