@@ -39,7 +39,7 @@
                     <label class="form-label">Asset Status</label>
                     <select name="asset_status" class="form-control">
                         <option value="">All Statuses</option>
-                        <option value="assigned" {{ request('asset_status') == 'assigned' ? 'selected' : '' }}>Assigned</option>
+                        <option value="assigned" {{ request('asset_status') == 'assigned' || !request()->hasAny(['search', 'asset_status', 'transaction_type']) ? 'selected' : '' }}>Assigned</option>
                         <option value="available" {{ request('asset_status') == 'available' ? 'selected' : '' }}>Available</option>
                         <option value="under_maintenance" {{ request('asset_status') == 'under_maintenance' ? 'selected' : '' }}>Under Maintenance</option>
                     </select>
@@ -65,7 +65,7 @@
         </form>
     </div>
 
-    @if(request()->hasAny(['search', 'asset_status', 'transaction_type']) && $transactions->count() > 0)
+    @if($transactions->count() > 0)
         <div class="master-table-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 style="color: white; margin: 0;">
@@ -76,11 +76,20 @@
                         <i class="bi bi-download"></i> Download
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
+                        <li><h6 class="dropdown-header">Filtered Results</h6></li>
                         <li><a class="dropdown-item" href="{{ route('asset-transactions.export', array_merge(request()->only(['search', 'asset_status', 'transaction_type', 'filter']), ['format' => 'pdf'])) }}">
-                            <i class="bi bi-file-pdf me-2"></i>PDF
+                            <i class="bi bi-file-pdf me-2"></i>PDF (Filtered)
                         </a></li>
                         <li><a class="dropdown-item" href="{{ route('asset-transactions.export', array_merge(request()->only(['search', 'asset_status', 'transaction_type', 'filter']), ['format' => 'csv'])) }}">
-                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV (Filtered)
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">All Transactions</h6></li>
+                        <li><a class="dropdown-item" href="{{ route('asset-transactions.export', ['format' => 'pdf', 'download_all' => true]) }}">
+                            <i class="bi bi-file-pdf me-2"></i>PDF (All)
+                        </a></li>
+                        <li><a class="dropdown-item" href="{{ route('asset-transactions.export', ['format' => 'csv', 'download_all' => true]) }}">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV (All)
                         </a></li>
                     </ul>
                 </div>
@@ -221,14 +230,12 @@
                 </div>
             @endif
         </div>
-    @elseif(request()->hasAny(['search', 'asset_status', 'transaction_type']))
+    @else
         <div class="alert alert-info text-center">
             <i class="bi bi-info-circle display-4 d-block mb-3"></i>
             <h4>No Results Found</h4>
             <p class="mb-3">No transactions match your search criteria. Try adjusting your filters.</p>
         </div>
-    @else
-
     @endif
 </div>
 @endsection

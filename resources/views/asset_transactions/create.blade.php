@@ -321,21 +321,61 @@ document.addEventListener('DOMContentLoaded', function() {
             employeeAutoFillInfo.textContent = '';
             
             // Show employee display section with auto-filled details
+            const employeeIdField = document.getElementById('employee_id');
+            const employeeReturnField = document.getElementById('employee_id_return');
+            const assetId = document.getElementById('asset_id') ? document.getElementById('asset_id').value : '';
+            
+            // Try to get employee_id from assetDetails first
+            let employeeId = null;
+            let employeeName = null;
+            let employeeEntity = null;
+            
             if (assetDetails && assetDetails.current_employee_id) {
+                employeeId = assetDetails.current_employee_id;
+                employeeName = assetDetails.current_employee_name;
+                employeeEntity = assetDetails.current_employee_entity;
+            }
+            
+            // If we have employee_id, set it
+            if (employeeId) {
                 employeeDisplaySection.style.display = 'block';
-                document.getElementById('display_employee_name').textContent = assetDetails.current_employee_name || 'N/A';
-                document.getElementById('display_employee_id').textContent = assetDetails.current_employee_id || 'N/A';
-                document.getElementById('display_employee_entity').textContent = assetDetails.current_employee_entity || 'N/A';
+                document.getElementById('display_employee_name').textContent = employeeName || 'N/A';
+                document.getElementById('display_employee_id').textContent = employeeId || 'N/A';
+                document.getElementById('display_employee_entity').textContent = employeeEntity || 'N/A';
                 // Set both employee_id and employee_id_return (both are needed for return)
-                const employeeIdField = document.getElementById('employee_id');
-                const employeeReturnField = document.getElementById('employee_id_return');
-                if (employeeIdField) employeeIdField.value = assetDetails.current_employee_id;
-                if (employeeReturnField) employeeReturnField.value = assetDetails.current_employee_id;
-                console.log('Set employee_id and employee_id_return in transaction type handler:', assetDetails.current_employee_id);
+                if (employeeIdField) employeeIdField.value = employeeId;
+                if (employeeReturnField) employeeReturnField.value = employeeId;
+                console.log('Set employee_id and employee_id_return in transaction type handler:', employeeId);
+            } else if (assetId) {
+                // Fetch employee_id from asset if not in assetDetails
+                console.log('Fetching employee_id from asset for return transaction...');
+                fetch(`/asset-transactions/get-asset-details/${assetId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        assetDetails = data; // Update assetDetails
+                        if (data.current_employee_id) {
+                            employeeDisplaySection.style.display = 'block';
+                            document.getElementById('display_employee_name').textContent = data.current_employee_name || 'N/A';
+                            document.getElementById('display_employee_id').textContent = data.current_employee_id || 'N/A';
+                            document.getElementById('display_employee_entity').textContent = data.current_employee_entity || 'N/A';
+                            if (employeeIdField) employeeIdField.value = data.current_employee_id;
+                            if (employeeReturnField) employeeReturnField.value = data.current_employee_id;
+                            console.log('Set employee_id from fetched asset details:', data.current_employee_id);
+                        } else {
+                            employeeDisplaySection.style.display = 'none';
+                            if (employeeIdField) employeeIdField.value = '';
+                            if (employeeReturnField) employeeReturnField.value = '';
+                            console.warn('No employee_id found in asset details');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error fetching asset details:', err);
+                        employeeDisplaySection.style.display = 'none';
+                        if (employeeIdField) employeeIdField.value = '';
+                        if (employeeReturnField) employeeReturnField.value = '';
+                    });
             } else {
                 employeeDisplaySection.style.display = 'none';
-                const employeeIdField = document.getElementById('employee_id');
-                const employeeReturnField = document.getElementById('employee_id_return');
                 if (employeeIdField) employeeIdField.value = '';
                 if (employeeReturnField) employeeReturnField.value = '';
             }
@@ -585,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return true;
         });
         
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
             console.log('=== FORM SUBMIT EVENT TRIGGERED ===');
             
             const txType = transactionType ? transactionType.value : '';
@@ -628,6 +668,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     employeeId = assetDetails.current_employee_id;
                 }
                 
+                // If still no employee_id and we have an asset_id, fetch it from the asset
+                if (!employeeId && assetId) {
+                    console.log('Fetching employee_id from asset...');
+                    try {
+                        const response = await fetch(`/asset-transactions/get-asset-details/${assetId}`);
+                        const data = await response.json();
+                        if (data.current_employee_id) {
+                            employeeId = data.current_employee_id;
+                            // Update assetDetails for future use
+                            assetDetails = data;
+                            console.log('Fetched employee_id from asset:', employeeId);
+                        }
+                    } catch (err) {
+                        console.error('Error fetching asset details:', err);
+                    }
+                }
+                
                 // Set both fields to ensure employee_id is available
                 if (employeeId) {
                     if (employeeSelect) {
@@ -639,6 +696,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     console.error('ERROR: Cannot find employee_id for return transaction!');
                     console.log('assetDetails:', assetDetails);
+                    console.log('assetId:', assetId);
                     e.preventDefault();
                     alert('Error: Cannot determine employee. Please refresh the page and try again.');
                     if (submitBtn) {

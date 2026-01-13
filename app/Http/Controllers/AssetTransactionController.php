@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\Location;
 use App\Models\Project;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use App\Mail\AssetAssigned;
 use Illuminate\Validation\ValidationException;
 
@@ -19,15 +20,135 @@ class AssetTransactionController extends Controller
         $query = AssetTransaction::with(['asset.assetCategory', 'employee', 'location']);
 
         // Filter by asset status - show all transactions for assets with this status
-        if ($request->filled('asset_status')) {
-            $status = $request->asset_status;
-            $query->whereHas('asset', function($q) use ($status) {
-                $q->where('status', $status);
+        // Default to showing only assigned assets if no filter is explicitly set
+        $isAssignedFilter = false;
+        $isMaintenanceFilter = false;
+        $isAvailableFilter = false;
+        if ($request->has('asset_status')) {
+            // User has interacted with the filter
+            if ($request->asset_status !== '') {
+                // User selected a specific status
+                $status = $request->asset_status;
+                $isAssignedFilter = ($status === 'assigned');
+                $isMaintenanceFilter = ($status === 'under_maintenance');
+                $isAvailableFilter = ($status === 'available');
+                $query->whereHas('asset', function($q) use ($status) {
+                    $q->where('status', $status);
+                });
+            }
+            // If asset_status is empty string, user selected "All Statuses" - show all
+        } else {
+            // First page load - default to showing only assigned assets
+            $isAssignedFilter = true;
+            $query->whereHas('asset', function($q) {
+                $q->where('status', 'assigned');
             });
         }
 
-        // Filter by transaction type
-        if ($request->filled('transaction_type')) {
+        // For assigned assets, show only the latest assign transaction (current assignment)
+        // Exclude maintenance and return transactions - only show the assign that made it assigned
+        if ($isAssignedFilter) {
+            // Get only assign transactions for currently assigned assets
+            $query->where('transaction_type', 'assign');
+            
+            // Get only the latest assign transaction for each assigned asset
+            // This represents the current assignment (not historical assignments)
+            // Use a raw subquery to find IDs of latest assign transactions per asset
+            $latestAssignIds = DB::table('asset_transactions as at1')
+                ->select('at1.id')
+                ->where('at1.transaction_type', 'assign')
+                ->whereIn('at1.asset_id', function($q) {
+                    $q->select('id')
+                      ->from('assets')
+                      ->where('status', 'assigned');
+                })
+                ->whereRaw('at1.created_at = (
+                    SELECT MAX(at2.created_at)
+                    FROM asset_transactions as at2
+                    WHERE at2.asset_id = at1.asset_id
+                    AND at2.transaction_type = "assign"
+                )')
+                ->pluck('id')
+                ->toArray();
+            
+            if (!empty($latestAssignIds)) {
+                $query->whereIn('asset_transactions.id', $latestAssignIds);
+            } else {
+                // If no assign transactions found, return empty result
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        // For assets under maintenance, show only the latest maintenance transaction (current maintenance)
+        // Exclude assign and return transactions - only show the maintenance that made it under maintenance
+        if ($isMaintenanceFilter) {
+            // Get only maintenance transactions for currently under-maintenance assets
+            $query->where('transaction_type', 'system_maintenance');
+            
+            // Get only the latest maintenance transaction for each under-maintenance asset
+            // This represents the current maintenance (not historical maintenance)
+            // Use a raw subquery to find IDs of latest maintenance transactions per asset
+            $latestMaintenanceIds = DB::table('asset_transactions as at1')
+                ->select('at1.id')
+                ->where('at1.transaction_type', 'system_maintenance')
+                ->whereIn('at1.asset_id', function($q) {
+                    $q->select('id')
+                      ->from('assets')
+                      ->where('status', 'under_maintenance');
+                })
+                ->whereRaw('at1.created_at = (
+                    SELECT MAX(at2.created_at)
+                    FROM asset_transactions as at2
+                    WHERE at2.asset_id = at1.asset_id
+                    AND at2.transaction_type = "system_maintenance"
+                )')
+                ->pluck('id')
+                ->toArray();
+            
+            if (!empty($latestMaintenanceIds)) {
+                $query->whereIn('asset_transactions.id', $latestMaintenanceIds);
+            } else {
+                // If no maintenance transactions found, return empty result
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        // For available assets, show only the latest return transaction (current return)
+        // Exclude assign and maintenance transactions - only show the return that made it available
+        if ($isAvailableFilter) {
+            // Get only return transactions for currently available assets
+            $query->where('transaction_type', 'return');
+            
+            // Get only the latest return transaction for each available asset
+            // This represents the current return (not historical returns)
+            // Use a raw subquery to find IDs of latest return transactions per asset
+            $latestReturnIds = DB::table('asset_transactions as at1')
+                ->select('at1.id')
+                ->where('at1.transaction_type', 'return')
+                ->whereIn('at1.asset_id', function($q) {
+                    $q->select('id')
+                      ->from('assets')
+                      ->where('status', 'available');
+                })
+                ->whereRaw('at1.created_at = (
+                    SELECT MAX(at2.created_at)
+                    FROM asset_transactions as at2
+                    WHERE at2.asset_id = at1.asset_id
+                    AND at2.transaction_type = "return"
+                )')
+                ->pluck('id')
+                ->toArray();
+            
+            if (!empty($latestReturnIds)) {
+                $query->whereIn('asset_transactions.id', $latestReturnIds);
+            } else {
+                // If no return transactions found, return empty result
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        // Filter by transaction type (only if not filtering by assigned, maintenance, or available)
+        if ($request->filled('transaction_type') && !$isAssignedFilter && !$isMaintenanceFilter && !$isAvailableFilter) {
             $query->where('transaction_type', $request->transaction_type);
         }
 
@@ -98,63 +219,141 @@ class AssetTransactionController extends Controller
     {
         $query = AssetTransaction::with(['asset.assetCategory', 'employee', 'location']);
 
-        // Apply filter from view page
-        if ($request->filled('filter')) {
-            $filter = $request->filter;
-            switch ($filter) {
-                case 'assigned':
-                    $query->whereHas('asset', function($q) {
-                        $q->where('status', 'assigned');
-                    });
-                    break;
-                case 'maintenance':
-                    $query->where(function($q) {
-                        $q->where('transaction_type', 'system_maintenance')
-                          ->orWhereHas('asset', function($assetQuery) {
-                              $assetQuery->where('status', 'under_maintenance');
-                          });
-                    });
-                    break;
-                case 'return':
-                    $query->where('transaction_type', 'return');
-                    break;
-                case 'available':
-                    $query->whereHas('asset', function($q) {
-                        $q->where('status', 'available');
-                    });
-                    break;
+        // Check if user wants to download all transactions (ignoring filters)
+        $downloadAll = $request->get('download_all', false);
+
+        if (!$downloadAll) {
+            // Apply the same filtering logic as index method
+            // Filter by asset status - show all transactions for assets with this status
+            $isAssignedFilter = false;
+            $isMaintenanceFilter = false;
+            $isAvailableFilter = false;
+            
+            if ($request->has('asset_status') && $request->asset_status !== '') {
+                $status = $request->asset_status;
+                $isAssignedFilter = ($status === 'assigned');
+                $isMaintenanceFilter = ($status === 'under_maintenance');
+                $isAvailableFilter = ($status === 'available');
+                $query->whereHas('asset', function($q) use ($status) {
+                    $q->where('status', $status);
+                });
+            } elseif (!$request->has('asset_status')) {
+                // Default to assigned if no filter set
+                $isAssignedFilter = true;
+                $query->whereHas('asset', function($q) {
+                    $q->where('status', 'assigned');
+                });
             }
-        }
 
-        if ($request->filled('asset_status')) {
-            $status = $request->asset_status;
-            $query->whereHas('asset', function($q) use ($status) {
-                $q->where('status', $status);
-            });
-        }
+            // For assigned assets, show only the latest assign transaction (current assignment)
+            if ($isAssignedFilter) {
+                $query->where('transaction_type', 'assign');
+                
+                $latestAssignIds = DB::table('asset_transactions as at1')
+                    ->select('at1.id')
+                    ->where('at1.transaction_type', 'assign')
+                    ->whereIn('at1.asset_id', function($q) {
+                        $q->select('id')
+                          ->from('assets')
+                          ->where('status', 'assigned');
+                    })
+                    ->whereRaw('at1.created_at = (
+                        SELECT MAX(at2.created_at)
+                        FROM asset_transactions as at2
+                        WHERE at2.asset_id = at1.asset_id
+                        AND at2.transaction_type = "assign"
+                    )')
+                    ->pluck('id')
+                    ->toArray();
+                
+                if (!empty($latestAssignIds)) {
+                    $query->whereIn('asset_transactions.id', $latestAssignIds);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            }
 
-        if ($request->filled('transaction_type')) {
-            $query->where('transaction_type', $request->transaction_type);
-        }
+            // For assets under maintenance, show only the latest maintenance transaction
+            if ($isMaintenanceFilter) {
+                $query->where('transaction_type', 'system_maintenance');
+                
+                $latestMaintenanceIds = DB::table('asset_transactions as at1')
+                    ->select('at1.id')
+                    ->where('at1.transaction_type', 'system_maintenance')
+                    ->whereIn('at1.asset_id', function($q) {
+                        $q->select('id')
+                          ->from('assets')
+                          ->where('status', 'under_maintenance');
+                    })
+                    ->whereRaw('at1.created_at = (
+                        SELECT MAX(at2.created_at)
+                        FROM asset_transactions as at2
+                        WHERE at2.asset_id = at1.asset_id
+                        AND at2.transaction_type = "system_maintenance"
+                    )')
+                    ->pluck('id')
+                    ->toArray();
+                
+                if (!empty($latestMaintenanceIds)) {
+                    $query->whereIn('asset_transactions.id', $latestMaintenanceIds);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            }
 
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->whereHas('asset', function($assetQuery) use ($search) {
-                    $assetQuery->where('serial_number', 'like', "%{$search}%")
-                               ->orWhere('asset_id', 'like', "%{$search}%");
-                })
-                ->orWhereHas('employee', function($empQuery) use ($search) {
-                    $empQuery->where('name', 'like', "%{$search}%")
-                             ->orWhere('entity_name', 'like', "%{$search}%");
-                })
-                ->orWhere('project_name', 'like', "%{$search}%");
-            });
+            // For available assets, show only the latest return transaction
+            if ($isAvailableFilter) {
+                $query->where('transaction_type', 'return');
+                
+                $latestReturnIds = DB::table('asset_transactions as at1')
+                    ->select('at1.id')
+                    ->where('at1.transaction_type', 'return')
+                    ->whereIn('at1.asset_id', function($q) {
+                        $q->select('id')
+                          ->from('assets')
+                          ->where('status', 'available');
+                    })
+                    ->whereRaw('at1.created_at = (
+                        SELECT MAX(at2.created_at)
+                        FROM asset_transactions as at2
+                        WHERE at2.asset_id = at1.asset_id
+                        AND at2.transaction_type = "return"
+                    )')
+                    ->pluck('id')
+                    ->toArray();
+                
+                if (!empty($latestReturnIds)) {
+                    $query->whereIn('asset_transactions.id', $latestReturnIds);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            }
+
+            // Filter by transaction type (only if not filtering by assigned, maintenance, or available)
+            if ($request->filled('transaction_type') && !$isAssignedFilter && !$isMaintenanceFilter && !$isAvailableFilter) {
+                $query->where('transaction_type', $request->transaction_type);
+            }
+
+            // Search filter
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('asset', function($assetQuery) use ($search) {
+                        $assetQuery->where('serial_number', 'like', "%{$search}%")
+                                   ->orWhere('asset_id', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('employee', function($empQuery) use ($search) {
+                        $empQuery->where('name', 'like', "%{$search}%")
+                                 ->orWhere('entity_name', 'like', "%{$search}%");
+                    })
+                    ->orWhere('project_name', 'like', "%{$search}%");
+                });
+            }
         }
 
         $transactions = $query->orderByDesc('created_at')->get();
         $format = $request->get('format', 'pdf');
-        $assetStatus = $request->get('asset_status', 'all');
+        $assetStatus = $downloadAll ? 'all' : ($request->get('asset_status', 'all'));
 
         if ($format === 'excel' || $format === 'csv') {
             return $this->exportExcel($transactions, $assetStatus);
