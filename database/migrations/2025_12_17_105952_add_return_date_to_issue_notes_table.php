@@ -39,8 +39,23 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('issue_notes', function (Blueprint $table) {
-            $table->dropForeign(['issue_note_id']);
-            $table->dropColumn(['return_date', 'note_type', 'issue_note_id']);
+            // Check if foreign key exists before trying to drop it
+            if (Schema::hasColumn('issue_notes', 'issue_note_id')) {
+                try {
+                    $table->dropForeign(['issue_note_id']);
+                } catch (\Exception $e) {
+                    // Foreign key might not exist, continue
+                }
+            }
+            if (Schema::hasColumn('issue_notes', 'return_date')) {
+                $table->dropColumn('return_date');
+            }
+            if (Schema::hasColumn('issue_notes', 'note_type')) {
+                $table->dropColumn('note_type');
+            }
+            if (Schema::hasColumn('issue_notes', 'issue_note_id')) {
+                $table->dropColumn('issue_note_id');
+            }
         });
     }
 };

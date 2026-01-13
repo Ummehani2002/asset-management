@@ -22,7 +22,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('time_managements', function (Blueprint $table) {
-            $table->dropColumn('last_delay_email_sent_at');
+            if (Schema::hasColumn('time_managements', 'last_delay_email_sent_at')) {
+                $table->dropColumn('last_delay_email_sent_at');
+            }
         });
     }
 };

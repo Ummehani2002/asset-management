@@ -9,17 +9,24 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
+    public function up(): void
+    {
+        Schema::table('asset_transactions', function (Blueprint $table) {
+            if (!Schema::hasColumn('asset_transactions', 'location')) {
+                $table->string('location')->nullable();
+            }
+        });
+    }
 
-public function up()
-{
-    Schema::table('asset_transactions', function (Blueprint $table) {
-        $table->string('location')->nullable();
-    });
-}
-public function down()
-{
-    Schema::table('asset_transactions', function (Blueprint $table) {
-        $table->dropColumn('location');
-    });
-}
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('asset_transactions', function (Blueprint $table) {
+            if (Schema::hasColumn('asset_transactions', 'location')) {
+                $table->dropColumn('location');
+            }
+        });
+    }
 };
