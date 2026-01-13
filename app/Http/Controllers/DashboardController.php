@@ -2,14 +2,42 @@
 namespace App\Http\Controllers;
 use App\Models\AssetCategory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        $categoryCounts = AssetCategory::withCount('assets')->get();
+        try {
+            // Check if required tables exist
+            if (!Schema::hasTable('asset_categories')) {
+                Log::warning('asset_categories table does not exist');
+                $categoryCounts = collect([]); // Empty collection
+            } else {
+                // Try to get category counts, but handle if assets table doesn't exist
+                try {
+                    $categoryCounts = AssetCategory::withCount('assets')->get();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading asset categories: ' . $e->getMessage());
+                    // Fallback: get categories without count
+                    $categoryCounts = AssetCategory::all()->map(function ($category) {
+                        $category->assets_count = 0;
+                        return $category;
+                    });
+                }
+            }
 
-        return view('dashboard', compact('categoryCounts'));
+            return view('dashboard', compact('categoryCounts'));
+        } catch (\Exception $e) {
+            Log::error('Dashboard error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return empty dashboard instead of crashing
+            $categoryCounts = collect([]);
+            return view('dashboard', compact('categoryCounts'))
+                ->with('warning', 'Some data could not be loaded. Please ensure migrations are run.');
+        }
     }
 
     public function export(Request $request)
