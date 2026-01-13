@@ -28,12 +28,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('internet_services', function (Blueprint $table) {
+            // Columns were added without foreign key constraints, so just drop the columns
             if (Schema::hasColumn('internet_services', 'document_controller_id')) {
-                $table->dropForeign(['document_controller_id']);
                 $table->dropColumn('document_controller_id');
             }
             if (Schema::hasColumn('internet_services', 'project_manager_id')) {
-                $table->dropForeign(['project_manager_id']);
                 $table->dropColumn('project_manager_id');
             }
         });
