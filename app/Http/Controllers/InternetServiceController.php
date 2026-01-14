@@ -105,7 +105,16 @@ class InternetServiceController extends Controller
     // Store a new internet service
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        try {
+            if (!Schema::hasTable('internet_services')) {
+                Log::error('internet_services table does not exist');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+            }
+
+            $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'service_type' => 'required|in:simcard,fixed,service',
             'transaction_type' => 'nullable|in:assign,return',
@@ -155,21 +164,51 @@ class InternetServiceController extends Controller
             }
         }
 
-        // Auto-fill data
-        $validated['project_name'] = $project->project_name;
-        $validated['entity'] = $project->entity;
-        $validated['person_in_charge'] = $emp->name ?? $emp->entity_name;
-        $validated['contact_details'] = $emp->phone ?? 'N/A';
-        
-        // Set transaction type to assign for new services
-        if (empty($validated['transaction_type'])) {
-            $validated['transaction_type'] = 'assign';
+            // Auto-fill data
+            $validated['project_name'] = $project->project_name;
+            $validated['entity'] = $project->entity;
+            $validated['person_in_charge'] = $emp->name ?? $emp->entity_name;
+            $validated['contact_details'] = $emp->phone ?? 'N/A';
+            
+            // Set transaction type to assign for new services
+            if (empty($validated['transaction_type'])) {
+                $validated['transaction_type'] = 'assign';
+            }
+
+            Log::info('Creating internet service with data:', $validated);
+
+            $internetService = InternetService::create($validated);
+
+            Log::info('Internet service created successfully. ID: ' . $internetService->id);
+
+            // Verify the service was actually saved
+            $savedService = InternetService::find($internetService->id);
+            if (!$savedService) {
+                Log::error('Internet service was not saved to database!');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Failed to save internet service. Please try again.']);
+            }
+
+            return redirect()->route('internet-services.index')
+                ->with('success', 'Internet service created successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('InternetService store database error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+        } catch (\Exception $e) {
+            Log::error('InternetService store error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while saving the internet service. Please try again.']);
         }
-
-        InternetService::create($validated);
-
-        return redirect()->route('internet-services.index')
-            ->with('success', 'Internet service created successfully.');
     }
 
 

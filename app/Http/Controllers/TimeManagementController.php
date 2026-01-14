@@ -119,54 +119,104 @@ public function create()
 
 public function store(Request $request)
 {
-    $request->validate([
-        'employee_id' => 'required|exists:employees,id',
-        'project_id' => 'nullable|exists:projects,id',
-        'project_name' => 'required|string',
-        'job_card_date' => 'required|date',
-        'standard_man_hours' => 'required|numeric|min:0',
-    ]);
-
-    $employee = \App\Models\Employee::find($request->employee_id);
-    
-    // If project_id is provided, get project name from database
-    $projectName = $request->project_name;
-    if ($request->project_id) {
-        $project = \App\Models\Project::find($request->project_id);
-        if ($project) {
-            $projectName = $project->project_name;
+    try {
+        if (!Schema::hasTable('time_managements')) {
+            Log::error('time_managements table does not exist');
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
         }
-    }
 
-    // ✅ Fetch the latest ticket_number instead of using count
-    $lastRecord = \App\Models\TimeManagement::orderBy('id', 'desc')->first();
-    $lastNumber = $lastRecord ? intval(substr($lastRecord->ticket_number, 4)) : 0;
-    $newNumber = $lastNumber + 1;
+        $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'project_name' => 'required|string',
+            'job_card_date' => 'required|date',
+            'standard_man_hours' => 'required|numeric|min:0',
+        ]);
 
-    $ticketNumber = 'TCKT' . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
-
-    $timeRecord = \App\Models\TimeManagement::create([
-        'ticket_number' => $ticketNumber,
-        'employee_id' => $employee->id,
-        'employee_name' => $employee->name,
-        'project_name' => $projectName,
-        'job_card_date' => $request->job_card_date,
-        'standard_man_hours' => $request->standard_man_hours,
-        'start_time' => \Carbon\Carbon::now('Asia/Dubai'),
-        'status' => 'in_progress',
-    ]);
-
-    // Send email to employee when task is assigned
-    if ($employee->email) {
-        try {
-            Mail::to($employee->email)->send(new TaskAssignedMail($timeRecord));
-            \Log::info('Task assignment email sent to: ' . $employee->email);
-        } catch (\Exception $e) {
-            \Log::error('Failed to send task assignment email: ' . $e->getMessage());
+        $employee = \App\Models\Employee::find($request->employee_id);
+        if (!$employee) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Employee not found.']);
         }
-    }
+        
+        // If project_id is provided, get project name from database
+        $projectName = $request->project_name;
+        if ($request->project_id) {
+            try {
+                $project = \App\Models\Project::find($request->project_id);
+                if ($project) {
+                    $projectName = $project->project_name;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error finding project: ' . $e->getMessage());
+            }
+        }
 
-    return redirect()->route('time.index')->with('success', 'Job Card Created Successfully!');
+        // ✅ Fetch the latest ticket_number instead of using count
+        $lastRecord = \App\Models\TimeManagement::orderBy('id', 'desc')->first();
+        $lastNumber = $lastRecord ? intval(substr($lastRecord->ticket_number, 4)) : 0;
+        $newNumber = $lastNumber + 1;
+
+        $ticketNumber = 'TCKT' . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+
+        Log::info('Creating time management record with ticket: ' . $ticketNumber);
+
+        $timeRecord = \App\Models\TimeManagement::create([
+            'ticket_number' => $ticketNumber,
+            'employee_id' => $employee->id,
+            'employee_name' => $employee->name,
+            'project_name' => $projectName,
+            'job_card_date' => $request->job_card_date,
+            'standard_man_hours' => $request->standard_man_hours,
+            'start_time' => \Carbon\Carbon::now('Asia/Dubai'),
+            'status' => 'in_progress',
+        ]);
+
+        Log::info('Time management record created successfully. ID: ' . $timeRecord->id);
+
+        // Verify the record was actually saved
+        $savedRecord = \App\Models\TimeManagement::find($timeRecord->id);
+        if (!$savedRecord) {
+            Log::error('Time management record was not saved to database!');
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to save job card. Please try again.']);
+        }
+
+        // Send email to employee when task is assigned
+        if ($employee->email) {
+            try {
+                Mail::to($employee->email)->send(new TaskAssignedMail($timeRecord));
+                \Log::info('Task assignment email sent to: ' . $employee->email);
+            } catch (\Exception $e) {
+                \Log::error('Failed to send task assignment email: ' . $e->getMessage());
+                // Don't fail the save if email fails
+            }
+        }
+
+        return redirect()->route('time.index')->with('success', 'Job Card Created Successfully!');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        throw $e;
+    } catch (\Illuminate\Database\QueryException $e) {
+        Log::error('TimeManagement store database error: ' . $e->getMessage());
+        return redirect()
+            ->back()
+            ->withInput()
+            ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+    } catch (\Exception $e) {
+        Log::error('TimeManagement store error: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        return redirect()
+            ->back()
+            ->withInput()
+            ->withErrors(['error' => 'An error occurred while saving the job card. Please try again.']);
+    }
 }
 
 

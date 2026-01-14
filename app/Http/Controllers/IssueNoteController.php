@@ -76,7 +76,21 @@ class IssueNoteController extends Controller
                 $validated['employee_id'] = $request->employee_id;
             }
             
-            IssueNote::create($validated);
+            Log::info('Creating issue note with data:', array_merge($validated, ['items' => $validated['items'] ?? []]));
+            
+            $issueNote = IssueNote::create($validated);
+            
+            Log::info('Issue note created successfully. ID: ' . $issueNote->id);
+            
+            // Verify the note was actually saved
+            $savedNote = IssueNote::find($issueNote->id);
+            if (!$savedNote) {
+                Log::error('Issue note was not saved to database!');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Failed to save issue note. Please try again.']);
+            }
 
             return redirect()->route('issue-note.create')
                 ->with('success', 'Issue note saved successfully!');
@@ -131,40 +145,82 @@ class IssueNoteController extends Controller
 
     public function storeReturn(Request $request)
     {
-        $validated = $request->validate([
-            'issue_note_id' => 'required|exists:issue_notes,id',
-            'return_date' => 'required|date',
-            'user_signature' => 'nullable|string',
-            'manager_signature' => 'nullable|string',
-        ]);
+        try {
+            if (!Schema::hasTable('issue_notes')) {
+                Log::error('issue_notes table does not exist');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+            }
 
-        // Get the original issue note
-        $issueNote = IssueNote::findOrFail($validated['issue_note_id']);
+            $validated = $request->validate([
+                'issue_note_id' => 'required|exists:issue_notes,id',
+                'return_date' => 'required|date',
+                'user_signature' => 'nullable|string',
+                'manager_signature' => 'nullable|string',
+            ]);
 
-        // Create return note with same data as issue note
-        $returnData = [
-            'employee_id' => $issueNote->employee_id,
-            'department' => $issueNote->department,
-            'entity' => $issueNote->entity,
-            'location' => $issueNote->location,
-            'system_code' => $issueNote->system_code,
-            'printer_code' => $issueNote->printer_code,
-            'software_installed' => $issueNote->software_installed,
-            'issued_date' => $issueNote->issued_date,
-            'return_date' => $validated['return_date'],
-            'items' => $issueNote->items,
-            'note_type' => 'return',
-            'issue_note_id' => $issueNote->id,
-        ];
+            // Get the original issue note
+            $issueNote = IssueNote::findOrFail($validated['issue_note_id']);
 
-        // SAVE SIGNATURE FUNCTION
-        $returnData['user_signature'] = $this->saveSignature($request->user_signature);
-        $returnData['manager_signature'] = $this->saveSignature($request->manager_signature);
+            // Create return note with same data as issue note
+            $returnData = [
+                'employee_id' => $issueNote->employee_id,
+                'department' => $issueNote->department,
+                'entity' => $issueNote->entity,
+                'location' => $issueNote->location,
+                'system_code' => $issueNote->system_code,
+                'printer_code' => $issueNote->printer_code,
+                'software_installed' => $issueNote->software_installed,
+                'issued_date' => $issueNote->issued_date,
+                'return_date' => $validated['return_date'],
+                'items' => $issueNote->items,
+                'note_type' => 'return',
+                'issue_note_id' => $issueNote->id,
+            ];
 
-        IssueNote::create($returnData);
+            // SAVE SIGNATURE FUNCTION
+            try {
+                $returnData['user_signature'] = $this->saveSignature($request->user_signature);
+                $returnData['manager_signature'] = $this->saveSignature($request->manager_signature);
+            } catch (\Exception $e) {
+                Log::warning('Error saving signatures: ' . $e->getMessage());
+            }
 
-        return redirect()->route('issue-note.create-return')
-            ->with('success', 'Return note saved successfully!');
+            Log::info('Creating return note with data:', $returnData);
+            
+            $returnNote = IssueNote::create($returnData);
+            
+            Log::info('Return note created successfully. ID: ' . $returnNote->id);
+            
+            // Verify the note was actually saved
+            $savedNote = IssueNote::find($returnNote->id);
+            if (!$savedNote) {
+                Log::error('Return note was not saved to database!');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Failed to save return note. Please try again.']);
+            }
+
+            return redirect()->route('issue-note.create-return')
+                ->with('success', 'Return note saved successfully!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('IssueNote storeReturn database error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+        } catch (\Exception $e) {
+            Log::error('IssueNote storeReturn error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while saving the return note. Please try again.']);
+        }
     }
 
     public function getIssueNoteDetails($id)
