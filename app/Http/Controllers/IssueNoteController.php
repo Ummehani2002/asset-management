@@ -5,47 +5,96 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\Models\IssueNote;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 class IssueNoteController extends Controller
 {
     public function create()
     {
-        $employees = Employee::all();
-        return view('issue-note.create', compact('employees'));
+        try {
+            $hasEmployees = Schema::hasTable('employees');
+            $employees = collect([]);
+            
+            if ($hasEmployees) {
+                try {
+                    $employees = Employee::all();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading employees for issue note create: ' . $e->getMessage());
+                }
+            }
+            
+            return view('issue-note.create', compact('employees'))
+                ->with('warning', $hasEmployees ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
+        } catch (\Exception $e) {
+            Log::error('IssueNote create error: ' . $e->getMessage());
+            $employees = collect([]);
+            return view('issue-note.create', compact('employees'))
+                ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
+        }
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'employee_id' => 'nullable|exists:employees,id',
-            'department' => 'nullable|string|max:255',
-            'entity' => 'nullable|string|max:255',
-            'location' => 'nullable|string|max:255',
-            'system_code' => 'nullable|string|max:255',
-            'printer_code' => 'nullable|string|max:255',
-            'issued_date' => 'nullable|date',
-            'software_installed' => 'nullable|string',
-            'items' => 'nullable|array',
-            'user_signature' => 'nullable|string',
-            'manager_signature' => 'nullable|string',
-        ]);
+        try {
+            if (!Schema::hasTable('issue_notes')) {
+                Log::error('issue_notes table does not exist');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+            }
 
-        $validated['items'] = $request->input('items', []);
-        $validated['note_type'] = 'issue';
-        
-        // SAVE SIGNATURE FUNCTION
-        $validated['user_signature'] = $this->saveSignature($request->user_signature);
-        $validated['manager_signature'] = $this->saveSignature($request->manager_signature);
-        
-        // Save employee_id if provided
-        if ($request->employee_id) {
-            $validated['employee_id'] = $request->employee_id;
+            $validated = $request->validate([
+                'employee_id' => 'nullable|exists:employees,id',
+                'department' => 'nullable|string|max:255',
+                'entity' => 'nullable|string|max:255',
+                'location' => 'nullable|string|max:255',
+                'system_code' => 'nullable|string|max:255',
+                'printer_code' => 'nullable|string|max:255',
+                'issued_date' => 'nullable|date',
+                'software_installed' => 'nullable|string',
+                'items' => 'nullable|array',
+                'user_signature' => 'nullable|string',
+                'manager_signature' => 'nullable|string',
+            ]);
+
+            $validated['items'] = $request->input('items', []);
+            $validated['note_type'] = 'issue';
+            
+            // SAVE SIGNATURE FUNCTION
+            try {
+                $validated['user_signature'] = $this->saveSignature($request->user_signature);
+                $validated['manager_signature'] = $this->saveSignature($request->manager_signature);
+            } catch (\Exception $e) {
+                Log::warning('Error saving signatures: ' . $e->getMessage());
+            }
+            
+            // Save employee_id if provided
+            if ($request->employee_id) {
+                $validated['employee_id'] = $request->employee_id;
+            }
+            
+            IssueNote::create($validated);
+
+            return redirect()->route('issue-note.create')
+                ->with('success', 'Issue note saved successfully!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('IssueNote store database error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+        } catch (\Exception $e) {
+            Log::error('IssueNote store error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while saving the issue note. Please try again.']);
         }
-        
-        IssueNote::create($validated);
-
-        return redirect()->route('issue-note.create')
-            ->with('success', 'Issue note saved successfully!');
     }
 
     private function saveSignature($signature)
@@ -167,32 +216,46 @@ class IssueNoteController extends Controller
 
     public function index(Request $request)
     {
-        $query = IssueNote::with('employee');
+        try {
+            if (!Schema::hasTable('issue_notes')) {
+                Log::warning('issue_notes table does not exist');
+                $issueNotes = collect([]);
+                return view('issue-note.index', compact('issueNotes'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
 
-        // Filter by note type
-        if ($request->filled('note_type')) {
-            $query->where('note_type', $request->note_type);
+            $query = IssueNote::with('employee');
+
+            // Filter by note type
+            if ($request->filled('note_type')) {
+                $query->where('note_type', $request->note_type);
+            }
+
+            // Search filter
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('department', 'like', "%{$search}%")
+                      ->orWhere('entity', 'like', "%{$search}%")
+                      ->orWhere('location', 'like', "%{$search}%")
+                      ->orWhere('system_code', 'like', "%{$search}%")
+                      ->orWhere('printer_code', 'like', "%{$search}%")
+                      ->orWhereHas('employee', function($empQuery) use ($search) {
+                          $empQuery->where('name', 'like', "%{$search}%")
+                                   ->orWhere('entity_name', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            $issueNotes = $query->orderBy('created_at', 'desc')->get();
+            
+            return view('issue-note.index', compact('issueNotes'));
+        } catch (\Exception $e) {
+            Log::error('IssueNote index error: ' . $e->getMessage());
+            $issueNotes = collect([]);
+            return view('issue-note.index', compact('issueNotes'))
+                ->with('warning', 'Unable to load issue notes. Please ensure migrations are run: php artisan migrate --force');
         }
-
-        // Search filter
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('department', 'like', "%{$search}%")
-                  ->orWhere('entity', 'like', "%{$search}%")
-                  ->orWhere('location', 'like', "%{$search}%")
-                  ->orWhere('system_code', 'like', "%{$search}%")
-                  ->orWhere('printer_code', 'like', "%{$search}%")
-                  ->orWhereHas('employee', function($empQuery) use ($search) {
-                      $empQuery->where('name', 'like', "%{$search}%")
-                               ->orWhere('entity_name', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        $issueNotes = $query->orderBy('created_at', 'desc')->get();
-        
-        return view('issue-note.index', compact('issueNotes'));
     }
 
     public function export(Request $request)

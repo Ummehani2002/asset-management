@@ -36,21 +36,45 @@ class LocationController extends Controller
     }
   public function store(Request $request)
 {
-    $request->validate([
-        'location_id' => 'required|unique:locations,location_id',
-        'location_name' => 'required|string',
-        'location_category' => 'nullable|string',
-        'location_entity' => 'required|string',
-    ]);
+    try {
+        if (!Schema::hasTable('locations')) {
+            Log::error('locations table does not exist');
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+        }
 
-    Location::create([
-        'location_id' => $request->location_id,
-        'location_name' => $request->location_name,
-        'location_category' => $request->location_category,
-        'location_entity' => $request->location_entity,
-    ]);
+        $request->validate([
+            'location_id' => 'required|unique:locations,location_id',
+            'location_name' => 'required|string',
+            'location_category' => 'nullable|string',
+            'location_entity' => 'required|string',
+        ]);
 
-    return redirect()->route('location-master.index')->with('success', 'Location added successfully.');
+        Location::create([
+            'location_id' => $request->location_id,
+            'location_name' => $request->location_name,
+            'location_category' => $request->location_category,
+            'location_entity' => $request->location_entity,
+        ]);
+
+        return redirect()->route('location-master.index')->with('success', 'Location added successfully.');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        throw $e;
+    } catch (\Illuminate\Database\QueryException $e) {
+        Log::error('Location store database error: ' . $e->getMessage());
+        return redirect()
+            ->back()
+            ->withInput()
+            ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+    } catch (\Exception $e) {
+        Log::error('Location store error: ' . $e->getMessage());
+        return redirect()
+            ->back()
+            ->withInput()
+            ->withErrors(['error' => 'An error occurred while saving the location. Please try again.']);
+    }
 }
 public function edit($id)
 {

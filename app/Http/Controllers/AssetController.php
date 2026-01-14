@@ -59,11 +59,44 @@ class AssetController extends Controller
     }
 public function create()
 {
-    $lastAsset = \App\Models\Asset::orderBy('id', 'desc')->first();
-    $autoAssetId = $lastAsset ? 'AST' . str_pad($lastAsset->id + 1, 5, '0', STR_PAD_LEFT) : 'AST00001';
-    $categories = \App\Models\AssetCategory::all();
+    try {
+        // Check if required tables exist
+        $hasAssets = Schema::hasTable('assets');
+        $hasAssetCategories = Schema::hasTable('asset_categories');
+        
+        // Generate auto asset ID
+        $autoAssetId = 'AST00001';
+        if ($hasAssets) {
+            try {
+                $lastAsset = \App\Models\Asset::orderBy('id', 'desc')->first();
+                $autoAssetId = $lastAsset ? 'AST' . str_pad($lastAsset->id + 1, 5, '0', STR_PAD_LEFT) : 'AST00001';
+            } catch (\Exception $e) {
+                Log::warning('Error getting last asset: ' . $e->getMessage());
+            }
+        }
+        
+        // Get categories
+        $categories = collect([]);
+        if ($hasAssetCategories) {
+            try {
+                $categories = \App\Models\AssetCategory::all();
+            } catch (\Exception $e) {
+                Log::warning('Error loading categories: ' . $e->getMessage());
+            }
+        }
 
-    return view('assets.create', compact('autoAssetId', 'categories'));
+        return view('assets.create', compact('autoAssetId', 'categories'))
+            ->with('warning', $hasAssetCategories ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
+    } catch (\Exception $e) {
+        Log::error('Asset create error: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        // Return with default values
+        $autoAssetId = 'AST00001';
+        $categories = collect([]);
+        return view('assets.create', compact('autoAssetId', 'categories'))
+            ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
+    }
 }
 
 public function getFeaturesByBrand($brandId)

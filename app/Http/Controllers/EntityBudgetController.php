@@ -6,41 +6,81 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\EntityBudget;
 use App\Models\Employee;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 class EntityBudgetController extends Controller
 {
     public function create(Request $request)
     {
-        // Get unique entities - one employee per unique entity_name
-        // First get all distinct entity names
-        $uniqueEntityNames = Employee::whereNotNull('entity_name')
-            ->where('entity_name', '!=', '')
-            ->distinct()
-            ->pluck('entity_name')
-            ->toArray();
-        
-        // Then get the first employee for each unique entity_name
-        $entities = collect($uniqueEntityNames)->map(function($entityName) {
-            return Employee::where('entity_name', $entityName)->first();
-        })->filter()->values();
-        
-        $costHeads = ['Overhead', 'AMC', 'Software'];
-        $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
-        
-        // Filter budgets by entity if selected
-        $query = EntityBudget::with(['employee', 'expenses']);
-        if ($request->filled('entity_id')) {
-            // If filtering by entity, get all budgets for employees with that entity_name
-            $selectedEntity = Employee::find($request->entity_id);
-            if ($selectedEntity) {
-                $query->whereHas('employee', function($q) use ($selectedEntity) {
-                    $q->where('entity_name', $selectedEntity->entity_name);
-                });
+        try {
+            // Check if required tables exist
+            $hasEmployees = Schema::hasTable('employees');
+            $hasEntityBudgets = Schema::hasTable('entity_budgets');
+            
+            // Get unique entities - one employee per unique entity_name
+            $entities = collect([]);
+            if ($hasEmployees) {
+                try {
+                    // First get all distinct entity names
+                    $uniqueEntityNames = Employee::whereNotNull('entity_name')
+                        ->where('entity_name', '!=', '')
+                        ->distinct()
+                        ->pluck('entity_name')
+                        ->toArray();
+                    
+                    // Then get the first employee for each unique entity_name
+                    $entities = collect($uniqueEntityNames)->map(function($entityName) {
+                        return Employee::where('entity_name', $entityName)->first();
+                    })->filter()->values();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading entities: ' . $e->getMessage());
+                }
             }
+            
+            $costHeads = ['Overhead', 'AMC', 'Software'];
+            $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
+            
+            // Filter budgets by entity if selected
+            $budgets = collect([]);
+            if ($hasEntityBudgets) {
+                try {
+                    $query = EntityBudget::with(['employee', 'expenses']);
+                    if ($request->filled('entity_id') && $hasEmployees) {
+                        // If filtering by entity, get all budgets for employees with that entity_name
+                        try {
+                            $selectedEntity = Employee::find($request->entity_id);
+                            if ($selectedEntity) {
+                                $query->whereHas('employee', function($q) use ($selectedEntity) {
+                                    $q->where('entity_name', $selectedEntity->entity_name);
+                                });
+                            }
+                        } catch (\Exception $e) {
+                            Log::warning('Error filtering budgets by entity: ' . $e->getMessage());
+                        }
+                    }
+                    $budgets = $query->get();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading budgets: ' . $e->getMessage());
+                }
+            }
+            
+            $hasAllTables = $hasEmployees && $hasEntityBudgets;
+            return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
+                ->with('warning', $hasAllTables ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
+        } catch (\Exception $e) {
+            Log::error('EntityBudget create error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return with default values
+            $entities = collect([]);
+            $costHeads = ['Overhead', 'AMC', 'Software'];
+            $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
+            $budgets = collect([]);
+            return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
+                ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
         }
-        $budgets = $query->get();
-        
-        return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'));
     }
 
     public function export(Request $request)
@@ -120,20 +160,44 @@ class EntityBudgetController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'entity_id' => 'required|exists:employees,id',
-            'cost_head' => 'required|string',
-            'expense_type' => 'required|string',
-            'budget_2025' => 'required|numeric|min:0'
-        ]);
-                
-        EntityBudget::create([
-            'employee_id' => $validated['entity_id'],
-            'cost_head' => $validated['cost_head'],
-            'expense_type' => $validated['expense_type'],
-            'budget_2025' => $validated['budget_2025']
-        ]);
+        try {
+            if (!Schema::hasTable('entity_budgets')) {
+                Log::error('entity_budgets table does not exist');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+            }
 
-        return redirect()->back()->with('success', 'Budget created successfully');
+            $validated = $request->validate([
+                'entity_id' => 'required|exists:employees,id',
+                'cost_head' => 'required|string',
+                'expense_type' => 'required|string',
+                'budget_2025' => 'required|numeric|min:0'
+            ]);
+                    
+            EntityBudget::create([
+                'employee_id' => $validated['entity_id'],
+                'cost_head' => $validated['cost_head'],
+                'expense_type' => $validated['expense_type'],
+                'budget_2025' => $validated['budget_2025']
+            ]);
+
+            return redirect()->back()->with('success', 'Budget created successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('EntityBudget store database error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+        } catch (\Exception $e) {
+            Log::error('EntityBudget store error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while saving the budget. Please try again.']);
+        }
     }
 }

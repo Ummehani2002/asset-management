@@ -60,27 +60,80 @@ class AssetCategoryController extends Controller
     }
     public function storeCategory(Request $request)
     {
-        $request->validate(['category_name' => 'required|string|unique:asset_categories,category_name']);
-        AssetCategory::create($request->only('category_name'));
-        return redirect()->back()->with('success', 'Category added successfully!');
+        try {
+            if (!Schema::hasTable('asset_categories')) {
+                Log::error('asset_categories table does not exist');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+            }
+
+            $request->validate(['category_name' => 'required|string|unique:asset_categories,category_name']);
+            AssetCategory::create($request->only('category_name'));
+            return redirect()->back()->with('success', 'Category added successfully!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Category store database error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+        } catch (\Exception $e) {
+            Log::error('Category store error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while saving the category. Please try again.']);
+        }
     }
 
     public function storeBrand(Request $request)
     {
-        $request->validate([
-            'asset_category_id' => 'required|exists:asset_categories,id',
-            'name' => 'required|string'
-        ]);
+        try {
+            if (!Schema::hasTable('brands')) {
+                Log::error('brands table does not exist');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+            }
 
-        $brand = Brand::create($request->only('asset_category_id', 'name'));
-        
-        // Check if category is Laptop and add default features
-        $category = AssetCategory::find($request->asset_category_id);
-        if ($category && strtolower(trim($category->category_name)) === 'laptop') {
-            $this->addDefaultLaptopFeatures($brand);
+            $request->validate([
+                'asset_category_id' => 'required|exists:asset_categories,id',
+                'name' => 'required|string'
+            ]);
+
+            $brand = Brand::create($request->only('asset_category_id', 'name'));
+            
+            // Check if category is Laptop and add default features
+            try {
+                $category = AssetCategory::find($request->asset_category_id);
+                if ($category && strtolower(trim($category->category_name)) === 'laptop') {
+                    $this->addDefaultLaptopFeatures($brand);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error adding default laptop features: ' . $e->getMessage());
+                // Continue even if features can't be added
+            }
+            
+            return redirect()->back()->with('success', 'Brand added successfully!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Brand store database error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+        } catch (\Exception $e) {
+            Log::error('Brand store error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while saving the brand. Please try again.']);
         }
-        
-        return redirect()->back()->with('success', 'Brand added successfully!');
     }
 
     private function addDefaultLaptopFeatures($brand)

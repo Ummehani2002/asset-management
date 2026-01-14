@@ -12,12 +12,24 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use App\Mail\AssetAssigned;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 class AssetTransactionController extends Controller
 {
     public function index(Request $request)
     {
-        $query = AssetTransaction::with(['asset.assetCategory', 'employee', 'location']);
+        try {
+            // Check if required tables exist
+            if (!Schema::hasTable('asset_transactions')) {
+                Log::warning('asset_transactions table does not exist');
+                $transactions = collect([]);
+                return view('asset_transactions.index', compact('transactions'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
+
+            $query = AssetTransaction::with(['asset.assetCategory', 'employee', 'location']);
 
         // Filter by asset status - show all transactions for assets with this status
         // Default to showing only assigned assets if no filter is explicitly set
@@ -171,6 +183,15 @@ class AssetTransactionController extends Controller
         $transactions = $query->orderByDesc('created_at')->paginate(25);
 
         return view('asset_transactions.index', compact('transactions'));
+        } catch (\Exception $e) {
+            Log::error('AssetTransaction index error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return empty list instead of crashing
+            $transactions = collect([]);
+            return view('asset_transactions.index', compact('transactions'))
+                ->with('warning', 'Unable to load transactions. Please ensure migrations are run: php artisan migrate --force');
+        }
     }
 
     public function view(Request $request)
@@ -417,13 +438,80 @@ class AssetTransactionController extends Controller
 
     public function create()
     {
-        $categories = \App\Models\AssetCategory::all();
-        $assets = Asset::with('assetCategory')->get();
-        $employees = Employee::all();
-        $locations = Location::all();
-        $projects = \App\Models\Project::all();
+        try {
+            // Check if required tables exist
+            $hasAssetCategories = Schema::hasTable('asset_categories');
+            $hasAssets = Schema::hasTable('assets');
+            $hasEmployees = Schema::hasTable('employees');
+            $hasLocations = Schema::hasTable('locations');
+            $hasProjects = Schema::hasTable('projects');
+            
+            // Get categories
+            $categories = collect([]);
+            if ($hasAssetCategories) {
+                try {
+                    $categories = \App\Models\AssetCategory::all();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading categories: ' . $e->getMessage());
+                }
+            }
+            
+            // Get assets
+            $assets = collect([]);
+            if ($hasAssets) {
+                try {
+                    $assets = Asset::with('assetCategory')->get();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading assets: ' . $e->getMessage());
+                }
+            }
+            
+            // Get employees
+            $employees = collect([]);
+            if ($hasEmployees) {
+                try {
+                    $employees = Employee::all();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading employees: ' . $e->getMessage());
+                }
+            }
+            
+            // Get locations
+            $locations = collect([]);
+            if ($hasLocations) {
+                try {
+                    $locations = Location::all();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading locations: ' . $e->getMessage());
+                }
+            }
+            
+            // Get projects
+            $projects = collect([]);
+            if ($hasProjects) {
+                try {
+                    $projects = \App\Models\Project::all();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading projects: ' . $e->getMessage());
+                }
+            }
 
-        return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'));
+            $hasAllTables = $hasAssetCategories && $hasAssets && $hasEmployees && $hasLocations && $hasProjects;
+            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
+                ->with('warning', $hasAllTables ? null : 'Some database tables not found. Please run migrations: php artisan migrate --force');
+        } catch (\Exception $e) {
+            Log::error('AssetTransaction create error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return with empty collections
+            $categories = collect([]);
+            $assets = collect([]);
+            $employees = collect([]);
+            $locations = collect([]);
+            $projects = collect([]);
+            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
+                ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
+        }
     }
 
     public function maintenance()

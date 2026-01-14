@@ -57,20 +57,47 @@ class EmployeeController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'employee_id'    => 'required|unique:employees,employee_id|max:20',
-            'name'           => 'nullable|string|max:100',
-            'email'          => 'nullable|email|max:100',
-            'phone'          => 'nullable|string|max:20',
-            'entity_name'    => 'required|string|max:100',
-            'department_name'=> 'required|string|max:100',
-        ]);
+        try {
+            // Check if employees table exists
+            if (!Schema::hasTable('employees')) {
+                Log::error('employees table does not exist');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+            }
 
-        Employee::create($data);
+            $data = $request->validate([
+                'employee_id'    => 'required|unique:employees,employee_id|max:20',
+                'name'           => 'nullable|string|max:100',
+                'email'          => 'nullable|email|max:100',
+                'phone'          => 'nullable|string|max:20',
+                'entity_name'    => 'required|string|max:100',
+                'department_name'=> 'required|string|max:100',
+            ]);
 
-        return redirect()
-            ->route('employees.index')
-            ->with('success', 'Employee added successfully.');
+            Employee::create($data);
+
+            return redirect()
+                ->route('employees.index')
+                ->with('success', 'Employee added successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Re-throw validation exceptions to show field-specific errors
+            throw $e;
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Employee store database error: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+        } catch (\Exception $e) {
+            Log::error('Employee store error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while saving the employee. Please try again.']);
+        }
     }
 public function edit($id)
 {

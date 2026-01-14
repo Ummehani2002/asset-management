@@ -6,21 +6,40 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\JobDelayAlertMail;
 use App\Mail\TaskAssignedMail;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 
 class TimeManagementController extends Controller
 {
     public function index()
     {
-        $inProgressTasks = TimeManagement::where('status', 'in_progress')
-            ->orderBy('id', 'desc')
-            ->get();
-        
-        $completedTasks = TimeManagement::where('status', 'completed')
-            ->orderBy('id', 'desc')
-            ->get();
-        
-        return view('time_management.index', compact('inProgressTasks', 'completedTasks'));
+        try {
+            if (!Schema::hasTable('time_managements')) {
+                Log::warning('time_managements table does not exist');
+                $inProgressTasks = collect([]);
+                $completedTasks = collect([]);
+                return view('time_management.index', compact('inProgressTasks', 'completedTasks'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
+
+            $inProgressTasks = TimeManagement::where('status', 'in_progress')
+                ->orderBy('id', 'desc')
+                ->get();
+            
+            $completedTasks = TimeManagement::where('status', 'completed')
+                ->orderBy('id', 'desc')
+                ->get();
+            
+            return view('time_management.index', compact('inProgressTasks', 'completedTasks'));
+        } catch (\Exception $e) {
+            Log::error('TimeManagement index error: ' . $e->getMessage());
+            $inProgressTasks = collect([]);
+            $completedTasks = collect([]);
+            return view('time_management.index', compact('inProgressTasks', 'completedTasks'))
+                ->with('warning', 'Unable to load tasks. Please ensure migrations are run: php artisan migrate --force');
+        }
     }
 
     public function export(Request $request)

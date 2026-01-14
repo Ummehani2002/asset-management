@@ -6,53 +6,99 @@ use App\Models\InternetService;
 use App\Models\Project;
 use App\Models\Employee;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 class InternetServiceController extends Controller
 {
     // Display all internet services with search/filter
     public function index(Request $request)
     {
-        $query = InternetService::with(['project', 'personInCharge', 'projectManager']);
+        try {
+            if (!Schema::hasTable('internet_services')) {
+                Log::warning('internet_services table does not exist');
+                $internetServices = collect([]);
+                return view('internet-services.index', compact('internetServices'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
 
-        // Search filter
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('project_name', 'like', "%{$search}%")
-                  ->orWhere('account_number', 'like', "%{$search}%")
-                  ->orWhere('entity', 'like', "%{$search}%")
-                  ->orWhere('person_in_charge', 'like', "%{$search}%");
-            });
+            $query = InternetService::with(['project', 'personInCharge', 'projectManager']);
+
+            // Search filter
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('project_name', 'like', "%{$search}%")
+                      ->orWhere('account_number', 'like', "%{$search}%")
+                      ->orWhere('entity', 'like', "%{$search}%")
+                      ->orWhere('person_in_charge', 'like', "%{$search}%");
+                });
+            }
+
+            // Service type filter
+            if ($request->filled('service_type')) {
+                $query->where('service_type', $request->service_type);
+            }
+
+            // Status filter
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Transaction type filter
+            if ($request->filled('transaction_type')) {
+                $query->where('transaction_type', $request->transaction_type);
+            }
+
+            $internetServices = $query->latest()->get();
+            
+            return view('internet-services.index', compact('internetServices'));
+        } catch (\Exception $e) {
+            Log::error('InternetService index error: ' . $e->getMessage());
+            $internetServices = collect([]);
+            return view('internet-services.index', compact('internetServices'))
+                ->with('warning', 'Unable to load internet services. Please ensure migrations are run: php artisan migrate --force');
         }
-
-        // Service type filter
-        if ($request->filled('service_type')) {
-            $query->where('service_type', $request->service_type);
-        }
-
-        // Status filter
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Transaction type filter
-        if ($request->filled('transaction_type')) {
-            $query->where('transaction_type', $request->transaction_type);
-        }
-
-        $internetServices = $query->latest()->get();
-        
-        return view('internet-services.index', compact('internetServices'));
     }
 
 
     // Show create form
     public function create()
     {
-        $projects = Project::select('id','project_id','project_name','entity')->orderBy('project_id')->get();
-        $employees = Employee::orderBy('name')->get();
-        
-        return view('internet-services.create', compact('projects', 'employees'));
+        try {
+            $hasProjects = Schema::hasTable('projects');
+            $hasEmployees = Schema::hasTable('employees');
+            
+            $projects = collect([]);
+            $employees = collect([]);
+            
+            if ($hasProjects) {
+                try {
+                    $projects = Project::select('id','project_id','project_name','entity')->orderBy('project_id')->get();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading projects for internet service create: ' . $e->getMessage());
+                }
+            }
+            
+            if ($hasEmployees) {
+                try {
+                    $employees = Employee::orderBy('name')->get();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading employees for internet service create: ' . $e->getMessage());
+                }
+            }
+            
+            $hasAllTables = $hasProjects && $hasEmployees;
+            return view('internet-services.create', compact('projects', 'employees'))
+                ->with('warning', $hasAllTables ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
+        } catch (\Exception $e) {
+            Log::error('InternetService create error: ' . $e->getMessage());
+            $projects = collect([]);
+            $employees = collect([]);
+            return view('internet-services.create', compact('projects', 'employees'))
+                ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
+        }
     }
 
 
