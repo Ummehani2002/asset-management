@@ -439,58 +439,100 @@ class AssetTransactionController extends Controller
     public function create()
     {
         try {
+            // Initialize collections first
+            $categories = collect([]);
+            $assets = collect([]);
+            $employees = collect([]);
+            $locations = collect([]);
+            $projects = collect([]);
+
+            // Test database connection first
+            try {
+                DB::connection()->getPdo();
+            } catch (\Exception $e) {
+                Log::error('AssetTransaction create: Database connection failed: ' . $e->getMessage());
+                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
+                    ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
+            }
+
             // Check if required tables exist
-            $hasAssetCategories = Schema::hasTable('asset_categories');
-            $hasAssets = Schema::hasTable('assets');
-            $hasEmployees = Schema::hasTable('employees');
-            $hasLocations = Schema::hasTable('locations');
-            $hasProjects = Schema::hasTable('projects');
+            try {
+                $hasAssetCategories = Schema::hasTable('asset_categories');
+                $hasAssets = Schema::hasTable('assets');
+                $hasEmployees = Schema::hasTable('employees');
+                $hasLocations = Schema::hasTable('locations');
+                $hasProjects = Schema::hasTable('projects');
+            } catch (\Exception $e) {
+                Log::error('AssetTransaction create: Schema check failed: ' . $e->getMessage());
+                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
+                    ->with('error', 'Unable to check database tables. Please verify database connection.');
+            }
             
             // Get categories
-            $categories = collect([]);
             if ($hasAssetCategories) {
                 try {
                     $categories = \App\Models\AssetCategory::all();
+                    if (!$categories instanceof \Illuminate\Support\Collection) {
+                        $categories = collect($categories);
+                    }
+                } catch (\Illuminate\Database\QueryException $e) {
+                    Log::error('AssetTransaction create: Categories query error: ' . $e->getMessage());
                 } catch (\Exception $e) {
                     Log::warning('Error loading categories: ' . $e->getMessage());
                 }
             }
             
             // Get assets
-            $assets = collect([]);
             if ($hasAssets) {
                 try {
                     $assets = Asset::with('assetCategory')->get();
+                    if (!$assets instanceof \Illuminate\Support\Collection) {
+                        $assets = collect($assets);
+                    }
+                } catch (\Illuminate\Database\QueryException $e) {
+                    Log::error('AssetTransaction create: Assets query error: ' . $e->getMessage());
                 } catch (\Exception $e) {
                     Log::warning('Error loading assets: ' . $e->getMessage());
                 }
             }
             
             // Get employees
-            $employees = collect([]);
             if ($hasEmployees) {
                 try {
                     $employees = Employee::all();
+                    if (!$employees instanceof \Illuminate\Support\Collection) {
+                        $employees = collect($employees);
+                    }
+                } catch (\Illuminate\Database\QueryException $e) {
+                    Log::error('AssetTransaction create: Employees query error: ' . $e->getMessage());
                 } catch (\Exception $e) {
                     Log::warning('Error loading employees: ' . $e->getMessage());
                 }
             }
             
             // Get locations
-            $locations = collect([]);
             if ($hasLocations) {
                 try {
                     $locations = Location::all();
+                    if (!$locations instanceof \Illuminate\Support\Collection) {
+                        $locations = collect($locations);
+                    }
+                } catch (\Illuminate\Database\QueryException $e) {
+                    Log::error('AssetTransaction create: Locations query error: ' . $e->getMessage());
                 } catch (\Exception $e) {
                     Log::warning('Error loading locations: ' . $e->getMessage());
                 }
             }
             
             // Get projects
-            $projects = collect([]);
             if ($hasProjects) {
                 try {
                     $projects = \App\Models\Project::all();
+                    if (!$projects instanceof \Illuminate\Support\Collection) {
+                        $projects = collect($projects);
+                    }
+                } catch (\Illuminate\Database\QueryException $e) {
+                    Log::error('AssetTransaction create: Projects query error: ' . $e->getMessage());
                 } catch (\Exception $e) {
                     Log::warning('Error loading projects: ' . $e->getMessage());
                 }
@@ -499,9 +541,11 @@ class AssetTransactionController extends Controller
             $hasAllTables = $hasAssetCategories && $hasAssets && $hasEmployees && $hasLocations && $hasProjects;
             return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
                 ->with('warning', $hasAllTables ? null : 'Some database tables not found. Please run migrations: php artisan migrate --force');
-        } catch (\Exception $e) {
-            Log::error('AssetTransaction create error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('AssetTransaction create fatal error: ' . $e->getMessage());
+            Log::error('Error class: ' . get_class($e));
             Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
             
             // Return with empty collections
             $categories = collect([]);
@@ -510,7 +554,7 @@ class AssetTransactionController extends Controller
             $locations = collect([]);
             $projects = collect([]);
             return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
-                ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
+                ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
 
