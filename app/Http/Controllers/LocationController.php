@@ -12,18 +12,35 @@ use Illuminate\Support\Collection;
 
 class LocationController extends Controller
 {
-        public function index()
+    public function index()
     {
         try {
+            // Initialize locations as empty collection first
+            $locations = collect([]);
+            
             // Check if locations table exists
             if (!Schema::hasTable('locations')) {
                 Log::warning('locations table does not exist');
-                $locations = collect([]);
                 return view('location.index', compact('locations'))
                     ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
 
-            $locations = Location::all();
+            try {
+                $locations = Location::all();
+                // Ensure it's always a collection
+                if (!$locations instanceof \Illuminate\Support\Collection) {
+                    $locations = collect($locations);
+                }
+            } catch (\Illuminate\Database\QueryException $e) {
+                Log::error('Location query error: ' . $e->getMessage());
+                $locations = collect([]);
+                return view('location.index', compact('locations'))
+                    ->with('warning', 'Database error occurred. Please ensure migrations are run: php artisan migrate --force');
+            } catch (\Exception $e) {
+                Log::error('Location fetch error: ' . $e->getMessage());
+                $locations = collect([]);
+            }
+            
             return view('location.index', compact('locations'));
         } catch (\Exception $e) {
             Log::error('Location index error: ' . $e->getMessage());

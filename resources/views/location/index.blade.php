@@ -1,6 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    // Ensure $locations is always defined and is a collection
+    $locations = $locations ?? collect([]);
+    if (!$locations instanceof \Illuminate\Support\Collection) {
+        $locations = collect($locations ?? []);
+    }
+@endphp
 <div class="container-fluid master-page">
     <!-- Page Header -->
     <div class="page-header">
@@ -94,31 +101,35 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($locations as $loc)
-                            <tr>
-                                <td>{{ $loop->iteration }}</td>
-                                <td>{{ $loc->location_id }}</td>
-                                <td>{{ $loc->location_category ?? 'N/A' }}</td>
-                                <td>{{ $loc->location_name ?? 'N/A' }}</td>
-                                <td>{{ $loc->location_entity ?? 'N/A' }}</td>
-                                <td>
-                                    <a href="{{ route('location.edit', $loc->id) }}" class="btn btn-sm btn-warning">
-                                        <i class="bi bi-pencil"></i> Edit
-                                    </a>
-                                    <form action="{{ route('location.destroy', $loc->id) }}" method="POST" style="display:inline-block;">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button onclick="return confirm('Are you sure you want to delete this location?')" class="btn btn-sm btn-danger">
-                                            <i class="bi bi-trash"></i> Delete
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @empty
+                        @if(isset($locations) && $locations->count() > 0)
+                            @foreach($locations as $loc)
+                                <tr>
+                                    <td>{{ $loop->iteration }}</td>
+                                    <td>{{ $loc->location_id ?? 'N/A' }}</td>
+                                    <td>{{ $loc->location_category ?? 'N/A' }}</td>
+                                    <td>{{ $loc->location_name ?? 'N/A' }}</td>
+                                    <td>{{ $loc->location_entity ?? 'N/A' }}</td>
+                                    <td>
+                                        @if(isset($loc->id))
+                                            <a href="{{ route('location.edit', $loc->id) }}" class="btn btn-sm btn-warning">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </a>
+                                            <form action="{{ route('location.destroy', $loc->id) }}" method="POST" style="display:inline-block;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button onclick="return confirm('Are you sure you want to delete this location?')" class="btn btn-sm btn-danger">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @else
                             <tr>
                                 <td colspan="6" class="text-center text-muted py-4">No locations found.</td>
                             </tr>
-                        @endforelse
+                        @endif
                     </tbody>
                 </table>
             </div>
