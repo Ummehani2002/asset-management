@@ -18,11 +18,27 @@ class LocationController extends Controller
             // Initialize locations as empty collection first
             $locations = collect([]);
             
-            // Check if locations table exists
-            if (!Schema::hasTable('locations')) {
-                Log::warning('locations table does not exist');
+            // Test database connection first
+            try {
+                DB::connection()->getPdo();
+            } catch (\Exception $e) {
+                Log::error('Database connection failed: ' . $e->getMessage());
+                Log::error('Connection error details: ' . $e->getFile() . ':' . $e->getLine());
                 return view('location.index', compact('locations'))
-                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+                    ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
+            }
+            
+            // Check if locations table exists
+            try {
+                if (!Schema::hasTable('locations')) {
+                    Log::warning('locations table does not exist');
+                    return view('location.index', compact('locations'))
+                        ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+                }
+            } catch (\Exception $e) {
+                Log::error('Schema check failed: ' . $e->getMessage());
+                return view('location.index', compact('locations'))
+                    ->with('error', 'Unable to check database tables. Please verify database connection.');
             }
 
             try {
@@ -33,23 +49,28 @@ class LocationController extends Controller
                 }
             } catch (\Illuminate\Database\QueryException $e) {
                 Log::error('Location query error: ' . $e->getMessage());
+                Log::error('Query error code: ' . $e->getCode());
+                Log::error('Query error SQL: ' . ($e->getSql() ?? 'N/A'));
                 $locations = collect([]);
                 return view('location.index', compact('locations'))
-                    ->with('warning', 'Database error occurred. Please ensure migrations are run: php artisan migrate --force');
+                    ->with('warning', 'Database query error occurred. Please ensure migrations are run: php artisan migrate --force');
             } catch (\Exception $e) {
                 Log::error('Location fetch error: ' . $e->getMessage());
+                Log::error('Fetch error file: ' . $e->getFile() . ':' . $e->getLine());
                 $locations = collect([]);
             }
             
             return view('location.index', compact('locations'));
-        } catch (\Exception $e) {
-            Log::error('Location index error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Location index fatal error: ' . $e->getMessage());
+            Log::error('Error class: ' . get_class($e));
             Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
             
             // Return empty list instead of crashing
             $locations = collect([]);
             return view('location.index', compact('locations'))
-                ->with('warning', 'Unable to load locations. Please ensure migrations are run: php artisan migrate --force');
+                ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
   public function store(Request $request)
