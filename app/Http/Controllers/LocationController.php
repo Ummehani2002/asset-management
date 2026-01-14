@@ -52,12 +52,28 @@ class LocationController extends Controller
             'location_entity' => 'required|string',
         ]);
 
-        Location::create([
+        $locationData = [
             'location_id' => $request->location_id,
             'location_name' => $request->location_name,
             'location_category' => $request->location_category,
             'location_entity' => $request->location_entity,
-        ]);
+        ];
+        
+        Log::info('Creating location with data:', $locationData);
+        
+        $location = Location::create($locationData);
+        
+        Log::info('Location created successfully. ID: ' . $location->id);
+        
+        // Verify the location was actually saved
+        $savedLocation = Location::find($location->id);
+        if (!$savedLocation) {
+            Log::error('Location was not saved to database!');
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to save location. Please try again.']);
+        }
 
         return redirect()->route('location-master.index')->with('success', 'Location added successfully.');
     } catch (\Illuminate\Validation\ValidationException $e) {

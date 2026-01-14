@@ -66,6 +66,11 @@ class EmployeeController extends Controller
                     ->withInput()
                     ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
             }
+            
+            // Check if sessions table exists (for success messages)
+            if (!Schema::hasTable('sessions')) {
+                Log::warning('sessions table does not exist - success messages may not work');
+            }
 
             $data = $request->validate([
                 'employee_id'    => 'required|unique:employees,employee_id|max:20',
@@ -76,7 +81,21 @@ class EmployeeController extends Controller
                 'department_name'=> 'required|string|max:100',
             ]);
 
-            Employee::create($data);
+            Log::info('Creating employee with data:', $data);
+            
+            $employee = Employee::create($data);
+            
+            Log::info('Employee created successfully. ID: ' . $employee->id);
+            
+            // Verify the employee was actually saved
+            $savedEmployee = Employee::find($employee->id);
+            if (!$savedEmployee) {
+                Log::error('Employee was not saved to database!');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Failed to save employee. Please try again.']);
+            }
 
             return redirect()
                 ->route('employees.index')

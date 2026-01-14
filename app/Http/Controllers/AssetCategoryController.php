@@ -70,7 +70,24 @@ class AssetCategoryController extends Controller
             }
 
             $request->validate(['category_name' => 'required|string|unique:asset_categories,category_name']);
-            AssetCategory::create($request->only('category_name'));
+            
+            $categoryData = $request->only('category_name');
+            Log::info('Creating category with data:', $categoryData);
+            
+            $category = AssetCategory::create($categoryData);
+            
+            Log::info('Category created successfully. ID: ' . $category->id);
+            
+            // Verify the category was actually saved
+            $savedCategory = AssetCategory::find($category->id);
+            if (!$savedCategory) {
+                Log::error('Category was not saved to database!');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Failed to save category. Please try again.']);
+            }
+            
             return redirect()->back()->with('success', 'Category added successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
