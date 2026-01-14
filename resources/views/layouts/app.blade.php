@@ -822,7 +822,7 @@
             </div>
         @endif
 
-        @if($errors->any())
+        @if(isset($errors) && $errors->any())
             <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                 <strong>Please fix the following errors:</strong>

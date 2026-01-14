@@ -7,6 +7,7 @@ use App\Models\Asset;
 use App\Models\AssetTransaction;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
 class LocationController extends Controller
@@ -113,7 +114,7 @@ public function update(Request $request, $id)
 public function destroy($id)
 {
    
-    \DB::table('asset_transactions')->where('location_id', $id)->delete();
+    DB::table('asset_transactions')->where('location_id', $id)->delete();
 
     Location::destroy($id);
     return redirect()->route('location-master.index')->with('success', 'Location and related asset transactions deleted successfully.');
