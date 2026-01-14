@@ -7,15 +7,56 @@ use App\Models\AssetCategory;
 use App\Models\CategoryFeature; // for features
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Collection;
+
 class AssetController extends Controller
 {
     public function index()
-{
-        $categories = AssetCategory::all();
-  $assets = Asset::with(['category', 'brand', 'featureValues.feature'])->get();
-return view('assets.index', compact('assets'));
+    {
+        try {
+            // Check if required tables exist
+            $hasAssetCategories = Schema::hasTable('asset_categories');
+            $hasAssets = Schema::hasTable('assets');
+            
+            if (!$hasAssetCategories && !$hasAssets) {
+                Log::warning('asset_categories and assets tables do not exist');
+                $categories = collect([]);
+                $assets = collect([]);
+                return view('assets.index', compact('assets', 'categories'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
 
-}
+            // Try to get categories, fallback to empty collection if table doesn't exist
+            try {
+                $categories = $hasAssetCategories ? AssetCategory::all() : collect([]);
+            } catch (\Exception $e) {
+                Log::warning('Error loading categories: ' . $e->getMessage());
+                $categories = collect([]);
+            }
+
+            // Try to get assets, fallback to empty collection if table doesn't exist
+            try {
+                $assets = $hasAssets 
+                    ? Asset::with(['category', 'brand', 'featureValues.feature'])->get() 
+                    : collect([]);
+            } catch (\Exception $e) {
+                Log::warning('Error loading assets: ' . $e->getMessage());
+                $assets = collect([]);
+            }
+
+            return view('assets.index', compact('assets', 'categories'));
+        } catch (\Exception $e) {
+            Log::error('Asset index error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return empty collections instead of crashing
+            $categories = collect([]);
+            $assets = collect([]);
+            return view('assets.index', compact('assets', 'categories'))
+                ->with('warning', 'Unable to load assets. Please ensure migrations are run: php artisan migrate --force');
+        }
+    }
 public function create()
 {
     $lastAsset = \App\Models\Asset::orderBy('id', 'desc')->first();

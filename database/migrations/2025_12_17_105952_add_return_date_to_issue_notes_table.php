@@ -46,7 +46,7 @@ return new class extends Migration
         Schema::table('issue_notes', function (Blueprint $table) {
             // Try to drop foreign key if it exists
             try {
-                $table->dropForeign(['issue_note_id']);
+            $table->dropForeign(['issue_note_id']);
             } catch (\Exception $e) {
                 // Foreign key might not exist, continue
             }

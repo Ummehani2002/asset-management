@@ -15,7 +15,7 @@ return new class extends Migration
             if (!Schema::hasColumn('internet_services', 'pr_number')) {
                 // Only use 'after' if the column exists, otherwise add at the end
                 if (Schema::hasColumn('internet_services', 'cost')) {
-                    $table->string('pr_number')->nullable()->after('cost');
+            $table->string('pr_number')->nullable()->after('cost');
                 } else {
                     $table->string('pr_number')->nullable();
                 }
@@ -23,7 +23,7 @@ return new class extends Migration
             if (!Schema::hasColumn('internet_services', 'po_number')) {
                 // Only use 'after' if pr_number exists, otherwise add at the end
                 if (Schema::hasColumn('internet_services', 'pr_number')) {
-                    $table->string('po_number')->nullable()->after('pr_number');
+            $table->string('po_number')->nullable()->after('pr_number');
                 } else {
                     $table->string('po_number')->nullable();
                 }

@@ -17,7 +17,7 @@ class DashboardController extends Controller
             } else {
                 // Try to get category counts, but handle if assets table doesn't exist
                 try {
-                    $categoryCounts = AssetCategory::withCount('assets')->get();
+        $categoryCounts = AssetCategory::withCount('assets')->get();
                 } catch (\Exception $e) {
                     Log::warning('Error loading asset categories: ' . $e->getMessage());
                     // Fallback: get categories without count
@@ -28,7 +28,7 @@ class DashboardController extends Controller
                 }
             }
 
-            return view('dashboard', compact('categoryCounts'));
+        return view('dashboard', compact('categoryCounts'));
         } catch (\Exception $e) {
             Log::error('Dashboard error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());

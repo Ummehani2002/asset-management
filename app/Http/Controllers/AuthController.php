@@ -36,7 +36,7 @@ class AuthController extends Controller
     public function showRegisterForm()
     {
         try {
-            return view('auth.register');
+        return view('auth.register');
         } catch (\Exception $e) {
             Log::error('Error showing register form: ' . $e->getMessage());
             return redirect()->route('login')->withErrors(['error' => 'Unable to load registration form. Please try again later.']);
@@ -56,11 +56,11 @@ class AuthController extends Controller
             }
             
             $validationRules = [
-                'name' => 'required',
-                'email' => 'required|email|unique:users',
-                'password' => 'required|min:6|confirmed'
+            'name' => 'required',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|min:6|confirmed'
             ];
-            
+
             // Only validate username if the column exists
             if ($hasUsernameColumn) {
                 $validationRules['username'] = 'required|unique:users';
@@ -69,9 +69,9 @@ class AuthController extends Controller
             $request->validate($validationRules);
 
             $userData = [
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password)
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password)
             ];
             
             // Only add username if the column exists
@@ -81,7 +81,7 @@ class AuthController extends Controller
 
             User::create($userData);
 
-            return redirect()->route('login')->with('success', 'User registered successfully. Please login.');
+        return redirect()->route('login')->with('success', 'User registered successfully. Please login.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Re-throw validation exceptions to show field-specific errors
             throw $e;

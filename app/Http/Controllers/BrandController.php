@@ -4,13 +4,35 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
+
 class BrandController extends Controller
 {
     
 public function index()
     {
-        $brands = Brand::all(); // get all brands
-        return view('brands.index', compact('brands')); // show brands in a view
+        try {
+            // Check if brands table exists
+            if (!Schema::hasTable('brands')) {
+                Log::warning('brands table does not exist');
+                $brands = collect([]);
+                return view('brands.index', compact('brands'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
+
+            $brands = Brand::all(); // get all brands
+            return view('brands.index', compact('brands')); // show brands in a view
+        } catch (\Exception $e) {
+            Log::error('Brand index error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return empty list instead of crashing
+            $brands = collect([]);
+            return view('brands.index', compact('brands'))
+                ->with('warning', 'Unable to load brands. Please ensure migrations are run: php artisan migrate --force');
+        }
     }
        public function getByCategory($categoryId)
     {

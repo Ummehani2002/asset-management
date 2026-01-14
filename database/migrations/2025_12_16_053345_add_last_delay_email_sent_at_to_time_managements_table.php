@@ -29,7 +29,7 @@ return new class extends Migration
         Schema::table('time_managements', function (Blueprint $table) {
             // Only drop column if it exists
             if (Schema::hasColumn('time_managements', 'last_delay_email_sent_at')) {
-                $table->dropColumn('last_delay_email_sent_at');
+            $table->dropColumn('last_delay_email_sent_at');
             }
         });
     }

@@ -5,13 +5,34 @@ use App\Models\Location;
 use App\Imports\LocationsImport;
 use App\Models\Asset;
 use App\Models\AssetTransaction;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 class LocationController extends Controller
 {
         public function index()
     {
-        $locations = Location::all();
-        return view('location.index', compact('locations'));
+        try {
+            // Check if locations table exists
+            if (!Schema::hasTable('locations')) {
+                Log::warning('locations table does not exist');
+                $locations = collect([]);
+                return view('location.index', compact('locations'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
+
+            $locations = Location::all();
+            return view('location.index', compact('locations'));
+        } catch (\Exception $e) {
+            Log::error('Location index error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return empty list instead of crashing
+            $locations = collect([]);
+            return view('location.index', compact('locations'))
+                ->with('warning', 'Unable to load locations. Please ensure migrations are run: php artisan migrate --force');
+        }
     }
   public function store(Request $request)
 {

@@ -30,7 +30,7 @@ return new class extends Migration
                 if ($useInteger) {
                     $table->unsignedInteger('employee_id')->nullable()->after('id');
                 } else {
-                    $table->unsignedBigInteger('employee_id')->nullable()->after('id');
+                $table->unsignedBigInteger('employee_id')->nullable()->after('id');
                 }
                 $employeeIdAdded = true;
             }

@@ -25,21 +25,21 @@ class EmployeeController extends Controller
                     ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
 
-            $query = Employee::query();
+        $query = Employee::query();
 
-            // Search filter
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('employee_id', 'LIKE', "%{$search}%")
-                      ->orWhere('entity_name', 'LIKE', "%{$search}%")
-                      ->orWhere('email', 'LIKE', "%{$search}%");
-                });
-            }
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('employee_id', 'LIKE', "%{$search}%")
+                  ->orWhere('entity_name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%");
+            });
+        }
 
-            $employees = $query->orderBy('id', 'desc')->get();
-            return view('employees.index', compact('employees'));
+        $employees = $query->orderBy('id', 'desc')->get();
+        return view('employees.index', compact('employees'));
         } catch (\Exception $e) {
             Log::error('Employee index error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());

@@ -29,7 +29,7 @@ return new class extends Migration
         Schema::table('category_features', function (Blueprint $table) {
             // Only drop column if it exists
             if (Schema::hasColumn('category_features', 'sub_fields')) {
-                $table->dropColumn('sub_fields');
+            $table->dropColumn('sub_fields');
             }
         });
     }
