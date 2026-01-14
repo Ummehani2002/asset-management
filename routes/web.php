@@ -44,6 +44,10 @@ use App\Http\Controllers\DashboardController;
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
 Route::get('/dashboard/export', [DashboardController::class, 'export'])->middleware('auth')->name('dashboard.export');
 
+// Database diagnostic route (remove after debugging)
+use App\Http\Controllers\DatabaseCheckController;
+Route::get('/db-check', [DatabaseCheckController::class, 'check'])->name('db.check');
+
 use App\Http\Controllers\AssetCategoryController;
 Route::get('/manage-categories', [AssetCategoryController::class, 'index'])->name('categories.manage');
 Route::post('/categories', [AssetCategoryController::class, 'storeCategory'])->name('categories.store');

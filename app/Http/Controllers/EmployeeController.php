@@ -58,13 +58,39 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         try {
-            // Check if employees table exists
-            if (!Schema::hasTable('employees')) {
-                Log::error('employees table does not exist');
+            // Check database connection first
+            try {
+                $dbName = DB::connection()->getDatabaseName();
+                Log::info('Connected to database: ' . $dbName);
+            } catch (\Exception $e) {
+                Log::error('Database connection error: ' . $e->getMessage());
                 return redirect()
                     ->back()
                     ->withInput()
-                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+                    ->withErrors(['error' => 'Database connection failed. Please check your database configuration.']);
+            }
+
+            // Check if employees table exists
+            $tableExists = Schema::hasTable('employees');
+            Log::info('Employees table exists check: ' . ($tableExists ? 'YES' : 'NO'));
+            
+            if (!$tableExists) {
+                // Try to list all tables for debugging
+                try {
+                    $tables = DB::select('SHOW TABLES');
+                    $tableList = array_map(function($table) {
+                        return array_values((array)$table)[0];
+                    }, $tables);
+                    Log::warning('Available tables: ' . implode(', ', $tableList));
+                } catch (\Exception $e) {
+                    Log::warning('Could not list tables: ' . $e->getMessage());
+                }
+                
+                Log::error('employees table does not exist in database: ' . DB::connection()->getDatabaseName());
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force. Connected to database: ' . DB::connection()->getDatabaseName()]);
             }
             
             // Check if sessions table exists (for success messages)
