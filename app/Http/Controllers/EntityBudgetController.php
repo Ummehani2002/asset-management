@@ -8,6 +8,7 @@ use App\Models\EntityBudget;
 use App\Models\Employee;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
 class EntityBudgetController extends Controller
@@ -15,12 +16,32 @@ class EntityBudgetController extends Controller
     public function create(Request $request)
     {
         try {
+            // Initialize default values
+            $entities = collect([]);
+            $costHeads = ['Overhead', 'AMC', 'Software'];
+            $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
+            $budgets = collect([]);
+
+            // Test database connection first
+            try {
+                DB::connection()->getPdo();
+            } catch (\Exception $e) {
+                Log::error('EntityBudget create: Database connection failed: ' . $e->getMessage());
+                return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
+                    ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
+            }
+
             // Check if required tables exist
-            $hasEmployees = Schema::hasTable('employees');
-            $hasEntityBudgets = Schema::hasTable('entity_budgets');
+            try {
+                $hasEmployees = Schema::hasTable('employees');
+                $hasEntityBudgets = Schema::hasTable('entity_budgets');
+            } catch (\Exception $e) {
+                Log::error('EntityBudget create: Schema check failed: ' . $e->getMessage());
+                return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
+                    ->with('error', 'Unable to check database tables. Please verify database connection.');
+            }
             
             // Get unique entities - one employee per unique entity_name
-            $entities = collect([]);
             if ($hasEmployees) {
                 try {
                     // First get all distinct entity names
@@ -34,16 +55,19 @@ class EntityBudgetController extends Controller
                     $entities = collect($uniqueEntityNames)->map(function($entityName) {
                         return Employee::where('entity_name', $entityName)->first();
                     })->filter()->values();
+                    
+                    // Ensure it's a collection
+                    if (!$entities instanceof \Illuminate\Support\Collection) {
+                        $entities = collect($entities);
+                    }
+                } catch (\Illuminate\Database\QueryException $e) {
+                    Log::error('EntityBudget create: Entities query error: ' . $e->getMessage());
                 } catch (\Exception $e) {
                     Log::warning('Error loading entities: ' . $e->getMessage());
                 }
             }
             
-            $costHeads = ['Overhead', 'AMC', 'Software'];
-            $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
-            
             // Filter budgets by entity if selected
-            $budgets = collect([]);
             if ($hasEntityBudgets) {
                 try {
                     $query = EntityBudget::with(['employee', 'expenses']);
@@ -61,6 +85,13 @@ class EntityBudgetController extends Controller
                         }
                     }
                     $budgets = $query->get();
+                    
+                    // Ensure it's a collection
+                    if (!$budgets instanceof \Illuminate\Support\Collection) {
+                        $budgets = collect($budgets);
+                    }
+                } catch (\Illuminate\Database\QueryException $e) {
+                    Log::error('EntityBudget create: Budgets query error: ' . $e->getMessage());
                 } catch (\Exception $e) {
                     Log::warning('Error loading budgets: ' . $e->getMessage());
                 }
@@ -69,9 +100,11 @@ class EntityBudgetController extends Controller
             $hasAllTables = $hasEmployees && $hasEntityBudgets;
             return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
                 ->with('warning', $hasAllTables ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
-        } catch (\Exception $e) {
-            Log::error('EntityBudget create error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('EntityBudget create fatal error: ' . $e->getMessage());
+            Log::error('Error class: ' . get_class($e));
             Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
             
             // Return with default values
             $entities = collect([]);
@@ -79,7 +112,7 @@ class EntityBudgetController extends Controller
             $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
             $budgets = collect([]);
             return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
-                ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
+                ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
 
