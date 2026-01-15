@@ -71,20 +71,51 @@ class EntityBudgetController extends Controller
             if ($hasEntityBudgets) {
                 try {
                     $query = EntityBudget::with(['employee', 'expenses']);
+                    
                     if ($request->filled('entity_id') && $hasEmployees) {
                         // If filtering by entity, get all budgets for employees with that entity_name
                         try {
                             $selectedEntity = Employee::find($request->entity_id);
+                            Log::info('EntityBudget create: Filtering by entity', [
+                                'entity_id' => $request->entity_id,
+                                'entity_name' => $selectedEntity ? $selectedEntity->entity_name : 'NOT FOUND'
+                            ]);
+                            
                             if ($selectedEntity) {
-                                $query->whereHas('employee', function($q) use ($selectedEntity) {
-                                    $q->where('entity_name', $selectedEntity->entity_name);
-                                });
+                                // Get all employee IDs with this entity_name for direct query
+                                $employeeIds = Employee::where('entity_name', $selectedEntity->entity_name)
+                                    ->pluck('id')
+                                    ->toArray();
+                                
+                                Log::info('EntityBudget create: Employee IDs for entity', [
+                                    'entity_name' => $selectedEntity->entity_name,
+                                    'employee_ids' => $employeeIds
+                                ]);
+                                
+                                if (!empty($employeeIds)) {
+                                    // Use direct employee_id filter (more reliable than whereHas)
+                                    $query->whereIn('employee_id', $employeeIds);
+                                } else {
+                                    Log::warning('EntityBudget create: No employees found for entity_name: ' . $selectedEntity->entity_name);
+                                }
+                            } else {
+                                Log::warning('EntityBudget create: Selected entity not found for ID: ' . $request->entity_id);
                             }
                         } catch (\Exception $e) {
                             Log::warning('Error filtering budgets by entity: ' . $e->getMessage());
+                            Log::warning('Stack trace: ' . $e->getTraceAsString());
                         }
+                    } else {
+                        // No filter - get all budgets
+                        Log::info('EntityBudget create: Loading all budgets (no filter)');
                     }
+                    
                     $budgets = $query->get();
+                    
+                    Log::info('EntityBudget create: Budgets loaded', [
+                        'count' => $budgets->count(),
+                        'entity_id_filter' => $request->entity_id ?? 'none'
+                    ]);
                     
                     // Ensure it's a collection
                     if (!$budgets instanceof \Illuminate\Support\Collection) {
@@ -92,8 +123,11 @@ class EntityBudgetController extends Controller
                     }
                 } catch (\Illuminate\Database\QueryException $e) {
                     Log::error('EntityBudget create: Budgets query error: ' . $e->getMessage());
+                    Log::error('SQL: ' . ($e->getSql() ?? 'N/A'));
+                    Log::error('Bindings: ' . json_encode($e->getBindings() ?? []));
                 } catch (\Exception $e) {
                     Log::warning('Error loading budgets: ' . $e->getMessage());
+                    Log::warning('Stack trace: ' . $e->getTraceAsString());
                 }
             }
             

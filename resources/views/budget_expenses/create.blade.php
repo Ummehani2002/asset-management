@@ -146,17 +146,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const url = `${detailsUrl}?entity_id=${encodeURIComponent(entity_id)}&cost_head=${encodeURIComponent(cost_head)}&expense_type=${encodeURIComponent(expense_type)}`;
-        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-        const data = await res.json();
-        if (!data) return null;
+        
+        try {
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            
+            if (!data || !data.success) {
+                // No budget found or error
+                entityBudgetId.value = '';
+                budgetAmountEl.textContent = '0';
+                totalExpensesEl.textContent = '0';
+                availableBalanceEl.textContent = '0';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">' + (data.message || 'No budget found') + '</td></tr>';
+                updateBalance();
+                console.log('Budget not found:', data.message || 'Unknown error');
+                return null;
+            }
 
-        entityBudgetId.value = data.entity_budget_id || '';
-        budgetAmountEl.textContent = data.budget_amount ?? '0';
-        totalExpensesEl.textContent = data.total_expenses ?? '0';
-        availableBalanceEl.textContent = data.available_balance ?? '0';
-        renderExpenses(data.expenses || [], data);
-        updateBalance();
-        return data;
+            entityBudgetId.value = data.entity_budget_id || '';
+            budgetAmountEl.textContent = data.budget_amount ?? '0';
+            totalExpensesEl.textContent = data.total_expenses ?? '0';
+            availableBalanceEl.textContent = data.available_balance ?? '0';
+            renderExpenses(data.expenses || [], data);
+            updateBalance();
+            return data;
+        } catch (error) {
+            console.error('Error fetching budget details:', error);
+            entityBudgetId.value = '';
+            budgetAmountEl.textContent = '0';
+            totalExpensesEl.textContent = '0';
+            availableBalanceEl.textContent = '0';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading budget details</td></tr>';
+            updateBalance();
+            return null;
+        }
     }
 
     function renderExpenses(expenses, meta = {}) {

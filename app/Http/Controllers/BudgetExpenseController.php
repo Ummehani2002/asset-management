@@ -134,13 +134,29 @@ class BudgetExpenseController extends Controller
             ]);
             
             // Find budget by entity_name (to include all employees with same entity)
-            // But since budgets are tied to specific employees, we'll find the first budget
-            // for any employee with this entity_name matching the cost_head and expense_type
-            // Use case-insensitive comparison for cost_head
+            // Get all employee IDs with this entity_name for direct query
+            $employeeIds = Employee::where('entity_name', $selectedEmployee->entity_name)
+                ->pluck('id')
+                ->toArray();
+            
+            Log::info('BudgetExpense getBudgetDetails: Employee IDs for entity', [
+                'entity_name' => $selectedEmployee->entity_name,
+                'employee_ids' => $employeeIds,
+                'cost_head' => $request->cost_head,
+                'expense_type' => $request->expense_type
+            ]);
+            
+            if (empty($employeeIds)) {
+                Log::warning('BudgetExpense getBudgetDetails: No employees found for entity_name: ' . $selectedEmployee->entity_name);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No employees found for selected entity'
+                ]);
+            }
+            
+            // Use direct employee_id filter with case-insensitive cost_head matching
             $budget = EntityBudget::with('employee')
-                ->whereHas('employee', function($q) use ($selectedEmployee) {
-                    $q->where('entity_name', $selectedEmployee->entity_name);
-                })
+                ->whereIn('employee_id', $employeeIds)
                 ->whereRaw('LOWER(cost_head) = LOWER(?)', [$request->cost_head])
                 ->where('expense_type', $request->expense_type)
                 ->first();
