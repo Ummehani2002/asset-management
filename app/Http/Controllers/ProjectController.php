@@ -160,24 +160,50 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         try {
-            if (!Schema::hasTable('projects')) {
-                Log::error('projects table does not exist');
+            // Test database connection first
+            try {
+                DB::connection()->getPdo();
+            } catch (\Exception $e) {
+                Log::error('Project store: Database connection failed: ' . $e->getMessage());
                 return redirect()
                     ->back()
                     ->withInput()
-                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+                    ->withErrors(['error' => 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.']);
             }
 
-            $v = $request->validate([
+            // Check if required tables exist
+            try {
+                if (!Schema::hasTable('projects')) {
+                    Log::error('projects table does not exist');
+                    return redirect()
+                        ->back()
+                        ->withInput()
+                        ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+                }
+            } catch (\Exception $e) {
+                Log::error('Project store: Schema check failed: ' . $e->getMessage());
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Unable to check database tables. Please verify database connection.']);
+            }
+
+            // Build validation rules - make exists rules conditional
+            $rules = [
                 'project_id'      => 'required|string|max:100|unique:projects,project_id',
                 'project_name'    => 'required|string|max:255',
                 'entity'          => 'nullable|string|max:255',
                 'project_manager' => 'nullable|string|max:255',
                 'pc_secretary'    => 'nullable|string|max:255',
-                // optional: accept manager_id/pc_secretary_id but store names
-                'project_manager_id' => 'nullable|exists:employees,id',
-                'pc_secretary_id'    => 'nullable|exists:employees,id',
-            ]);
+            ];
+
+            // Only add exists rules if employees table exists
+            if (Schema::hasTable('employees')) {
+                $rules['project_manager_id'] = 'nullable|exists:employees,id';
+                $rules['pc_secretary_id'] = 'nullable|exists:employees,id';
+            }
+
+            $v = $request->validate($rules);
 
             // if ids provided, convert to names
             if ($request->filled('project_manager_id')) {
