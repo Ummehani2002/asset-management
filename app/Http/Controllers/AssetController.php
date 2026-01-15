@@ -315,42 +315,52 @@ public function store(Request $request)
                 ->withErrors(['error' => 'Failed to save asset. Please try again.']);
         }
 
-        // Save features if provided
+        // Save features if provided and table exists
         if ($request->has('features') && is_array($request->features)) {
-            foreach ($request->features as $featureId => $value) {
-                if (!empty($featureId)) {
-                    // Check if value is an array (sub-fields like Storage)
-                    if (is_array($value)) {
-                        // For sub-fields, combine them into a single value string
-                        $subFieldValues = [];
-                        foreach ($value as $subField => $subValue) {
-                            if (!empty($subValue)) {
-                                $subFieldValues[] = $subField . ': ' . $subValue;
+            // Check if category_feature_values table exists
+            if (Schema::hasTable('category_feature_values')) {
+                try {
+                    foreach ($request->features as $featureId => $value) {
+                        if (!empty($featureId)) {
+                            // Check if value is an array (sub-fields like Storage)
+                            if (is_array($value)) {
+                                // For sub-fields, combine them into a single value string
+                                $subFieldValues = [];
+                                foreach ($value as $subField => $subValue) {
+                                    if (!empty($subValue)) {
+                                        $subFieldValues[] = $subField . ': ' . $subValue;
+                                    }
+                                }
+                                if (!empty($subFieldValues)) {
+                                    $combinedValue = implode(', ', $subFieldValues);
+                                    \DB::table('category_feature_values')->insert([
+                                        'asset_id' => $asset->id,
+                                        'category_feature_id' => $featureId,
+                                        'feature_value' => $combinedValue,
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ]);
+                                }
+                            } else {
+                                // Regular single value
+                                if (!empty($value)) {
+                                    \DB::table('category_feature_values')->insert([
+                                        'asset_id' => $asset->id,
+                                        'category_feature_id' => $featureId,
+                                        'feature_value' => $value,
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ]);
+                                }
                             }
                         }
-                        if (!empty($subFieldValues)) {
-                            $combinedValue = implode(', ', $subFieldValues);
-                            \DB::table('category_feature_values')->insert([
-                                'asset_id' => $asset->id,
-                                'category_feature_id' => $featureId,
-                                'feature_value' => $combinedValue,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
-                        }
-                    } else {
-                        // Regular single value
-                        if (!empty($value)) {
-                            \DB::table('category_feature_values')->insert([
-                                'asset_id' => $asset->id,
-                                'category_feature_id' => $featureId,
-                                'feature_value' => $value,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
-                        }
                     }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to save feature values: ' . $e->getMessage());
+                    // Continue - asset is saved, features are optional
                 }
+            } else {
+                Log::warning('category_feature_values table does not exist. Feature values not saved. Run migrations: php artisan migrate --force');
             }
         }
 
