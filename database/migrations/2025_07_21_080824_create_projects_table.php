@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('projects', function (Blueprint $table) {
             $table->id();
+            $table->string('project_id')->unique();
+            $table->string('project_name');
+            $table->string('entity')->nullable();
+            $table->string('project_manager')->nullable();
+            $table->string('pc_secretary')->nullable();
             $table->timestamps();
         });
     }
