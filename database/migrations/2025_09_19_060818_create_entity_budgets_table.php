@@ -17,7 +17,7 @@ public function up()
         $table->unsignedBigInteger('employee_id'); // Entity
         $table->string('cost_head');
         $table->string('expense_type');
-        $table->string('category');
+        $table->string('category')->nullable(); // Made nullable since form doesn't include it
         $table->decimal('budget_2024', 15, 2)->nullable();
         $table->decimal('actual_2024', 15, 2)->nullable();
         $table->decimal('budget_2025', 15, 2)->nullable();
