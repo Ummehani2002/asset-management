@@ -13,7 +13,7 @@ class ClearAllData extends Command
      *
      * @var string
      */
-    protected $signature = 'data:clear {--keep-users : Keep users table data}';
+    protected $signature = 'data:clear {--keep-users : Keep users table data} {--force : Skip confirmation prompt}';
 
     /**
      * The console command description.
@@ -41,9 +41,15 @@ class ClearAllData extends Command
      */
     public function handle()
     {
-        if (!$this->confirm('⚠️  WARNING: This will delete ALL data from all tables. Are you sure?')) {
-            $this->info('Operation cancelled.');
-            return 0;
+        if (!$this->option('force')) {
+            if (!$this->confirm('⚠️  WARNING: This will delete ALL data from all tables. Are you sure?')) {
+                $this->info('Operation cancelled.');
+                return 0;
+            }
+        } else {
+            $this->warn('⚠️  WARNING: This will delete ALL data from all tables.');
+            $this->warn('⚠️  Using --force flag. Proceeding without confirmation...');
+            $this->newLine();
         }
 
         $this->info('Starting data clearing process...');
