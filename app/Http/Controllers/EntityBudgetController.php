@@ -216,7 +216,9 @@ class EntityBudgetController extends Controller
                 'budget_2025' => $validated['budget_2025']
             ]);
 
-            return redirect()->back()->with('success', 'Budget created successfully');
+            // Redirect back to create page with entity_id filter to show the newly created budget
+            return redirect()->route('entity_budget.create', ['entity_id' => $validated['entity_id']])
+                ->with('success', 'Budget created successfully');
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
