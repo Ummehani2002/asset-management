@@ -8,6 +8,7 @@ use App\Models\CategoryFeature; // for features
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
 class AssetController extends Controller
@@ -208,6 +209,34 @@ private function exportCategoryExcel($assets, $category)
 public function store(Request $request)
 {
     try {
+        // Test database connection first
+        try {
+            DB::connection()->getPdo();
+        } catch (\Exception $e) {
+            Log::error('Asset store: Database connection failed: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.']);
+        }
+
+        // Check if required tables exist
+        try {
+            if (!Schema::hasTable('assets')) {
+                Log::error('assets table does not exist');
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Database table not found. Please run migrations: php artisan migrate --force']);
+            }
+        } catch (\Exception $e) {
+            Log::error('Asset store: Schema check failed: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Unable to check database tables. Please verify database connection.']);
+        }
+
         // Calculate expiry date if warranty_start and warranty_years are provided
         if ($request->warranty_start && $request->warranty_years) {
             $warrantyYears = (int) $request->warranty_years; // Convert to integer
@@ -217,10 +246,9 @@ public function store(Request $request)
             $request->merge(['expiry_date' => $expiryDate]);
         }
 
-        $request->validate([
+        // Build validation rules - make exists rules conditional
+        $rules = [
             'asset_id' => 'required|unique:assets,asset_id',
-            'asset_category_id' => 'required|exists:asset_categories,id',
-            'brand_id' => 'required|exists:brands,id',
             'purchase_date' => 'required|date',
             'warranty_start' => 'required|date',
             'warranty_years' => 'nullable|integer|min:1',
@@ -230,7 +258,22 @@ public function store(Request $request)
             'invoice' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'features' => 'nullable|array',
             'features.*' => 'nullable',
-        ]);
+        ];
+
+        // Only add exists rules if tables exist
+        if (Schema::hasTable('asset_categories')) {
+            $rules['asset_category_id'] = 'required|exists:asset_categories,id';
+        } else {
+            $rules['asset_category_id'] = 'required';
+        }
+
+        if (Schema::hasTable('brands')) {
+            $rules['brand_id'] = 'required|exists:brands,id';
+        } else {
+            $rules['brand_id'] = 'required';
+        }
+
+        $request->validate($rules);
 
         // Save the invoice if provided
         $invoicePath = null;
@@ -256,7 +299,21 @@ public function store(Request $request)
             $assetData['invoice_path'] = $invoicePath;
         }
 
+        Log::info('Creating asset with data:', $assetData);
+        
         $asset = Asset::create($assetData);
+        
+        Log::info('Asset created successfully. ID: ' . $asset->id);
+        
+        // Verify the asset was actually saved
+        $savedAsset = Asset::find($asset->id);
+        if (!$savedAsset) {
+            Log::error('Asset was not saved to database!');
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to save asset. Please try again.']);
+        }
 
         // Save features if provided
         if ($request->has('features') && is_array($request->features)) {
@@ -300,12 +357,19 @@ public function store(Request $request)
         return redirect()->back()->with('success', 'Asset saved successfully!');
 
     } catch (\Illuminate\Validation\ValidationException $e) {
-        return redirect()->back()->withErrors($e->errors())->withInput();
+        throw $e; // Let Laravel handle validation errors
+    } catch (\Illuminate\Database\QueryException $e) {
+        Log::error('Asset store database error: ' . $e->getMessage());
+        Log::error('Query error code: ' . $e->getCode());
+        return redirect()
+            ->back()
+            ->withInput()
+            ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
     } catch (\Throwable $e) {
-        Log::error('Asset save error: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-            'request' => $request->except(['invoice'])
-        ]);
+        Log::error('Asset save error: ' . $e->getMessage());
+        Log::error('Error class: ' . get_class($e));
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
         return redirect()->back()->with('error', 'Failed to save asset: ' . $e->getMessage())->withInput();
     }
 }
