@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Employee;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
 class ProjectController extends Controller
@@ -100,14 +101,42 @@ class ProjectController extends Controller
     public function create()
     {
         try {
-            $hasEmployees = Schema::hasTable('employees');
+            // Initialize default values
             $employees = collect([]);
             $entities = collect([]);
+
+            // Test database connection first
+            try {
+                DB::connection()->getPdo();
+            } catch (\Exception $e) {
+                Log::error('Project create: Database connection failed: ' . $e->getMessage());
+                return view('projects.create', compact('employees','entities'))
+                    ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
+            }
+
+            // Check if required tables exist
+            try {
+                $hasEmployees = Schema::hasTable('employees');
+            } catch (\Exception $e) {
+                Log::error('Project create: Schema check failed: ' . $e->getMessage());
+                return view('projects.create', compact('employees','entities'))
+                    ->with('error', 'Unable to check database tables. Please verify database connection.');
+            }
             
             if ($hasEmployees) {
                 try {
                     $employees = Employee::select('id','name','entity_name')->get();
                     $entities = Employee::select('entity_name')->distinct()->pluck('entity_name');
+                    
+                    // Ensure they're collections
+                    if (!$employees instanceof \Illuminate\Support\Collection) {
+                        $employees = collect($employees);
+                    }
+                    if (!$entities instanceof \Illuminate\Support\Collection) {
+                        $entities = collect($entities);
+                    }
+                } catch (\Illuminate\Database\QueryException $e) {
+                    Log::error('Project create: Employees query error: ' . $e->getMessage());
                 } catch (\Exception $e) {
                     Log::warning('Error loading employees for project create: ' . $e->getMessage());
                 }
@@ -115,12 +144,16 @@ class ProjectController extends Controller
             
             return view('projects.create', compact('employees','entities'))
                 ->with('warning', $hasEmployees ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
-        } catch (\Exception $e) {
-            Log::error('Project create error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Project create fatal error: ' . $e->getMessage());
+            Log::error('Error class: ' . get_class($e));
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
+            
             $employees = collect([]);
             $entities = collect([]);
             return view('projects.create', compact('employees','entities'))
-                ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
+                ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
 
