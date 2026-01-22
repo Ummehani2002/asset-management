@@ -15,7 +15,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('users.store') }}">
+    <form method="POST" action="{{ route('users.store') }}" autocomplete="off">
         @csrf
         <div class="mb-3">
             <label>Full Name</label>
@@ -29,7 +29,7 @@
 
         <div class="mb-3">
             <label>Email</label>
-            <input type="email" name="email" class="form-control" required>
+            <input type="text" name="email" class="form-control" required autocomplete="off" inputmode="email">
         </div>
 
         <div class="mb-3">
@@ -43,6 +43,9 @@
         </div>
 
         <button type="submit" class="btn btn-primary">Create User</button>
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
     </form>
 
     {{-- User Table --}}

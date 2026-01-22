@@ -164,9 +164,11 @@ class InternetServiceController extends Controller
             }
         }
 
-            // Auto-fill data
+            // Auto-fill data (use entity from form if provided, otherwise from project)
+            if (empty($validated['entity'])) {
+                $validated['entity'] = $project->entity;
+            }
             $validated['project_name'] = $project->project_name;
-            $validated['entity'] = $project->entity;
             $validated['person_in_charge'] = $emp->name ?? $emp->entity_name;
             $validated['contact_details'] = $emp->phone ?? 'N/A';
             
@@ -191,8 +193,9 @@ class InternetServiceController extends Controller
                     ->withErrors(['error' => 'Failed to save internet service. Please try again.']);
             }
 
-            return redirect()->route('internet-services.index')
-                ->with('success', 'Internet service created successfully.');
+            return redirect()->route('internet-services.create')
+                ->with('success', 'Internet service created successfully.')
+                ->with('saved_service_id', $internetService->id);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
@@ -253,6 +256,7 @@ class InternetServiceController extends Controller
     public function update(Request $request, InternetService $internetService)
     {
         $validated = $request->validate([
+            'entity' => 'required|string|max:255',
             'project_id' => 'required|exists:projects,id',
             'service_type' => 'required|in:simcard,fixed,service',
             'transaction_type' => 'nullable|in:assign,return',
@@ -300,9 +304,11 @@ class InternetServiceController extends Controller
             }
         }
 
-        // Auto fill
+        // Auto fill (use entity from form if provided, otherwise from project)
+        if (empty($validated['entity'])) {
+            $validated['entity'] = $project->entity;
+        }
         $validated['project_name'] = $project->project_name;
-        $validated['entity'] = $project->entity;
         $validated['person_in_charge'] = $emp->name ?? $emp->entity_name;
         $validated['contact_details'] = $emp->phone ?? 'N/A';
         
@@ -344,13 +350,14 @@ class InternetServiceController extends Controller
                 ->with('error', 'This service has already been returned.');
         }
         
-        // Calculate cost: MRC (per day) × number of days
+        // Calculate cost: MRC (per month) × number of months
         $mrc = $internetService->mrc ?? 0;
         $startDate = $internetService->service_start_date;
         $endDate = new \DateTime($validated['service_end_date']);
         
         $diffDays = $startDate->diff($endDate)->days + 1; // +1 to include both start and end days
-        $cost = $mrc * $diffDays; // MRC is per day, so multiply by days
+        $months = $diffDays / 30.44; // Average days per month
+        $cost = $mrc * $months; // MRC is per month, so multiply by months
         
         // Update service
         $internetService->update([
@@ -463,5 +470,12 @@ class InternetServiceController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    public function downloadForm($id)
+    {
+        $internetService = InternetService::with(['project', 'personInCharge', 'projectManager'])->findOrFail($id);
+        $pdf = \PDF::loadView('internet-services.download-form', compact('internetService'));
+        return $pdf->download('internet-service-' . $internetService->id . '-' . date('Y-m-d') . '.pdf');
     }
 }

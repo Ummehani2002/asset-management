@@ -18,7 +18,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('projects.update', $project->id) }}">
+    <form method="POST" action="{{ route('projects.update', $project->id) }}" autocomplete="off">
         @csrf
         @method('PUT')
 
@@ -68,8 +68,10 @@
             </select>
         </div>
 
-        <button class="btn btn-primary">Update Project</button>
-        <a href="{{ route('projects.index') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Update Project</button>
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
     </form>
 </div>
 @endsection

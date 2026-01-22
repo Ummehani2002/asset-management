@@ -29,9 +29,22 @@
         </div>
     </div>
 
-    <form action="{{ route('internet-services.update', $internetService->id) }}" method="POST" id="editForm">
+    <form action="{{ route('internet-services.update', $internetService->id) }}" method="POST" id="editForm" autocomplete="off">
         @csrf
         @method('PUT')
+
+        {{-- Entity --}}
+        <div class="mb-3">
+            <label class="form-label">Entity <span class="text-danger">*</span></label>
+            <select name="entity" id="entity" class="form-control" required>
+                <option value="">-- Select Entity --</option>
+                @foreach(\App\Helpers\EntityHelper::getEntities() as $entity)
+                    <option value="{{ $entity }}" {{ old('entity', $internetService->entity) == $entity ? 'selected' : '' }}>
+                        {{ ucwords($entity) }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
 
         {{-- Project --}}
         <div class="mb-3">
@@ -88,12 +101,12 @@
                    value="{{ $internetService->account_number }}">
         </div>
 
-        {{-- MRC (Per Day Cost) --}}
+        {{-- MRC (Monthly Cost) --}}
         <div class="mb-3">
-            <label class="form-label">MRC (Cost Per Day) <span class="text-muted">(Daily Rate)</span></label>
+            <label class="form-label">MRC (Monthly Cost) <span class="text-muted">(Monthly Rate)</span></label>
             <input type="number" name="mrc" id="mrc" class="form-control" step="0.01" min="0"
-                   value="{{ $internetService->mrc }}" placeholder="Enter daily cost (e.g., 10.00)">
-            <small class="text-muted">Enter the cost per day. Total cost will be calculated as: Number of Days × MRC per day</small>
+                   value="{{ $internetService->mrc }}" placeholder="Enter monthly cost (e.g., 300.00)">
+            <small class="text-muted">Enter the cost per month. End date will be calculated automatically when start date is selected.</small>
         </div>
 
         {{-- Dates --}}
@@ -185,8 +198,10 @@
             </select>
         </div>
 
-        <button class="btn btn-primary">Update</button>
-
+        <button type="submit" class="btn btn-primary">Update</button>
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
     </form>
 </div>
 
@@ -358,21 +373,70 @@ document.addEventListener('DOMContentLoaded', function() {
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
         
-        // Calculate cost: MRC (per day) × number of days
-        const cost = mrc * diffDays;
+        // Calculate months (approximate)
+        const months = diffDays / 30.44; // Average days per month
+        
+        // Calculate cost: MRC (per month) × number of months
+        const cost = mrc * months;
         
         costInput.value = cost.toFixed(2);
         
         // Update info message
         if (costInfo) {
-            costInfo.textContent = `Cost calculated: ${diffDays} days × MRC ${mrc.toFixed(2)} per day = ${cost.toFixed(2)}`;
+            costInfo.textContent = `Cost calculated: ${months.toFixed(2)} months × MRC ${mrc.toFixed(2)} per month = ${cost.toFixed(2)}`;
             costInfo.className = 'text-success';
         }
     }
 
+    // Calculate end date when start date is selected (if MRC is provided)
+    function calculateEndDate() {
+        const startDate = startDateInput.value;
+        const mrc = parseFloat(mrcInput.value) || 0;
+        const endDateInfo = document.getElementById('end_date_info');
+        
+        if (!startDate) {
+            if (endDateInfo) {
+                endDateInfo.textContent = 'Select start date to auto-calculate end date';
+                endDateInfo.className = 'text-muted';
+            }
+            return;
+        }
+        
+        // If MRC is provided, set end date to 1 month from start date
+        if (mrc > 0) {
+            const start = new Date(startDate);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + 1); // Add 1 month
+            
+            // Format as YYYY-MM-DD
+            const year = end.getFullYear();
+            const month = String(end.getMonth() + 1).padStart(2, '0');
+            const day = String(end.getDate()).padStart(2, '0');
+            const endDateStr = `${year}-${month}-${day}`;
+            
+            endDateInput.value = endDateStr;
+            
+            if (endDateInfo) {
+                endDateInfo.textContent = `End date auto-calculated: 1 month from start date (${endDateStr})`;
+                endDateInfo.className = 'text-success';
+            }
+            
+            // Trigger cost calculation
+            calculateCost();
+        } else {
+            if (endDateInfo) {
+                endDateInfo.textContent = 'Enter MRC (monthly cost) to auto-calculate end date';
+                endDateInfo.className = 'text-muted';
+            }
+        }
+    }
+
     // Add event listeners
-    mrcInput.addEventListener('input', calculateCost);
-    startDateInput.addEventListener('change', calculateCost);
+    mrcInput.addEventListener('input', function() {
+        calculateEndDate();
+        calculateCost();
+    });
+    startDateInput.addEventListener('change', calculateEndDate);
     endDateInput.addEventListener('change', calculateCost);
     
     // Calculate on page load if values exist

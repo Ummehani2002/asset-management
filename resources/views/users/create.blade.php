@@ -30,7 +30,7 @@
 
         <div class="mb-3">
             <label>Email</label>
-            <input type="email" name="email" class="form-control" required value="{{ old('email') }}">
+            <input type="text" name="email" class="form-control" required value="{{ old('email') }}" autocomplete="off" inputmode="email">
         </div>
 
         <div class="mb-3">

@@ -4,7 +4,7 @@
 @section('content')
 <div class="container">
     <h2>Edit User</h2>
-    <form action="{{ route('users.update', $user->id) }}" method="POST">
+    <form action="{{ route('users.update', $user->id) }}" method="POST" autocomplete="off">
         @csrf
         @method('PUT')
 
@@ -18,7 +18,7 @@
         </div>
         <div class="mb-3">
             <label>Email</label>
-            <input type="email" name="email" class="form-control" value="{{ old('email', $user->email) }}" required>
+            <input type="text" name="email" class="form-control" value="{{ old('email', $user->email) }}" required autocomplete="off" inputmode="email">
         </div>
         <div class="mb-3">
             <label>New Password (leave blank to keep current)</label>
@@ -29,7 +29,9 @@
             <input type="password" name="password_confirmation" class="form-control">
         </div>
         <button type="submit" class="btn btn-primary">Update User</button>
-        <a href="{{ route('users.index') }}" class="btn btn-secondary">Cancel</a>
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
     </form>
 </div>
 @endsection

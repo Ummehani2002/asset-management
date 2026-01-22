@@ -69,6 +69,8 @@ Route::get('/assets/create', [AssetController::class, 'create'])->name('assets.c
 Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
 Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
 Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeatures']);
+Route::get('/assets/next-id/{categoryId}', [AssetController::class, 'getNextAssetId'])->name('assets.nextId');
+Route::get('/assets/autocomplete-serial', [AssetController::class, 'autocompleteSerialNumber'])->name('assets.autocompleteSerial');
 
 
 use App\Http\Controllers\CategoryFeatureController;
@@ -84,13 +86,13 @@ Route::get('/features/{id}/edit', [CategoryFeatureController::class, 'edit'])->n
 Route::put('/features/{id}', [CategoryFeatureController::class, 'update'])->name('features.update');
 Route::delete('/features/{id}', [CategoryFeatureController::class, 'destroy'])->name('features.destroy');
 Route::get('/employee-master', [EmployeeController::class, 'index'])->name('employees.index');
+Route::get('/employee-master/search', [EmployeeController::class, 'search'])->name('employees.search');
 Route::get('/employee-master/export', [EmployeeController::class, 'export'])->name('employees.export');
 Route::get('/employee-master/create', [EmployeeController::class, 'create'])->name('employees.create');
 Route::post('/employee-master', [EmployeeController::class, 'store'])->name('employees.store');
 Route::get('/employee-master/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
 Route::delete('/employee-master/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
 Route::put('/employee-master/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
-Route::get('/employees/search', [EmployeeController::class, 'search'])->name('employees.search');
 
 
 
@@ -161,6 +163,7 @@ use App\Http\Controllers\EntityBudgetController;
 Route::get('/entity-budget/create', [EntityBudgetController::class, 'create'])->name('entity_budget.create');
 Route::get('/entity-budget/export', [EntityBudgetController::class, 'export'])->name('entity_budget.export');
 Route::post('/entity-budget/store', [EntityBudgetController::class, 'store'])->name('entity_budget.store');
+Route::get('/entity-budget/{id}/download-form', [EntityBudgetController::class, 'downloadForm'])->name('entity_budget.download-form');
 
 use App\Http\Controllers\BudgetExpenseController;
 Route::get('/budget-expenses/create', [BudgetExpenseController::class, 'create'])->name('budget-expenses.create');
@@ -185,6 +188,7 @@ Route::post('/issue-note/store', [IssueNoteController::class, 'store'])->name('i
 Route::get('/issue-note/create-return', [IssueNoteController::class, 'createReturn'])->name('issue-note.create-return');
 Route::post('/issue-note/store-return', [IssueNoteController::class, 'storeReturn'])->name('issue-note.store-return');
 Route::get('/issue-note/{id}/details', [IssueNoteController::class, 'getIssueNoteDetails'])->name('issue-note.details');
+Route::get('/issue-note/{id}/download-form', [IssueNoteController::class, 'downloadForm'])->name('issue-note.download-form');
 
 Route::get('/employee/{id}/details', [IssueNoteController::class, 'getEmployeeDetails'])->name('employee.details');
 
@@ -212,6 +216,7 @@ Route::get('internet-services/{internetService}/return', [InternetServiceControl
 Route::post('internet-services/{internetService}/return', [InternetServiceController::class, 'processReturn'])->name('internet-services.process-return');
 Route::put('internet-services/{internetService}', [InternetServiceController::class, 'update'])->name('internet-services.update');
 Route::delete('internet-services/{internetService}', [InternetServiceController::class, 'destroy'])->name('internet-services.destroy');
+Route::get('internet-services/{id}/download-form', [InternetServiceController::class, 'downloadForm'])->name('internet-services.download-form');
 
 
 

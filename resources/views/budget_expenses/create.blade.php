@@ -12,7 +12,7 @@
         @endif
     </div>
 
-    <form id="expenseForm" method="POST" action="{{ route('budget-expenses.store') }}">
+    <form id="expenseForm" method="POST" action="{{ route('budget-expenses.store') }}" autocomplete="off">
         @csrf
         
         <div class="row">
@@ -86,6 +86,9 @@
         </div>
 
         <button type="submit" class="btn btn-primary">Save Expense</button>
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
     </form>
 
     <div class="mt-4">

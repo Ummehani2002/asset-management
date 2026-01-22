@@ -126,14 +126,10 @@ class ProjectController extends Controller
             if ($hasEmployees) {
                 try {
                     $employees = Employee::select('id','name','entity_name')->get();
-                    $entities = Employee::select('entity_name')->distinct()->pluck('entity_name');
                     
                     // Ensure they're collections
                     if (!$employees instanceof \Illuminate\Support\Collection) {
                         $employees = collect($employees);
-                    }
-                    if (!$entities instanceof \Illuminate\Support\Collection) {
-                        $entities = collect($entities);
                     }
                 } catch (\Illuminate\Database\QueryException $e) {
                     Log::error('Project create: Employees query error: ' . $e->getMessage());
@@ -141,6 +137,18 @@ class ProjectController extends Controller
                     Log::warning('Error loading employees for project create: ' . $e->getMessage());
                 }
             }
+            
+            // Use fixed list of entities
+            $entities = [
+                'proscape',
+                'water in motion',
+                'bioscape',
+                'tanseeq realty',
+                'transmech',
+                'timbertech',
+                'ventana',
+                'garden center'
+            ];
             
             return view('projects.create', compact('employees','entities'))
                 ->with('warning', $hasEmployees ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
@@ -260,7 +268,17 @@ class ProjectController extends Controller
     {
         $project = Project::findOrFail($id);
         $employees = Employee::select('id','name','entity_name')->get();
-        $entities = Employee::select('entity_name')->distinct()->pluck('entity_name');
+        // Use fixed list of entities
+        $entities = [
+            'proscape',
+            'water in motion',
+            'bioscape',
+            'tanseeq realty',
+            'transmech',
+            'timbertech',
+            'ventana',
+            'garden center'
+        ];
         return view('projects.edit', compact('project','employees','entities'));
     }
 

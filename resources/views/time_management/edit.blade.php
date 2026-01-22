@@ -43,7 +43,7 @@
         </div>
     </div>
 
-    <form action="{{ route('time.update', $record->id) }}" method="POST">
+    <form action="{{ route('time.update', $record->id) }}" method="POST" autocomplete="off">
         @csrf
 
         <div class="card">
@@ -66,6 +66,9 @@
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-success btn-lg">
                         <i class="bi bi-check-circle me-2"></i>Close Ticket & Mark as Completed
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-lg" onclick="resetForm(this)">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
                     </button>
                     <a href="{{ route('time.index') }}" class="btn btn-secondary btn-lg">
                         <i class="bi bi-arrow-left me-2"></i>Back to List

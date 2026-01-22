@@ -19,7 +19,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('projects.store') }}">
+    <form method="POST" action="{{ route('projects.store') }}" autocomplete="off">
         @csrf
 
         <div class="mb-3">
@@ -66,7 +66,10 @@
             </select>
         </div>
 
-        <button class="btn btn-primary">Save Project</button>
+        <button type="submit" class="btn btn-primary">Save Project</button>
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
     </form>
 </div>
 @endsection

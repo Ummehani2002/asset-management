@@ -58,6 +58,34 @@ class AssetController extends Controller
                 ->with('warning', 'Unable to load assets. Please ensure migrations are run: php artisan migrate --force');
         }
     }
+public function filter()
+{
+    try {
+        // Check if required tables exist
+        $hasAssetCategories = Schema::hasTable('asset_categories');
+        
+        // Get categories
+        $categories = collect([]);
+        if ($hasAssetCategories) {
+            try {
+                $categories = AssetCategory::all();
+            } catch (\Exception $e) {
+                Log::warning('Error loading categories: ' . $e->getMessage());
+            }
+        }
+
+        return view('assets.filter', compact('categories'))
+            ->with('warning', $hasAssetCategories ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
+    } catch (\Exception $e) {
+        Log::error('Asset filter error: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        $categories = collect([]);
+        return view('assets.filter', compact('categories'))
+            ->with('warning', 'Unable to load filter data. Please ensure migrations are run: php artisan migrate --force');
+    }
+}
+
 public function create()
 {
     try {
@@ -65,16 +93,8 @@ public function create()
         $hasAssets = Schema::hasTable('assets');
         $hasAssetCategories = Schema::hasTable('asset_categories');
         
-        // Generate auto asset ID
-        $autoAssetId = 'AST00001';
-        if ($hasAssets) {
-            try {
-                $lastAsset = \App\Models\Asset::orderBy('id', 'desc')->first();
-                $autoAssetId = $lastAsset ? 'AST' . str_pad($lastAsset->id + 1, 5, '0', STR_PAD_LEFT) : 'AST00001';
-            } catch (\Exception $e) {
-                Log::warning('Error getting last asset: ' . $e->getMessage());
-            }
-        }
+        // Default asset ID (will be generated when category is selected)
+        $autoAssetId = '';
         
         // Get categories
         $categories = collect([]);
@@ -93,7 +113,7 @@ public function create()
         Log::error('Stack trace: ' . $e->getTraceAsString());
         
         // Return with default values
-        $autoAssetId = 'AST00001';
+        $autoAssetId = '';
         $categories = collect([]);
         return view('assets.create', compact('autoAssetId', 'categories'))
             ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
@@ -104,6 +124,113 @@ public function getFeaturesByBrand($brandId)
 {
     $features = \App\Models\CategoryFeature::where('brand_id', $brandId)->get();
     return response()->json($features);
+}
+
+/**
+ * Get category prefix for asset ID generation
+ */
+private function getCategoryPrefix($categoryName)
+{
+    $categoryName = strtolower(trim($categoryName));
+    
+    $prefixMap = [
+        'laptop' => 'LPT',
+        'monitor' => 'MNT',
+        'printer' => 'PRT',
+        'desktop' => 'DST',
+        'keyboard' => 'KYB',
+        'mouse' => 'MSE',
+        'scanner' => 'SCN',
+        'projector' => 'PRJ',
+        'tablet' => 'TBL',
+        'phone' => 'PHN',
+        'server' => 'SVR',
+        'router' => 'RTR',
+        'switch' => 'SWT',
+        'access point' => 'AP',
+        'camera' => 'CAM',
+        'speaker' => 'SPK',
+        'headphone' => 'HDP',
+        'ups' => 'UPS',
+        'hard drive' => 'HDD',
+        'ssd' => 'SSD',
+    ];
+    
+    // Check exact match first
+    if (isset($prefixMap[$categoryName])) {
+        return $prefixMap[$categoryName];
+    }
+    
+    // Check partial match
+    foreach ($prefixMap as $key => $prefix) {
+        if (str_contains($categoryName, $key) || str_contains($key, $categoryName)) {
+            return $prefix;
+        }
+    }
+    
+    // Default: use first 3 uppercase letters of category name
+    return strtoupper(substr(preg_replace('/[^a-z]/i', '', $categoryName), 0, 3));
+}
+
+/**
+ * Get next asset ID for a category
+ */
+public function getNextAssetId($categoryId)
+{
+    try {
+        $category = AssetCategory::find($categoryId);
+        if (!$category) {
+            return response()->json(['error' => 'Category not found'], 404);
+        }
+        
+        $prefix = $this->getCategoryPrefix($category->category_name);
+        
+        // Get the last asset with this prefix
+        $lastAsset = Asset::where('asset_id', 'like', $prefix . '%')
+            ->orderByRaw('CAST(SUBSTRING(asset_id, ' . (strlen($prefix) + 1) . ') AS UNSIGNED) DESC')
+            ->first();
+        
+        if ($lastAsset) {
+            // Extract the number part
+            $numberPart = preg_replace('/[^0-9]/', '', substr($lastAsset->asset_id, strlen($prefix)));
+            $nextNumber = intval($numberPart) + 1;
+        } else {
+            $nextNumber = 1;
+        }
+        
+        $nextAssetId = $prefix . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+        
+        return response()->json(['asset_id' => $nextAssetId]);
+    } catch (\Exception $e) {
+        Log::error('Error getting next asset ID: ' . $e->getMessage());
+        return response()->json(['error' => 'Error generating asset ID'], 500);
+    }
+}
+
+/**
+ * Autocomplete endpoint for serial numbers
+ */
+public function autocompleteSerialNumber(Request $request)
+{
+    try {
+        $query = trim($request->get('term', $request->get('q', '')));
+        
+        if (empty($query)) {
+            return response()->json([]);
+        }
+        
+        $serialNumbers = Asset::where('serial_number', 'LIKE', $query . '%')
+            ->distinct()
+            ->orderBy('serial_number', 'asc')
+            ->limit(20)
+            ->pluck('serial_number')
+            ->values();
+        
+        return response()->json($serialNumbers);
+    } catch (\Exception $e) {
+        Log::error('Error in serial number autocomplete: ' . $e->getMessage());
+        return response()->json([]);
+    }
 }
 
    public function assetsByCategory($id)
@@ -244,6 +371,33 @@ public function store(Request $request)
                 ->addYears($warrantyYears)
                 ->format('Y-m-d');
             $request->merge(['expiry_date' => $expiryDate]);
+        }
+
+        // Generate asset_id based on category if not provided or empty
+        if (empty($request->asset_id) && $request->asset_category_id) {
+            try {
+                $category = AssetCategory::find($request->asset_category_id);
+                if ($category) {
+                    $prefix = $this->getCategoryPrefix($category->category_name);
+                    
+                    // Get the last asset with this prefix
+                    $lastAsset = Asset::where('asset_id', 'like', $prefix . '%')
+                        ->orderByRaw('CAST(SUBSTRING(asset_id, ' . (strlen($prefix) + 1) . ') AS UNSIGNED) DESC')
+                        ->first();
+                    
+                    if ($lastAsset) {
+                        // Extract the number part
+                        $numberPart = preg_replace('/[^0-9]/', '', substr($lastAsset->asset_id, strlen($prefix)));
+                        $nextNumber = intval($numberPart) + 1;
+                    } else {
+                        $nextNumber = 1;
+                    }
+                    
+                    $request->merge(['asset_id' => $prefix . str_pad($nextNumber, 5, '0', STR_PAD_LEFT)]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error generating asset_id: ' . $e->getMessage());
+            }
         }
 
         // Build validation rules - make exists rules conditional
@@ -458,20 +612,6 @@ public function getAssetDetails($assetId)
         'invoice' => $asset->invoice_path ?? null,
     ]);
 }
-
-
-public function filter(Request $request)
-{
-    $categories = AssetCategory::all();
-    $categoryId = $request->get('category_id');
-    $assets = Asset::with('assetCategory')
-                ->when($categoryId, function ($query) use ($categoryId) {
-                    return $query->where('asset_category_id', $categoryId);
-                })
-                ->get();
-
-    return view('assets.index', compact('assets', 'categories', 'categoryId'));
-}
 public function getFullDetails($id)
 {
     $asset = Asset::with('assetCategory', 'employee', 'project')->find($id);
@@ -484,26 +624,54 @@ public function getFullDetails($id)
 }
 public function getAssetsByEmployee($id)
 {
-    $employee = \App\Models\Employee::with(['assetTransactions.asset.category', 'assetTransactions.asset.brand', 'assetTransactions.location'])
-        ->find($id);
+    $employee = \App\Models\Employee::find($id);
 
     if (!$employee) {
+        \Log::info("Employee not found: {$id}");
         return response()->json([]);
     }
 
-    $assets = $employee->assetTransactions->map(function ($txn) {
-        return [
-            'asset_id' => $txn->asset->asset_id ?? '-',
-            'category' => $txn->asset->category->category_name ?? '-',
-            'brand' => $txn->asset->brand->name ?? '-',
-            'serial_number' => $txn->asset->serial_number ?? '-',
-            'po_number' => $txn->asset->po_number ?? '-',
-            'location' => $txn->location->location_name ?? '-',
-            'issue_date' => $txn->issue_date ?? '-',
-            'status' => ucfirst($txn->transaction_type ?? 'N/A'),
-        ];
+    \Log::info("Getting assets for employee: {$id} ({$employee->name})");
+
+    // Get all assets with status 'assigned'
+    $assignedAssets = \App\Models\Asset::where('status', 'assigned')
+        ->with(['category', 'brand', 'latestTransaction.location'])
+        ->get();
+
+    \Log::info("Total assigned assets: " . $assignedAssets->count());
+
+    // Filter assets where the latest transaction is an 'assign' transaction with this employee_id
+    $employeeAssets = $assignedAssets->filter(function($asset) use ($id) {
+        $latestTxn = $asset->latestTransaction;
+        $matches = $latestTxn 
+            && $latestTxn->transaction_type === 'assign' 
+            && $latestTxn->employee_id == $id;
+        
+        if ($matches) {
+            \Log::info("Asset {$asset->id} ({$asset->asset_id}) matches for employee {$id}");
+        }
+        
+        return $matches;
     });
 
+    \Log::info("Assets matching employee {$id}: " . $employeeAssets->count());
+
+    // Format the response
+    $assets = $employeeAssets->map(function ($asset) {
+        $latestTxn = $asset->latestTransaction;
+        return [
+            'asset_id' => $asset->asset_id ?? '-',
+            'category' => $asset->category ? $asset->category->category_name : '-',
+            'brand' => $asset->brand ? $asset->brand->name : '-',
+            'serial_number' => $asset->serial_number ?? '-',
+            'po_number' => $asset->po_number ?? '-',
+            'location' => $latestTxn && $latestTxn->location ? $latestTxn->location->location_name : '-',
+            'issue_date' => $latestTxn ? ($latestTxn->issue_date ?? '-') : '-',
+            'status' => ucfirst($asset->status ?? 'N/A'),
+        ];
+    })->values();
+
+    \Log::info("Returning " . $assets->count() . " assets");
     return response()->json($assets);
 }
 public function getAssetsByLocation($id)

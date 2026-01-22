@@ -37,7 +37,7 @@
     {{-- Location Form --}}
     <div class="master-form-card">
         <h5 class="mb-3" style="color: var(--primary); font-weight: 600;"> New Location</h5>
-        <form method="POST" action="{{ route('location-master.store') }}">
+        <form method="POST" action="{{ route('location-master.store') }}" autocomplete="off">
             @csrf
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -57,13 +57,26 @@
 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Location Entity <span class="text-danger">*</span></label>
-                    <input type="text" name="location_entity" class="form-control" value="{{ old('location_entity') }}" required>
+                    <select name="location_entity" class="form-control" required>
+                        <option value="">-- Select Entity --</option>
+                        <option value="proscape" {{ old('location_entity') == 'proscape' ? 'selected' : '' }}>Proscape</option>
+                        <option value="water in motion" {{ old('location_entity') == 'water in motion' ? 'selected' : '' }}>Water in Motion</option>
+                        <option value="bioscape" {{ old('location_entity') == 'bioscape' ? 'selected' : '' }}>Bioscape</option>
+                        <option value="tanseeq realty" {{ old('location_entity') == 'tanseeq realty' ? 'selected' : '' }}>Tanseeq Realty</option>
+                        <option value="transmech" {{ old('location_entity') == 'transmech' ? 'selected' : '' }}>Transmech</option>
+                        <option value="timbertech" {{ old('location_entity') == 'timbertech' ? 'selected' : '' }}>Timbertech</option>
+                        <option value="ventana" {{ old('location_entity') == 'ventana' ? 'selected' : '' }}>Ventana</option>
+                        <option value="garden center" {{ old('location_entity') == 'garden center' ? 'selected' : '' }}>Garden Center</option>
+                    </select>
                 </div>
             </div>
 
             <div class="text-end mt-3">
                 <button type="submit" class="btn btn-success">
                     <i class="bi bi-check-circle me-2"></i>Add Location
+                </button>
+                <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+                    <i class="bi bi-x-circle me-2"></i>Cancel
                 </button>
             </div>
         </form>

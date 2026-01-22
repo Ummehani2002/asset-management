@@ -9,7 +9,7 @@
     </div>
 @endif
 
-    <form action="{{ route('employees.update', $employee->id) }}" method="POST">
+    <form action="{{ route('employees.update', $employee->id) }}" method="POST" autocomplete="off">
         @csrf
         @method('PUT')
 
@@ -21,6 +21,9 @@
 
 
         <button type="submit" class="btn btn-primary">Update</button>
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
     </form>
 </div>
 @endsection

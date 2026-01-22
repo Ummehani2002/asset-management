@@ -93,7 +93,8 @@ class IssueNoteController extends Controller
             }
 
             return redirect()->route('issue-note.create')
-                ->with('success', 'Issue note saved successfully!');
+                ->with('success', 'Issue note saved successfully!')
+                ->with('saved_note_id', $issueNote->id);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
@@ -205,7 +206,8 @@ class IssueNoteController extends Controller
             }
 
             return redirect()->route('issue-note.create-return')
-                ->with('success', 'Return note saved successfully!');
+                ->with('success', 'Return note saved successfully!')
+                ->with('saved_note_id', $returnNote->id);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
@@ -398,5 +400,12 @@ class IssueNoteController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    public function downloadForm($id)
+    {
+        $issueNote = IssueNote::with('employee')->findOrFail($id);
+        $pdf = \PDF::loadView('issue-note.download-form', compact('issueNote'));
+        return $pdf->download('issue-note-' . $issueNote->id . '-' . date('Y-m-d') . '.pdf');
     }
 }

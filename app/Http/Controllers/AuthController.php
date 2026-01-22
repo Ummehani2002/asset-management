@@ -22,12 +22,22 @@ class AuthController extends Controller
             'password' => 'required'
         ]);
 
-        // Attempt login using username or email
-        $credentials = $request->only('username', 'password');
+        $username = $request->input('username');
+        $password = $request->input('password');
 
-        if (Auth::attempt(['username' => $credentials['username'], 'password' => $credentials['password']])
-            || Auth::attempt(['email' => $credentials['username'], 'password' => $credentials['password']])) {
-            return redirect()->route('dashboard')->with('success', 'Logged in successfully');
+        // Case-insensitive username lookup
+        // First try to find user by username (case-insensitive)
+        $user = User::whereRaw('LOWER(username) = ?', [strtolower($username)])->first();
+        
+        // If not found by username, try email (case-insensitive)
+        if (!$user) {
+            $user = User::whereRaw('LOWER(email) = ?', [strtolower($username)])->first();
+        }
+
+        // If user found, verify password
+        if ($user && Hash::check($password, $user->password)) {
+            Auth::login($user);
+            return redirect()->route('dashboard');
         }
 
         return back()->withErrors(['username' => 'Invalid username or password.']);

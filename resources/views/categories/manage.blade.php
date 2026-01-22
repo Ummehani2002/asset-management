@@ -15,7 +15,7 @@
     {{-- Add New Category Form --}}
     <div class="master-form-card mb-4">
         <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i>Add New Category</h5>
-        <form action="{{ route('categories.store') }}" method="POST">
+        <form action="{{ route('categories.store') }}" method="POST" autocomplete="off">
             @csrf
             <div class="row">
                 <div class="col-md-6">
@@ -24,6 +24,9 @@
                 <div class="col-md-6">
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-circle me-2"></i>Add Category
+                    </button>
+                    <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
                     </button>
                 </div>
             </div>
@@ -64,7 +67,7 @@
             </div>
             <div class="card-body">
                 {{-- Add Brand Form --}}
-                <form action="{{ route('brands.store') }}" method="POST" class="mb-3">
+                <form action="{{ route('brands.store') }}" method="POST" class="mb-3" autocomplete="off">
                     @csrf
                     <input type="hidden" name="asset_category_id" value="{{ $category->id }}">
                     <div class="row">
@@ -74,6 +77,9 @@
                         <div class="col-md-4">
                             <button type="submit" class="btn btn-success w-100">
                                 <i class="bi bi-plus-circle me-2"></i>Add Brand
+                            </button>
+                            <button type="button" class="btn btn-secondary w-100 mt-2" onclick="resetForm(this)">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
                             </button>
                         </div>
                     </div>
@@ -95,30 +101,62 @@
                                     <td><strong>{{ $brand->name }}</strong></td>
                                     <td>
                                         @if($brand->features->count())
-                                            @foreach($brand->features as $feature)
-                                                <span class="badge bg-secondary me-1 mb-1">
-                                                    {{ $feature->feature_name }}
-                                                    @if($feature->sub_fields && count($feature->sub_fields) > 0)
-                                                        <small>({{ implode(', ', $feature->sub_fields) }})</small>
-                                                    @endif
-                                                </span>
-                                            @endforeach
+                                            <table class="table table-sm table-bordered mb-2">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th style="width: 40%;">Feature Name</th>
+                                                        <th style="width: 35%;">Sub Fields</th>
+                                                        <th style="width: 25%;">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($brand->features as $feature)
+                                                        <tr>
+                                                            <td>{{ $feature->feature_name }}</td>
+                                                            <td>
+                                                                @if($feature->sub_fields && count($feature->sub_fields) > 0)
+                                                                    {{ implode(', ', $feature->sub_fields) }}
+                                                                @else
+                                                                    <em class="text-muted">-</em>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                <div class="d-flex gap-1">
+                                                                    <a href="{{ route('features.edit', $feature->id) }}" class="btn btn-xs btn-outline-warning" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">
+                                                                        <i class="bi bi-pencil"></i> Edit
+                                                                    </a>
+                                                                    <form action="{{ route('features.destroy', $feature->id) }}" method="POST" class="d-inline-block" onsubmit="return confirm('Delete feature {{ addslashes($feature->feature_name) }}?');">
+                                                                        @csrf
+                                                                        @method('DELETE')
+                                                                        <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">
+                                                                            <i class="bi bi-trash"></i> Delete
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
                                         @else
                                             <em class="text-muted">No features</em>
                                         @endif
                                         <div class="mt-2">
-                                            <form action="{{ route('features.store') }}" method="POST" class="d-flex">
+                                            <form action="{{ route('features.store') }}" method="POST" class="d-flex" autocomplete="off">
                                                 @csrf
                                                 <input type="hidden" name="brand_id" value="{{ $brand->id }}">
                                                 <input type="text" name="feature_name" class="form-control form-control-sm me-2" placeholder="Add feature" required>
                                                 <button type="submit" class="btn btn-primary btn-sm">
                                                     <i class="bi bi-plus"></i> Add
                                                 </button>
+                                                <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="resetForm(this)">
+                                                    <i class="bi bi-x"></i> Cancel
+                                                </button>
                                             </form>
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="d-flex gap-1 mb-2">
+                                        <div class="d-flex gap-1">
                                             <a href="{{ route('brands.edit', $brand->id) }}" class="btn btn-sm btn-warning">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
@@ -130,24 +168,6 @@
                                                 </button>
                                             </form>
                                         </div>
-                                        @if($brand->features->count())
-                                            <div class="d-flex flex-column gap-1">
-                                                @foreach($brand->features as $feature)
-                                                    <div class="d-flex gap-1">
-                                                        <a href="{{ route('features.edit', $feature->id) }}" class="btn btn-xs btn-outline-warning" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">
-                                                            <i class="bi bi-pencil"></i> {{ $feature->feature_name }}
-                                                        </a>
-                                                        <form action="{{ route('features.destroy', $feature->id) }}" method="POST" class="d-inline-block" onsubmit="return confirm('Delete feature {{ addslashes($feature->feature_name) }}?');">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        @endif
                                     </td>
                                 </tr>
                             @empty

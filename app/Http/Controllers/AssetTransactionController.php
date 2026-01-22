@@ -632,9 +632,13 @@ class AssetTransactionController extends Controller
         $request->validate([
             'asset_category_id' => 'required|exists:asset_categories,id',
             'asset_id' => 'required|exists:assets,id',
+            'action_type' => 'required|in:reassign,maintenance,return',
             'reassign_date' => 'required|date',
             'reassign_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'reassign_notes' => 'nullable|string',
+            'receive_date' => 'nullable|date|required_if:action_type,maintenance',
+            'delivery_date' => 'nullable|date|after_or_equal:receive_date',
+            'repair_type' => 'nullable|string',
         ]);
 
         $asset = Asset::with('assetCategory')->findOrFail($request->asset_id);
@@ -643,7 +647,7 @@ class AssetTransactionController extends Controller
         // Validate that asset is under maintenance
         if ($asset->status !== 'under_maintenance') {
             throw ValidationException::withMessages([
-                'asset_id' => 'Only assets under maintenance can be reassigned. Current status: ' . ucfirst($asset->status ?? 'unknown'),
+                'asset_id' => 'Only assets under maintenance can be processed. Current status: ' . ucfirst($asset->status ?? 'unknown'),
             ]);
         }
 
@@ -656,7 +660,7 @@ class AssetTransactionController extends Controller
         
         if (!$beforeMaintenance || !$beforeMaintenance->employee_id) {
             throw ValidationException::withMessages([
-                'asset_id' => 'Cannot find previous assignment for this asset. Cannot reassign.',
+                'asset_id' => 'Cannot find previous assignment for this asset. Cannot process.',
             ]);
         }
 
@@ -668,33 +672,84 @@ class AssetTransactionController extends Controller
             ]);
         }
 
-        // Handle image upload
         $imageData = [];
-        if ($request->hasFile('reassign_image')) {
-            $imageData['assign_image'] = $this->uploadImage($request->file('reassign_image'), 'assign');
+        $transaction = null;
+        $successMessage = '';
+
+        // Handle different action types
+        if ($request->action_type === 'reassign') {
+            // Reassign to same employee
+            if ($request->hasFile('reassign_image')) {
+                $imageData['assign_image'] = $this->uploadImage($request->file('reassign_image'), 'assign');
+            }
+
+            $transaction = AssetTransaction::create(array_merge([
+                'asset_id' => $asset->id,
+                'transaction_type' => 'assign',
+                'status' => 'assigned',
+                'issue_date' => $request->reassign_date,
+                'assigned_to_type' => 'employee',
+                'employee_id' => $beforeMaintenance->employee_id,
+                'project_name' => null,
+                'location_id' => $beforeMaintenance->location_id,
+                'maintenance_notes' => $request->reassign_notes,
+            ], $imageData));
+
+            $asset->update(['status' => 'assigned']);
+            $successMessage = 'Asset reassigned to same employee successfully! Email notification sent. Asset is ready for collection.';
+
+        } elseif ($request->action_type === 'maintenance') {
+            // Send back to maintenance
+            if ($request->hasFile('reassign_image')) {
+                $imageData['maintenance_image'] = $this->uploadImage($request->file('reassign_image'), 'maintenance');
+            }
+
+            $transaction = AssetTransaction::create(array_merge([
+                'asset_id' => $asset->id,
+                'transaction_type' => 'system_maintenance',
+                'status' => 'under_maintenance',
+                'receive_date' => $request->receive_date,
+                'delivery_date' => $request->delivery_date,
+                'assigned_to_type' => $beforeMaintenance->assigned_to_type ?? 'employee',
+                'employee_id' => $beforeMaintenance->employee_id,
+                'project_name' => $beforeMaintenance->project_name,
+                'location_id' => $beforeMaintenance->location_id,
+                'repair_type' => $request->repair_type,
+                'maintenance_notes' => $request->reassign_notes,
+            ], $imageData));
+
+            $asset->update(['status' => 'under_maintenance']);
+            $successMessage = 'Asset sent back to maintenance successfully!';
+
+        } elseif ($request->action_type === 'return') {
+            // Return the asset
+            if ($request->hasFile('reassign_image')) {
+                $imageData['return_image'] = $this->uploadImage($request->file('reassign_image'), 'return');
+            }
+
+            $transaction = AssetTransaction::create(array_merge([
+                'asset_id' => $asset->id,
+                'transaction_type' => 'return',
+                'status' => 'available',
+                'return_date' => $request->reassign_date,
+                'assigned_to_type' => null,
+                'employee_id' => null,
+                'project_name' => null,
+                'location_id' => null,
+                'maintenance_notes' => $request->reassign_notes,
+            ], $imageData));
+
+            $asset->update(['status' => 'available']);
+            $successMessage = 'Asset returned successfully! Asset is now available.';
         }
 
-        // Create reassign transaction (assign type)
-        $transaction = AssetTransaction::create(array_merge([
-            'asset_id' => $asset->id,
-            'transaction_type' => 'assign',
-            'status' => 'assigned',
-            'issue_date' => $request->reassign_date,
-            'assigned_to_type' => 'employee',
-            'employee_id' => $beforeMaintenance->employee_id,
-            'project_name' => null,
-            'location_id' => $beforeMaintenance->location_id,
-            'maintenance_notes' => $request->reassign_notes,
-        ], $imageData));
-
-        // Update asset status to assigned
-        $asset->update(['status' => 'assigned']);
-
-        // Send email to employee
-        $this->sendAssetEmail($transaction);
+        // Send email to employee (only for reassign)
+        if ($transaction && $request->action_type === 'reassign') {
+            $this->sendAssetEmail($transaction);
+        }
 
         return redirect()->route('asset-transactions.index')
-            ->with('success', 'Asset reassigned successfully! Email notification sent to employee. Asset is ready for collection.');
+            ->with('success', $successMessage);
     }
 
     public function edit($id)

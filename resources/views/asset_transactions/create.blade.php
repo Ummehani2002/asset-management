@@ -25,6 +25,7 @@
           action="{{ $isEdit ? route('asset-transactions.update', $transaction->id) : route('asset-transactions.store') }}" 
           enctype="multipart/form-data" 
           id="transactionForm"
+          autocomplete="off"
           novalidate>
         @csrf
         @if($isEdit) @method('PUT') @endif
@@ -185,9 +186,9 @@
         <button type="submit" class="btn btn-primary" id="submitBtn">
             <i class="bi bi-check-circle me-2"></i>{{ $isEdit ? 'Update' : 'Save' }} Transaction
         </button>
-        <a href="{{ route('asset-transactions.index') }}" class="btn btn-secondary">
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
             <i class="bi bi-x-circle me-2"></i>Cancel
-        </a>
+        </button>
     </form>
 </div>
 

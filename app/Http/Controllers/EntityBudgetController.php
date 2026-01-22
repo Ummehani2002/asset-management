@@ -67,10 +67,19 @@ class EntityBudgetController extends Controller
                 }
             }
             
-            // Filter budgets by entity if selected
+            // Filter budgets by entity and year if selected
             if ($hasEntityBudgets) {
                 try {
                     $query = EntityBudget::with(['employee', 'expenses']);
+                    
+                    // Filter by year
+                    $selectedYear = $request->get('year', date('Y'));
+                    $yearColumn = 'budget_' . $selectedYear;
+                    
+                    // Only show budgets that have a value for the selected year
+                    if (Schema::hasColumn('entity_budgets', $yearColumn)) {
+                        $query->whereNotNull($yearColumn);
+                    }
                     
                     if ($request->filled('entity_id') && $hasEmployees) {
                         // If filtering by entity, get all budgets for employees with that entity_name
@@ -131,8 +140,13 @@ class EntityBudgetController extends Controller
                 }
             }
             
+            // Get available years (current year and future years up to 5 years ahead)
+            $currentYear = (int)date('Y');
+            $availableYears = range($currentYear, $currentYear + 5);
+            $selectedYear = $request->get('year', $currentYear);
+            
             $hasAllTables = $hasEmployees && $hasEntityBudgets;
-            return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
+            return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets', 'availableYears', 'selectedYear'))
                 ->with('warning', $hasAllTables ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
         } catch (\Throwable $e) {
             Log::error('EntityBudget create fatal error: ' . $e->getMessage());
@@ -154,13 +168,24 @@ class EntityBudgetController extends Controller
     {
         $query = EntityBudget::with(['employee', 'expenses']);
         
+        $selectedYear = $request->get('year', date('Y'));
+        $yearColumn = 'budget_' . $selectedYear;
+        
+        // Filter by year
+        if (Schema::hasColumn('entity_budgets', $yearColumn)) {
+            $query->whereNotNull($yearColumn);
+        }
+        
         if ($request->filled('entity_id')) {
             // Filter by entity_name instead of employee_id
             $selectedEntity = Employee::find($request->entity_id);
             if ($selectedEntity) {
-                $query->whereHas('employee', function($q) use ($selectedEntity) {
-                    $q->where('entity_name', $selectedEntity->entity_name);
-                });
+                $employeeIds = Employee::where('entity_name', $selectedEntity->entity_name)
+                    ->pluck('id')
+                    ->toArray();
+                if (!empty($employeeIds)) {
+                    $query->whereIn('employee_id', $employeeIds);
+                }
             }
         }
         
@@ -175,45 +200,49 @@ class EntityBudgetController extends Controller
         $format = $request->get('format', 'pdf');
 
         if ($format === 'excel' || $format === 'csv') {
-            return $this->exportExcel($budgets, $entityName);
+            return $this->exportExcel($budgets, $entityName, $selectedYear);
         } else {
-            return $this->exportPdf($budgets, $entityName);
+            return $this->exportPdf($budgets, $entityName, $selectedYear);
         }
     }
 
-    private function exportPdf($budgets, $entityName)
+    private function exportPdf($budgets, $entityName, $year = null)
     {
-        $pdf = \PDF::loadView('entity_budget.export-pdf', compact('budgets', 'entityName'));
-        return $pdf->download('entity-budget-' . str_replace(' ', '-', $entityName) . '-' . date('Y-m-d') . '.pdf');
+        $year = $year ?? date('Y');
+        $pdf = \PDF::loadView('entity_budget.export-pdf', compact('budgets', 'entityName', 'year'));
+        return $pdf->download('entity-budget-' . str_replace(' ', '-', $entityName) . '-' . $year . '-' . date('Y-m-d') . '.pdf');
     }
 
-    private function exportExcel($budgets, $entityName)
+    private function exportExcel($budgets, $entityName, $year = null)
     {
-        $filename = 'entity-budget-' . str_replace(' ', '-', $entityName) . '-' . date('Y-m-d') . '.csv';
+        $year = $year ?? date('Y');
+        $yearColumn = 'budget_' . $year;
+        $filename = 'entity-budget-' . str_replace(' ', '-', $entityName) . '-' . $year . '-' . date('Y-m-d') . '.csv';
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function() use ($budgets) {
+        $callback = function() use ($budgets, $yearColumn, $year) {
             $file = fopen('php://output', 'w');
             
             // Headers
             fputcsv($file, [
-                '#', 'Entity', 'Cost Head', 'Expense Type', 'Budget 2025', 'Total Expenses', 'Available Balance'
+                '#', 'Entity', 'Cost Head', 'Expense Type', 'Budget ' . $year, 'Total Expenses', 'Available Balance'
             ]);
 
             // Data
             foreach ($budgets as $index => $budget) {
+                $budgetAmount = $budget->$yearColumn ?? 0;
                 $totalExpenses = $budget->expenses->sum('expense_amount');
-                $availableBalance = $budget->budget_2025 - $totalExpenses;
+                $availableBalance = $budgetAmount - $totalExpenses;
                 
                 fputcsv($file, [
                     $index + 1,
                     $budget->employee->entity_name ?? 'N/A',
                     $budget->cost_head ?? 'N/A',
                     $budget->expense_type ?? 'N/A',
-                    number_format($budget->budget_2025, 2),
+                    number_format($budgetAmount, 2),
                     number_format($totalExpenses, 2),
                     number_format($availableBalance, 2),
                 ]);
@@ -240,19 +269,37 @@ class EntityBudgetController extends Controller
                 'entity_id' => 'required|exists:employees,id',
                 'cost_head' => 'required|string',
                 'expense_type' => 'required|string',
-                'budget_2025' => 'required|numeric|min:0'
+                'budget_year' => 'required|integer|min:2020|max:2100',
+                'budget_amount' => 'required|numeric|min:0'
             ]);
-                    
-            EntityBudget::create([
+            
+            $yearColumn = 'budget_' . $validated['budget_year'];
+            
+            // Check if column exists, if not, we'll need to add it via migration
+            if (!Schema::hasColumn('entity_budgets', $yearColumn)) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['error' => 'Budget column for year ' . $validated['budget_year'] . ' does not exist. Please run migrations.']);
+            }
+            
+            $budgetData = [
                 'employee_id' => $validated['entity_id'],
                 'cost_head' => $validated['cost_head'],
                 'expense_type' => $validated['expense_type'],
-                'budget_2025' => $validated['budget_2025']
-            ]);
+            ];
+            
+            $budgetData[$yearColumn] = $validated['budget_amount'];
+                    
+            $budget = EntityBudget::create($budgetData);
 
-            // Redirect back to create page with entity_id filter to show the newly created budget
-            return redirect()->route('entity_budget.create', ['entity_id' => $validated['entity_id']])
-                ->with('success', 'Budget created successfully');
+            // Redirect back to create page with entity_id and year filter to show the newly created budget
+            return redirect()->route('entity_budget.create', [
+                'entity_id' => $validated['entity_id'],
+                'year' => $validated['budget_year']
+            ])
+                ->with('success', 'Budget created successfully')
+                ->with('saved_budget_id', $budget->id);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
@@ -268,5 +315,16 @@ class EntityBudgetController extends Controller
                 ->withInput()
                 ->withErrors(['error' => 'An error occurred while saving the budget. Please try again.']);
         }
+    }
+
+    public function downloadForm($id)
+    {
+        $budget = EntityBudget::with(['employee', 'expenses'])->findOrFail($id);
+        $currentYear = date('Y');
+        $yearColumn = 'budget_' . $currentYear;
+        $budgetAmount = $budget->$yearColumn ?? 0;
+        
+        $pdf = \PDF::loadView('entity_budget.download-form', compact('budget', 'budgetAmount', 'currentYear'));
+        return $pdf->download('budget-' . $budget->id . '-' . date('Y-m-d') . '.pdf');
     }
 }

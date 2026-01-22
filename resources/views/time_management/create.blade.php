@@ -21,7 +21,7 @@
         </div>
     @endif
 
-    <form action="{{ route('time.store') }}" method="POST" id="timeManagementForm">
+    <form action="{{ route('time.store') }}" method="POST" id="timeManagementForm" autocomplete="off">
         @csrf
 
         <div class="mb-3">
@@ -75,9 +75,9 @@
         <button type="submit" class="btn btn-primary" id="submitBtn">
             <i class="bi bi-check-circle me-2"></i>Assign Task
         </button>
-        <a href="{{ route('time.index') }}" class="btn btn-secondary">
+        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
             <i class="bi bi-x-circle me-2"></i>Cancel
-        </a>
+        </button>
     </form>
 </div>
 

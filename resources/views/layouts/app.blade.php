@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="autocomplete" content="off">
+    <meta name="format-detection" content="telephone=no">
     <title>Asset Management System - Tanseeq Investment</title>
 
     <!-- Bootstrap & Icons -->
@@ -19,12 +21,43 @@
             --border-light: #E5E7EB;
         }
 
+        /* Disable browser autocomplete dropdowns - Aggressive */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 30px white inset !important;
+            box-shadow: 0 0 0 30px white inset !important;
+            -webkit-text-fill-color: #1F2A44 !important;
+        }
+
+        /* Hide autocomplete dropdown buttons */
+        input::-webkit-contacts-auto-fill-button,
+        input::-webkit-credentials-auto-fill-button,
+        input::-webkit-strong-password-auto-fill-button {
+            visibility: hidden !important;
+            display: none !important;
+            pointer-events: none !important;
+            position: absolute !important;
+            right: 0 !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
+        /* Hide autocomplete suggestions */
+        input::-webkit-list-button,
+        input::-webkit-calendar-picker-indicator {
+            display: none !important;
+        }
+
         body {
             display: flex;
             min-height: 100vh;
             font-family: 'Inter', 'Roboto', sans-serif;
             background-color: var(--bg-light);
             color: var(--text-dark);
+            font-size: 13px;
         }
 
         /* Sidebar */
@@ -33,6 +66,31 @@
             background-color: var(--primary);
             padding-top: 20px;
             color: #fff;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+        }
+
+        /* Custom scrollbar for sidebar */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(198, 168, 125, 0.5);
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(198, 168, 125, 0.7);
         }
 
         .sidebar h4 {
@@ -52,6 +110,7 @@
             border: none;
             background: transparent;
             transition: all 0.25s ease;
+            font-size: 13px;
         }
 
         .sidebar a:hover,
@@ -62,7 +121,16 @@
 
         .collapse a {
             padding-left: 40px;
-            font-size: 13px;
+            font-size: 12px;
+            background-color: rgba(52, 152, 219, 0.15);
+            border-left: 3px solid #3498db;
+            color: #85c1e9;
+        }
+
+        .collapse a:hover {
+            background-color: rgba(52, 152, 219, 0.25);
+            color: #ffffff;
+            border-left-color: #5dade2;
         }
 
         /* Content */
@@ -71,6 +139,7 @@
             padding: 24px;
             background-color: var(--bg-light);
             min-height: 100vh;
+            margin-left: 260px; /* Account for fixed sidebar width */
         }
 
         /* Buttons */
@@ -372,7 +441,7 @@
 
         .page-header h2 {
             margin: 0;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 600;
             color: var(--primary);
         }
@@ -500,7 +569,7 @@
         /* Master Page Consistent Styling */
         .master-page {
             font-family: 'Inter', 'Roboto', sans-serif;
-            font-size: 14px;
+            font-size: 12px;
             line-height: 1.6;
         }
 
@@ -517,7 +586,7 @@
         .master-page .page-header h2,
         .master-page .page-header h3 {
             margin: 0;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 600;
             color: var(--primary);
         }
@@ -540,11 +609,11 @@
             font-weight: 500;
             color: var(--text-dark);
             margin-bottom: 8px;
-            font-size: 14px;
+            font-size: 12px;
         }
 
         .master-form-card .form-control {
-            font-size: 14px;
+            font-size: 12px;
             padding: 10px 12px;
             border: 1px solid var(--border-light);
             border-radius: 6px;
@@ -578,14 +647,14 @@
 
         .master-table-card .table {
             margin-bottom: 0;
-            font-size: 14px;
+            font-size: 12px;
         }
 
         .master-table-card .table thead th {
             background-color: #f8f9fa;
             color: var(--text-dark);
             font-weight: 600;
-            font-size: 13px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             padding: 12px 16px;
@@ -608,7 +677,7 @@
 
         .master-table-card .btn-sm {
             padding: 6px 12px;
-            font-size: 12px;
+            font-size: 11px;
             margin-right: 4px;
         }
     </style>
@@ -655,8 +724,12 @@
         <i class="bi bi-person-plus"></i> New Employee
     </a>
 
+    <a href="{{ route('employees.search') }}" class="btn btn-sm btn-outline-light mb-1">
+        <i class="bi bi-search"></i> Search Employees
+    </a>
+
     <a href="{{ url('/employee-assets') }}" class="btn btn-sm btn-outline-light mb-1">
-        <i class="bi bi-search"></i> Employee Asset Lookup
+        <i class="bi bi-box-seam"></i> Employee Asset Lookup
     </a>
 </div>
 
@@ -713,6 +786,10 @@
 
     <a href="{{ route('assets.create') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-pc-display"></i> Asset Master
+    </a>
+
+    <a href="{{ route('assets.filter') }}" class="btn btn-sm btn-outline-light mb-1">
+        <i class="bi bi-funnel"></i> Filter Assets by Category
     </a>
 </div>
 
@@ -799,6 +876,16 @@
         <i class="bi bi-tools"></i> Preventive Maintenance
     </a>
 </div>
+
+{{-- Logout Button --}}
+<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(198, 168, 125, 0.3);">
+    <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
+        @csrf
+        <button type="submit" class="btn btn-outline-danger w-100" style="border-color: #dc3545; color: #dc3545;">
+            <i class="bi bi-box-arrow-right me-2"></i> Logout
+        </button>
+    </form>
+</div>
 </div>
 
     </div>
@@ -848,6 +935,148 @@
 
     <!-- ✅ Bootstrap JS Bundle (needed for collapse dropdowns) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Form Reset Function -->
+    <script>
+        function resetForm(button) {
+            // Show confirmation first
+            if (!confirm('Are you sure you want to cancel and clear all filled details?')) {
+                return; // User cancelled
+            }
+
+            // Find the form containing this button
+            const form = button.closest('form');
+            if (!form) {
+                alert('Form not found');
+                return;
+            }
+
+            // Reset the form (clears all inputs)
+            form.reset();
+
+            // Clear file inputs
+            const fileInputs = form.querySelectorAll('input[type="file"]');
+            fileInputs.forEach(input => {
+                input.value = '';
+                // Also clear any preview images
+                const preview = input.nextElementSibling;
+                if (preview && preview.tagName === 'IMG') {
+                    preview.remove();
+                }
+            });
+
+            // Clear signature pads if they exist
+            if (typeof SignaturePad !== 'undefined') {
+                // Try to find signature pads in the form
+                const userPadCanvas = form.querySelector('#user-pad');
+                const managerPadCanvas = form.querySelector('#manager-pad');
+                
+                if (userPadCanvas && window.userPad) {
+                    window.userPad.clear();
+                }
+                if (managerPadCanvas && window.managerPad) {
+                    window.managerPad.clear();
+                }
+                
+                // Also try to find by container
+                const userContainer = form.querySelector('#user-signature-container');
+                const managerContainer = form.querySelector('#manager-signature-container');
+                if (userContainer) {
+                    const canvas = userContainer.querySelector('canvas');
+                    if (canvas && canvas.signaturePad) {
+                        canvas.signaturePad.clear();
+                    }
+                }
+                if (managerContainer) {
+                    const canvas = managerContainer.querySelector('canvas');
+                    if (canvas && canvas.signaturePad) {
+                        canvas.signaturePad.clear();
+                    }
+                }
+                
+                // Clear signature hidden inputs
+                const userSigInput = form.querySelector('#user_signature');
+                const managerSigInput = form.querySelector('#manager_signature');
+                if (userSigInput) userSigInput.value = '';
+                if (managerSigInput) managerSigInput.value = '';
+            }
+
+            // Clear readonly fields that are auto-filled
+            const readonlyInputs = form.querySelectorAll('input[readonly]');
+            readonlyInputs.forEach(input => {
+                input.value = '';
+            });
+
+            // Reset select dropdowns to first option
+            const selects = form.querySelectorAll('select');
+            selects.forEach(select => {
+                select.selectedIndex = 0;
+                // Trigger change event for selects that have change handlers
+                select.dispatchEvent(new Event('change'));
+            });
+
+            // Clear checkboxes
+            const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+
+            // Clear textareas
+            const textareas = form.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                textarea.value = '';
+            });
+
+            // Clear any dynamically loaded content
+            const dynamicContainers = form.querySelectorAll('#feature-fields, #items-container, #assets-section, #employee_name, #department, #entity, #location, #system_code, #printer_code, #software_installed, #issued_date');
+            dynamicContainers.forEach(container => {
+                if (container.tagName === 'DIV' || container.tagName === 'INPUT') {
+                    if (container.id === 'assets-section') {
+                        container.style.display = 'none';
+                    } else if (container.tagName === 'DIV') {
+                        container.innerHTML = '';
+                    } else {
+                        container.value = '';
+                    }
+                }
+            });
+
+            // Reset any calculated fields
+            const costInput = form.querySelector('#cost');
+            if (costInput) {
+                costInput.value = '';
+                const costInfo = form.querySelector('#cost_info');
+                if (costInfo) costInfo.textContent = 'Enter MRC and select end date to calculate cost';
+            }
+            
+            const expenseAmount = form.querySelector('#expense_amount');
+            if (expenseAmount) expenseAmount.value = '';
+
+            // Reset date fields
+            const dateInputs = form.querySelectorAll('input[type="date"]');
+            dateInputs.forEach(input => {
+                if (!input.hasAttribute('required') || input.id !== 'expense_date') {
+                    input.value = '';
+                }
+            });
+
+            console.log('Form reset successfully');
+        }
+    </script>
+
+<script>
+// Simple autocomplete prevention - disabled complex script to fix navigation
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const inputs = document.querySelectorAll('input:not([type="password"]):not([type="submit"]):not([type="button"]), textarea');
+        inputs.forEach(function(input) {
+            input.setAttribute('autocomplete', 'off');
+        });
+    } catch(e) {
+        console.warn('Autocomplete setup error:', e);
+    }
+});
+</script>
 
 </body>
 </html>

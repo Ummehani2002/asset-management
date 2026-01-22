@@ -4,7 +4,14 @@
     <h3>System Return Note</h3>
     {{-- Success Message --}}
     @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
+        <div class="alert alert-success">
+            {{ session('success') }}
+            @if(session('saved_note_id'))
+                <a href="{{ route('issue-note.download-form', session('saved_note_id')) }}" class="btn btn-sm btn-outline-light ms-3">
+                    <i class="bi bi-download me-1"></i>Download Form (PDF)
+                </a>
+            @endif
+        </div>
     @endif
 
     {{-- Error Message --}}
@@ -18,7 +25,7 @@
         </div>
     @endif
 
-    <form action="{{ route('issue-note.store-return') }}" method="POST">
+    <form action="{{ route('issue-note.store-return') }}" method="POST" autocomplete="off">
         @csrf
 
         <div class="row mb-3">
@@ -115,7 +122,11 @@
                 <input type="hidden" name="manager_signature" id="manager_signature">
             </div>
         </div>
-<button class="btn btn-primary mt-3">Save Return Note</button> </form>
+<button type="submit" class="btn btn-primary mt-3">Save Return Note</button>
+<button type="button" class="btn btn-secondary mt-3 ms-2" onclick="resetForm(this)">
+    <i class="bi bi-x-circle me-2"></i>Cancel
+</button>
+</form>
 
 {{-- Signature Pad JS --}}
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
