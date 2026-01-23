@@ -687,28 +687,22 @@ class AssetTransactionController extends Controller
                         $assignedToType = $anyPreviousAssignment->assigned_to_type ?? 'employee';
                         $projectName = $anyPreviousAssignment->project_name;
                         $locationId = $anyPreviousAssignment->location_id;
-                    } else {
-                        // Strategy 4: Search for ANY transaction with employee_id
-                        $anyTransactionWithEmployee = AssetTransaction::where('asset_id', $asset->id)
-                            ->whereNotNull('employee_id')
-                            ->latest()
-                            ->first();
-                        
-                        if ($anyTransactionWithEmployee) {
-                            $employeeId = $anyTransactionWithEmployee->employee_id;
-                            $assignedToType = $anyTransactionWithEmployee->assigned_to_type ?? 'employee';
-                            $projectName = $anyTransactionWithEmployee->project_name;
-                            $locationId = $anyTransactionWithEmployee->location_id;
                         } else {
-                            // For reassign, we need an employee_id - throw error
-                            if ($request->action_type === 'reassign') {
-                                throw ValidationException::withMessages([
-                                    'asset_id' => 'Cannot find any previous assignment or employee information for this asset. Cannot reassign without employee information. Please use "Return Asset" option instead.',
-                                ]);
+                            // Strategy 4: Search for ANY transaction with employee_id
+                            $anyTransactionWithEmployee = AssetTransaction::where('asset_id', $asset->id)
+                                ->whereNotNull('employee_id')
+                                ->latest()
+                                ->first();
+                            
+                            if ($anyTransactionWithEmployee) {
+                                $employeeId = $anyTransactionWithEmployee->employee_id;
+                                $assignedToType = $anyTransactionWithEmployee->assigned_to_type ?? 'employee';
+                                $projectName = $anyTransactionWithEmployee->project_name;
+                                $locationId = $anyTransactionWithEmployee->location_id;
                             }
-                            // For maintenance, we can proceed without employee_id
+                            // If still no employee found, allow reassign to proceed but asset will be available (not assigned)
+                            // This handles edge cases where assets were sent to maintenance without proper assignment history
                         }
-                    }
                 }
             } else {
                 $employeeId = $beforeMaintenance->employee_id;
@@ -724,25 +718,43 @@ class AssetTransactionController extends Controller
 
         // Handle different action types
         if ($request->action_type === 'reassign') {
-            // Reassign to same employee
+            // Reassign to same employee (or make available if no employee found)
             if ($request->hasFile('reassign_image')) {
                 $imageData['assign_image'] = $this->uploadImage($request->file('reassign_image'), 'assign');
             }
 
-            $transaction = AssetTransaction::create(array_merge([
-                'asset_id' => $asset->id,
-                'transaction_type' => 'assign',
-                'status' => 'assigned',
-                'issue_date' => $request->reassign_date,
-                'assigned_to_type' => $assignedToType,
-                'employee_id' => $employeeId,
-                'project_name' => $projectName,
-                'location_id' => $locationId,
-                'maintenance_notes' => $request->reassign_notes,
-            ], $imageData));
+            // If no employee found, make asset available instead of assigned
+            if (!$employeeId) {
+                $transaction = AssetTransaction::create(array_merge([
+                    'asset_id' => $asset->id,
+                    'transaction_type' => 'return',
+                    'status' => 'available',
+                    'return_date' => $request->reassign_date,
+                    'assigned_to_type' => null,
+                    'employee_id' => null,
+                    'project_name' => null,
+                    'location_id' => null,
+                    'maintenance_notes' => $request->reassign_notes . ' (Reassigned from maintenance - no previous employee found)',
+                ], $imageData));
 
-            $asset->update(['status' => 'assigned']);
-            $successMessage = 'Asset reassigned to same employee successfully! Email notification sent. Asset is ready for collection.';
+                $asset->update(['status' => 'available']);
+                $successMessage = 'Asset returned from maintenance successfully! Asset is now available for assignment. (No previous employee information found)';
+            } else {
+                $transaction = AssetTransaction::create(array_merge([
+                    'asset_id' => $asset->id,
+                    'transaction_type' => 'assign',
+                    'status' => 'assigned',
+                    'issue_date' => $request->reassign_date,
+                    'assigned_to_type' => $assignedToType,
+                    'employee_id' => $employeeId,
+                    'project_name' => $projectName,
+                    'location_id' => $locationId,
+                    'maintenance_notes' => $request->reassign_notes,
+                ], $imageData));
+
+                $asset->update(['status' => 'assigned']);
+                $successMessage = 'Asset reassigned to same employee successfully! Email notification sent. Asset is ready for collection.';
+            }
 
         } elseif ($request->action_type === 'maintenance') {
             // Send back to maintenance
@@ -790,7 +802,7 @@ class AssetTransactionController extends Controller
         }
 
         // Send email to employee (only for reassign and if employee exists)
-        if ($transaction && $request->action_type === 'reassign' && $employeeId) {
+        if ($transaction && $request->action_type === 'reassign' && $employeeId && $transaction->transaction_type === 'assign') {
             $this->sendAssetEmail($transaction);
         }
 
