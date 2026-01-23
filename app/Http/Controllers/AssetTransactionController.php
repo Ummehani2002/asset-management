@@ -651,25 +651,71 @@ class AssetTransactionController extends Controller
             ]);
         }
 
-        // Find the assignment before maintenance
-        $beforeMaintenance = AssetTransaction::where('asset_id', $asset->id)
-            ->where('transaction_type', 'assign')
-            ->where('id', '<', $latest->id)
-            ->latest()
-            ->first();
+        // Find the assignment before maintenance (for reassign and maintenance actions)
+        $beforeMaintenance = null;
+        $employeeId = null;
+        $assignedToType = 'employee';
+        $projectName = null;
+        $locationId = null;
         
-        if (!$beforeMaintenance || !$beforeMaintenance->employee_id) {
-            throw ValidationException::withMessages([
-                'asset_id' => 'Cannot find previous assignment for this asset. Cannot process.',
-            ]);
-        }
-
-        $employeeForEmail = Employee::find($beforeMaintenance->employee_id);
-        
-        if (!$employeeForEmail) {
-            throw ValidationException::withMessages([
-                'asset_id' => 'Employee not found for previous assignment.',
-            ]);
+        // Only need previous assignment for 'reassign' and 'maintenance' actions
+        if (in_array($request->action_type, ['reassign', 'maintenance'])) {
+            // Strategy 1: Try to find assignment before the current maintenance transaction
+            $beforeMaintenance = AssetTransaction::where('asset_id', $asset->id)
+                ->where('transaction_type', 'assign')
+                ->where('id', '<', $latest->id)
+                ->latest()
+                ->first();
+            
+            // Strategy 2: If not found, try to get info from maintenance transaction itself
+            if (!$beforeMaintenance || !$beforeMaintenance->employee_id) {
+                if ($latest->employee_id) {
+                    $employeeId = $latest->employee_id;
+                    $assignedToType = $latest->assigned_to_type ?? 'employee';
+                    $projectName = $latest->project_name;
+                    $locationId = $latest->location_id;
+                } else {
+                    // Strategy 3: Search for ANY previous assignment transaction (not just before maintenance)
+                    $anyPreviousAssignment = AssetTransaction::where('asset_id', $asset->id)
+                        ->where('transaction_type', 'assign')
+                        ->whereNotNull('employee_id')
+                        ->latest()
+                        ->first();
+                    
+                    if ($anyPreviousAssignment) {
+                        $employeeId = $anyPreviousAssignment->employee_id;
+                        $assignedToType = $anyPreviousAssignment->assigned_to_type ?? 'employee';
+                        $projectName = $anyPreviousAssignment->project_name;
+                        $locationId = $anyPreviousAssignment->location_id;
+                    } else {
+                        // Strategy 4: Search for ANY transaction with employee_id
+                        $anyTransactionWithEmployee = AssetTransaction::where('asset_id', $asset->id)
+                            ->whereNotNull('employee_id')
+                            ->latest()
+                            ->first();
+                        
+                        if ($anyTransactionWithEmployee) {
+                            $employeeId = $anyTransactionWithEmployee->employee_id;
+                            $assignedToType = $anyTransactionWithEmployee->assigned_to_type ?? 'employee';
+                            $projectName = $anyTransactionWithEmployee->project_name;
+                            $locationId = $anyTransactionWithEmployee->location_id;
+                        } else {
+                            // For reassign, we need an employee_id - throw error
+                            if ($request->action_type === 'reassign') {
+                                throw ValidationException::withMessages([
+                                    'asset_id' => 'Cannot find any previous assignment or employee information for this asset. Cannot reassign without employee information. Please use "Return Asset" option instead.',
+                                ]);
+                            }
+                            // For maintenance, we can proceed without employee_id
+                        }
+                    }
+                }
+            } else {
+                $employeeId = $beforeMaintenance->employee_id;
+                $assignedToType = $beforeMaintenance->assigned_to_type ?? 'employee';
+                $projectName = $beforeMaintenance->project_name;
+                $locationId = $beforeMaintenance->location_id;
+            }
         }
 
         $imageData = [];
@@ -688,10 +734,10 @@ class AssetTransactionController extends Controller
                 'transaction_type' => 'assign',
                 'status' => 'assigned',
                 'issue_date' => $request->reassign_date,
-                'assigned_to_type' => 'employee',
-                'employee_id' => $beforeMaintenance->employee_id,
-                'project_name' => null,
-                'location_id' => $beforeMaintenance->location_id,
+                'assigned_to_type' => $assignedToType,
+                'employee_id' => $employeeId,
+                'project_name' => $projectName,
+                'location_id' => $locationId,
                 'maintenance_notes' => $request->reassign_notes,
             ], $imageData));
 
@@ -710,10 +756,10 @@ class AssetTransactionController extends Controller
                 'status' => 'under_maintenance',
                 'receive_date' => $request->receive_date,
                 'delivery_date' => $request->delivery_date,
-                'assigned_to_type' => $beforeMaintenance->assigned_to_type ?? 'employee',
-                'employee_id' => $beforeMaintenance->employee_id,
-                'project_name' => $beforeMaintenance->project_name,
-                'location_id' => $beforeMaintenance->location_id,
+                'assigned_to_type' => $assignedToType,
+                'employee_id' => $employeeId,
+                'project_name' => $projectName,
+                'location_id' => $locationId,
                 'repair_type' => $request->repair_type,
                 'maintenance_notes' => $request->reassign_notes,
             ], $imageData));
@@ -743,8 +789,8 @@ class AssetTransactionController extends Controller
             $successMessage = 'Asset returned successfully! Asset is now available.';
         }
 
-        // Send email to employee (only for reassign)
-        if ($transaction && $request->action_type === 'reassign') {
+        // Send email to employee (only for reassign and if employee exists)
+        if ($transaction && $request->action_type === 'reassign' && $employeeId) {
             $this->sendAssetEmail($transaction);
         }
 

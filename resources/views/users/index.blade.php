@@ -42,6 +42,15 @@
             <input type="password" name="password_confirmation" class="form-control" required>
         </div>
 
+        <div class="mb-3">
+            <label>Role <span class="text-danger">*</span></label>
+            <select name="role" class="form-control" required>
+                <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>User</option>
+                <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
+            </select>
+            <small class="text-muted">Admin can access all features. User has limited access.</small>
+        </div>
+
         <button type="submit" class="btn btn-primary">Create User</button>
         <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
             <i class="bi bi-x-circle me-2"></i>Cancel

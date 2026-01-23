@@ -63,25 +63,31 @@ Route::delete('/brands/{id}', [BrandController::class, 'destroy'])->name('brands
 
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\AssetController;
-Route::get('/employees/autocomplete', [EmployeeController::class, 'autocomplete'])->name('employees.autocomplete');
-Route::get('/employees/{id}/assets', [AssetController::class, 'getAssetsByEmployee'])->name('employees.assets');
+// Employee and Asset API endpoints - All authenticated users
+Route::middleware(['auth'])->group(function () {
+    Route::get('/employees/autocomplete', [EmployeeController::class, 'autocomplete'])->name('employees.autocomplete');
+    Route::get('/employees/{id}/assets', [AssetController::class, 'getAssetsByEmployee'])->name('employees.assets');
+    Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeatures']);
+    Route::get('/assets/next-id/{categoryId}', [AssetController::class, 'getNextAssetId'])->name('assets.nextId');
+    Route::get('/assets/autocomplete-serial', [AssetController::class, 'autocompleteSerialNumber'])->name('assets.autocompleteSerial');
+});
 Route::get('/assets/create', [AssetController::class, 'create'])->name('assets.create');
 Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
 Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
-Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeatures']);
-Route::get('/assets/next-id/{categoryId}', [AssetController::class, 'getNextAssetId'])->name('assets.nextId');
-Route::get('/assets/autocomplete-serial', [AssetController::class, 'autocompleteSerialNumber'])->name('assets.autocompleteSerial');
 
 
 use App\Http\Controllers\CategoryFeatureController;
+// Features and Categories - Admin only for create/edit, all users can view
+Route::middleware(['auth'])->group(function () {
+    Route::get('/brands/by-category/{categoryId}', [BrandController::class, 'getByCategory']);
+    Route::get('/assets/category/{id}', [AssetController::class, 'assetsByCategory'])->name('assets.byCategory');
+    Route::get('/api/assets/by-category/{id}', [AssetController::class, 'getAssetsByCategoryApi'])->name('api.assets.byCategory');
+    Route::get('/assets/category/{id}/export', [AssetController::class, 'exportByCategory'])->name('assets.byCategory.export');
+    Route::get('/category-features/{category}', [CategoryFeatureController::class, 'getByCategory']);
+    Route::get('/features/by-brand/{brandId}', [CategoryFeatureController::class, 'getByBrand']);
+    Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeaturesByBrand']);
+});
 Route::post('/features/store', [AssetCategoryController::class, 'storeFeature'])->name('features.store');
-Route::get('/brands/by-category/{categoryId}', [BrandController::class, 'getByCategory']);
-Route::get('/assets/category/{id}', [AssetController::class, 'assetsByCategory'])->name('assets.byCategory');
-Route::get('/api/assets/by-category/{id}', [AssetController::class, 'getAssetsByCategoryApi'])->name('api.assets.byCategory');
-Route::get('/assets/category/{id}/export', [AssetController::class, 'exportByCategory'])->name('assets.byCategory.export');
-Route::get('/category-features/{category}', [CategoryFeatureController::class, 'getByCategory']);
-Route::get('/features/by-brand/{brandId}', [CategoryFeatureController::class, 'getByBrand']);
-Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeaturesByBrand']);
 Route::get('/features/{id}/edit', [CategoryFeatureController::class, 'edit'])->name('features.edit');
 Route::put('/features/{id}', [CategoryFeatureController::class, 'update'])->name('features.update');
 Route::delete('/features/{id}', [CategoryFeatureController::class, 'destroy'])->name('features.destroy');
@@ -102,23 +108,26 @@ Route::get('/location-master/export', [LocationController::class, 'export'])->na
 Route::post('/location-master', [LocationController::class, 'store'])->name('location-master.store');
 Route::put('/location-master/{id}', [LocationController::class, 'update'])->name('location-master.update');
 Route::delete('/location-master/{id}', [LocationController::class, 'destroy'])->name('location-master.destroy');
+Route::get('/location-master/{id}/edit', [LocationController::class, 'edit'])->name('location.edit');
 Route::get('/location-autocomplete', [App\Http\Controllers\LocationController::class, 'autocomplete'])->name('location.autocomplete');
 Route::get('/locations/{id}/assets/export', [LocationController::class, 'exportAssets'])->name('location.assets.export');
 Route::get('/locations/{id}/assets', [LocationController::class, 'assets']);
 
 
 use App\Http\Controllers\EmployeeAssetController;
-Route::get('/employee-assets', [EmployeeAssetController::class, 'index'])->name('employee.assets');
-Route::get('/employee-assets/{id}/export', [EmployeeAssetController::class, 'export'])->name('employee.assets.export');
-Route::get('/employee/search', [App\Http\Controllers\EmployeeController::class, 'search'])->name('employee.search');
+// Employee Asset Lookup - All authenticated users
+Route::middleware(['auth'])->group(function () {
+    Route::get('/employee-assets', [EmployeeAssetController::class, 'index'])->name('employee.assets');
+    Route::get('/employee-assets/{id}/export', [EmployeeAssetController::class, 'export'])->name('employee.assets.export');
+    Route::get('/employee/search', [App\Http\Controllers\EmployeeController::class, 'search'])->name('employee.search');
+});
 
 
 use App\Http\Controllers\LocationAssetController;
-Route::get('/location-assets', [LocationAssetController::class, 'index'])->name('location.assets');
-Route::get('/locations/autocomplete', [LocationController::class, 'autocomplete'])->name('locations.autocomplete');
-Route::get('/location-master/{id}/edit', [LocationController::class, 'edit'])->name('location.edit');
-Route::put('/location-master/{id}', [LocationController::class, 'update'])->name('location.update');
-Route::delete('/location-master/{id}', [LocationController::class, 'destroy'])->name('location.destroy');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/location-assets', [LocationAssetController::class, 'index'])->name('location.assets');
+    Route::get('/locations/autocomplete', [LocationController::class, 'autocomplete'])->name('locations.autocomplete');
+});
 
 use App\Http\Controllers\AssetTransactionController;
 
@@ -146,14 +155,19 @@ Route::get('/asset-transactions/get-latest-employee/{asset}', [AssetTransactionC
     Route::get('/get-asset-details/{assetId}', [AssetTransactionController::class, 'getAssetDetails']);
 });
 
-// Asset filters
-Route::get('/assets/filter', [AssetController::class, 'filter'])->name('assets.filter');
+// Asset filters - All users can filter/view
+Route::middleware(['auth'])->group(function () {
+    Route::get('/assets/filter', [AssetController::class, 'filter'])->name('assets.filter');
+});
 Route::get('/get-asset-full-details/{asset_id}', [AssetController::class, 'getFullDetails']);
 
 
 
 use App\Http\Controllers\AssetHistoryController;
-Route::get('/asset-history/{asset_id}', [AssetHistoryController::class, 'show'])->name('asset.history');
+// Asset History - All authenticated users can view
+Route::middleware(['auth'])->group(function () {
+    Route::get('/asset-history/{asset_id}', [AssetHistoryController::class, 'show'])->name('asset.history');
+});
 Route::get('/categories/{id}/edit', [AssetCategoryController::class, 'edit'])->name('categories.edit');
 Route::get('/categories/{id}/export', [AssetCategoryController::class, 'export'])->name('categories.export');
 Route::put('/categories/{id}', [AssetCategoryController::class, 'update'])->name('categories.update');
@@ -171,30 +185,34 @@ Route::post('/budget-expenses/store', [BudgetExpenseController::class, 'store'])
 Route::get('/budget-expenses/get-details', [BudgetExpenseController::class, 'getBudgetDetails'])->name('budget-expenses.get-details');
 
 use App\Http\Controllers\TimeManagementController;
-Route::get('/time-management', [TimeManagementController::class, 'index'])->name('time.index');
-Route::get('/time-management/export', [TimeManagementController::class, 'export'])->name('time.export');
-Route::get('/time-management/create', [TimeManagementController::class, 'create'])->name('time.create');
-Route::post('/time-management/store', [TimeManagementController::class, 'store'])->name('time.store');
-Route::get('/time-management/{id}/edit', [TimeManagementController::class, 'edit'])->name('time.edit');
-Route::post('/time-management/{id}/update', [TimeManagementController::class, 'update'])->name('time.update');
-Route::delete('/time-management/{id}', [TimeManagementController::class, 'destroy'])->name('time.destroy');
+// Time Management - All authenticated users
+Route::middleware(['auth'])->group(function () {
+    Route::get('/time-management', [TimeManagementController::class, 'index'])->name('time.index');
+    Route::get('/time-management/export', [TimeManagementController::class, 'export'])->name('time.export');
+    Route::get('/time-management/create', [TimeManagementController::class, 'create'])->name('time.create');
+    Route::post('/time-management/store', [TimeManagementController::class, 'store'])->name('time.store');
+    Route::get('/time-management/{id}/edit', [TimeManagementController::class, 'edit'])->name('time.edit');
+    Route::post('/time-management/{id}/update', [TimeManagementController::class, 'update'])->name('time.update');
+    Route::delete('/time-management/{id}', [TimeManagementController::class, 'destroy'])->name('time.destroy');
+});
 
 
 use App\Http\Controllers\IssueNoteController;
-Route::get('/issue-note', [IssueNoteController::class, 'index'])->name('issue-note.index');
-Route::get('/issue-note/export', [IssueNoteController::class, 'export'])->name('issue-note.export');
-Route::get('/issue-note/create', [IssueNoteController::class, 'create'])->name('issue-note.create');
-Route::post('/issue-note/store', [IssueNoteController::class, 'store'])->name('issue-note.store');
-Route::get('/issue-note/create-return', [IssueNoteController::class, 'createReturn'])->name('issue-note.create-return');
-Route::post('/issue-note/store-return', [IssueNoteController::class, 'storeReturn'])->name('issue-note.store-return');
-Route::get('/issue-note/{id}/details', [IssueNoteController::class, 'getIssueNoteDetails'])->name('issue-note.details');
-Route::get('/issue-note/{id}/download-form', [IssueNoteController::class, 'downloadForm'])->name('issue-note.download-form');
-
-Route::get('/employee/{id}/details', [IssueNoteController::class, 'getEmployeeDetails'])->name('employee.details');
+// IT Forms - All authenticated users
+Route::middleware(['auth'])->group(function () {
+    Route::get('/issue-note', [IssueNoteController::class, 'index'])->name('issue-note.index');
+    Route::get('/issue-note/export', [IssueNoteController::class, 'export'])->name('issue-note.export');
+    Route::get('/issue-note/create', [IssueNoteController::class, 'create'])->name('issue-note.create');
+    Route::post('/issue-note/store', [IssueNoteController::class, 'store'])->name('issue-note.store');
+    Route::get('/issue-note/create-return', [IssueNoteController::class, 'createReturn'])->name('issue-note.create-return');
+    Route::post('/issue-note/store-return', [IssueNoteController::class, 'storeReturn'])->name('issue-note.store-return');
+    Route::get('/issue-note/{id}/details', [IssueNoteController::class, 'getIssueNoteDetails'])->name('issue-note.details');
+    Route::get('/issue-note/{id}/download-form', [IssueNoteController::class, 'downloadForm'])->name('issue-note.download-form');
+    Route::get('/employee/{id}/details', [IssueNoteController::class, 'getEmployeeDetails'])->name('employee.details');
+});
 
 
 use App\Http\Controllers\ProjectController;
-
 Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
 Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
 Route::get('/projects/export', [ProjectController::class, 'export'])->name('projects.export');
@@ -206,17 +224,20 @@ Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->nam
 
 
 use App\Http\Controllers\InternetServiceController;
-Route::get('internet-services', [InternetServiceController::class, 'index'])->name('internet-services.index');
-Route::get('internet-services/create', [InternetServiceController::class, 'create'])->name('internet-services.create');
-Route::get('internet-services/export', [InternetServiceController::class, 'export'])->name('internet-services.export');
-Route::post('internet-services', [InternetServiceController::class, 'store'])->name('internet-services.store');
-Route::get('internet-services/{id}/details', [InternetServiceController::class, 'getServiceDetails'])->name('internet-services.details');
-Route::get('internet-services/{internetService}/edit', [InternetServiceController::class, 'edit'])->name('internet-services.edit');
-Route::get('internet-services/{internetService}/return', [InternetServiceController::class, 'return'])->name('internet-services.return');
-Route::post('internet-services/{internetService}/return', [InternetServiceController::class, 'processReturn'])->name('internet-services.process-return');
-Route::put('internet-services/{internetService}', [InternetServiceController::class, 'update'])->name('internet-services.update');
-Route::delete('internet-services/{internetService}', [InternetServiceController::class, 'destroy'])->name('internet-services.destroy');
-Route::get('internet-services/{id}/download-form', [InternetServiceController::class, 'downloadForm'])->name('internet-services.download-form');
+// Internet Services - All authenticated users
+Route::middleware(['auth'])->group(function () {
+    Route::get('internet-services', [InternetServiceController::class, 'index'])->name('internet-services.index');
+    Route::get('internet-services/create', [InternetServiceController::class, 'create'])->name('internet-services.create');
+    Route::get('internet-services/export', [InternetServiceController::class, 'export'])->name('internet-services.export');
+    Route::post('internet-services', [InternetServiceController::class, 'store'])->name('internet-services.store');
+    Route::get('internet-services/{id}/details', [InternetServiceController::class, 'getServiceDetails'])->name('internet-services.details');
+    Route::get('internet-services/{internetService}/edit', [InternetServiceController::class, 'edit'])->name('internet-services.edit');
+    Route::get('internet-services/{internetService}/return', [InternetServiceController::class, 'return'])->name('internet-services.return');
+    Route::post('internet-services/{internetService}/return', [InternetServiceController::class, 'processReturn'])->name('internet-services.process-return');
+    Route::put('internet-services/{internetService}', [InternetServiceController::class, 'update'])->name('internet-services.update');
+    Route::delete('internet-services/{internetService}', [InternetServiceController::class, 'destroy'])->name('internet-services.destroy');
+    Route::get('internet-services/{id}/download-form', [InternetServiceController::class, 'downloadForm'])->name('internet-services.download-form');
+});
 
 
 

@@ -772,7 +772,7 @@
 
     <!-- Asset & Brand Management -->
 <button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
+data-bs-toggle="collapse"
         data-bs-target="#assetBrandMenu"
         aria-expanded="false"
         aria-controls="assetBrandMenu">
