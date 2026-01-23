@@ -203,29 +203,120 @@ class AssetTransactionController extends Controller
             $filter = $request->filter;
             switch ($filter) {
                 case 'assigned':
-                    // Show assigned assets - assets with status 'assigned'
+                    // Show only the latest assign transaction for each assigned asset
                     $query->whereHas('asset', function($q) {
                         $q->where('status', 'assigned');
                     });
+                    $query->where('transaction_type', 'assign');
+                    
+                    // Get only the latest assign transaction for each assigned asset
+                    $latestAssignIds = DB::table('asset_transactions as at1')
+                        ->select('at1.id')
+                        ->where('at1.transaction_type', 'assign')
+                        ->whereIn('at1.asset_id', function($q) {
+                            $q->select('id')
+                              ->from('assets')
+                              ->where('status', 'assigned');
+                        })
+                        ->whereRaw('at1.created_at = (
+                            SELECT MAX(at2.created_at)
+                            FROM asset_transactions as at2
+                            WHERE at2.asset_id = at1.asset_id
+                            AND at2.transaction_type = "assign"
+                        )')
+                        ->pluck('id')
+                        ->toArray();
+                    
+                    if (!empty($latestAssignIds)) {
+                        $query->whereIn('asset_transactions.id', $latestAssignIds);
+                    } else {
+                        $query->whereRaw('1 = 0');
+                    }
                     break;
                 case 'maintenance':
-                    // Show maintenance transactions - either transaction type is maintenance OR asset status is under_maintenance
-                    $query->where(function($q) {
-                        $q->where('transaction_type', 'system_maintenance')
-                          ->orWhereHas('asset', function($assetQuery) {
-                              $assetQuery->where('status', 'under_maintenance');
-                          });
+                    // Show only the latest maintenance transaction for each asset under maintenance
+                    $query->whereHas('asset', function($q) {
+                        $q->where('status', 'under_maintenance');
                     });
+                    $query->where('transaction_type', 'system_maintenance');
+                    
+                    // Get only the latest maintenance transaction for each under-maintenance asset
+                    $latestMaintenanceIds = DB::table('asset_transactions as at1')
+                        ->select('at1.id')
+                        ->where('at1.transaction_type', 'system_maintenance')
+                        ->whereIn('at1.asset_id', function($q) {
+                            $q->select('id')
+                              ->from('assets')
+                              ->where('status', 'under_maintenance');
+                        })
+                        ->whereRaw('at1.created_at = (
+                            SELECT MAX(at2.created_at)
+                            FROM asset_transactions as at2
+                            WHERE at2.asset_id = at1.asset_id
+                            AND at2.transaction_type = "system_maintenance"
+                        )')
+                        ->pluck('id')
+                        ->toArray();
+                    
+                    if (!empty($latestMaintenanceIds)) {
+                        $query->whereIn('asset_transactions.id', $latestMaintenanceIds);
+                    } else {
+                        $query->whereRaw('1 = 0');
+                    }
                     break;
                 case 'return':
-                    // Show return transactions
+                    // Show only the latest return transaction for each asset
                     $query->where('transaction_type', 'return');
+                    
+                    // Get only the latest return transaction for each asset
+                    $latestReturnIds = DB::table('asset_transactions as at1')
+                        ->select('at1.id')
+                        ->where('at1.transaction_type', 'return')
+                        ->whereRaw('at1.created_at = (
+                            SELECT MAX(at2.created_at)
+                            FROM asset_transactions as at2
+                            WHERE at2.asset_id = at1.asset_id
+                            AND at2.transaction_type = "return"
+                        )')
+                        ->pluck('id')
+                        ->toArray();
+                    
+                    if (!empty($latestReturnIds)) {
+                        $query->whereIn('asset_transactions.id', $latestReturnIds);
+                    } else {
+                        $query->whereRaw('1 = 0');
+                    }
                     break;
                 case 'available':
-                    // Show available assets - assets with status 'available'
+                    // Show only the latest return transaction for each available asset
                     $query->whereHas('asset', function($q) {
                         $q->where('status', 'available');
                     });
+                    $query->where('transaction_type', 'return');
+                    
+                    // Get only the latest return transaction for each available asset
+                    $latestReturnIds = DB::table('asset_transactions as at1')
+                        ->select('at1.id')
+                        ->where('at1.transaction_type', 'return')
+                        ->whereIn('at1.asset_id', function($q) {
+                            $q->select('id')
+                              ->from('assets')
+                              ->where('status', 'available');
+                        })
+                        ->whereRaw('at1.created_at = (
+                            SELECT MAX(at2.created_at)
+                            FROM asset_transactions as at2
+                            WHERE at2.asset_id = at1.asset_id
+                            AND at2.transaction_type = "return"
+                        )')
+                        ->pluck('id')
+                        ->toArray();
+                    
+                    if (!empty($latestReturnIds)) {
+                        $query->whereIn('asset_transactions.id', $latestReturnIds);
+                    } else {
+                        $query->whereRaw('1 = 0');
+                    }
                     break;
             }
         }
@@ -652,7 +743,6 @@ class AssetTransactionController extends Controller
         }
 
         // Find the assignment before maintenance (for reassign and maintenance actions)
-        $beforeMaintenance = null;
         $employeeId = null;
         $assignedToType = 'employee';
         $projectName = null;
@@ -660,55 +750,55 @@ class AssetTransactionController extends Controller
         
         // Only need previous assignment for 'reassign' and 'maintenance' actions
         if (in_array($request->action_type, ['reassign', 'maintenance'])) {
-            // Strategy 1: Try to find assignment before the current maintenance transaction
-            $beforeMaintenance = AssetTransaction::where('asset_id', $asset->id)
+            // Use the same logic as getAssetDetails method for consistency
+            // Strategy 1: Find assignment before maintenance (exact same query as getAssetDetails)
+            $beforeMaintenance = AssetTransaction::with('employee')
+                ->where('asset_id', $asset->id)
                 ->where('transaction_type', 'assign')
                 ->where('id', '<', $latest->id)
                 ->latest()
                 ->first();
             
-            // Strategy 2: If not found, try to get info from maintenance transaction itself
-            if (!$beforeMaintenance || !$beforeMaintenance->employee_id) {
+            if ($beforeMaintenance && $beforeMaintenance->employee_id) {
+                $employeeId = $beforeMaintenance->employee_id;
+                $assignedToType = $beforeMaintenance->assigned_to_type ?? 'employee';
+                $projectName = $beforeMaintenance->project_name;
+                $locationId = $beforeMaintenance->location_id;
+            } else {
+                // Strategy 2: Use employee from maintenance transaction if available
                 if ($latest->employee_id) {
                     $employeeId = $latest->employee_id;
                     $assignedToType = $latest->assigned_to_type ?? 'employee';
                     $projectName = $latest->project_name;
                     $locationId = $latest->location_id;
                 } else {
-                    // Strategy 3: Search for ANY previous assignment transaction (not just before maintenance)
+                    // Strategy 3: Search for ANY previous assignment transaction (fallback)
                     $anyPreviousAssignment = AssetTransaction::where('asset_id', $asset->id)
                         ->where('transaction_type', 'assign')
                         ->whereNotNull('employee_id')
                         ->latest()
                         ->first();
                     
-                    if ($anyPreviousAssignment) {
+                    if ($anyPreviousAssignment && $anyPreviousAssignment->employee_id) {
                         $employeeId = $anyPreviousAssignment->employee_id;
                         $assignedToType = $anyPreviousAssignment->assigned_to_type ?? 'employee';
                         $projectName = $anyPreviousAssignment->project_name;
                         $locationId = $anyPreviousAssignment->location_id;
-                        } else {
-                            // Strategy 4: Search for ANY transaction with employee_id
-                            $anyTransactionWithEmployee = AssetTransaction::where('asset_id', $asset->id)
-                                ->whereNotNull('employee_id')
-                                ->latest()
-                                ->first();
-                            
-                            if ($anyTransactionWithEmployee) {
-                                $employeeId = $anyTransactionWithEmployee->employee_id;
-                                $assignedToType = $anyTransactionWithEmployee->assigned_to_type ?? 'employee';
-                                $projectName = $anyTransactionWithEmployee->project_name;
-                                $locationId = $anyTransactionWithEmployee->location_id;
-                            }
-                            // If still no employee found, allow reassign to proceed but asset will be available (not assigned)
-                            // This handles edge cases where assets were sent to maintenance without proper assignment history
+                    } else {
+                        // Strategy 4: Search for ANY transaction with employee_id (last resort)
+                        $anyTransactionWithEmployee = AssetTransaction::where('asset_id', $asset->id)
+                            ->whereNotNull('employee_id')
+                            ->latest()
+                            ->first();
+                        
+                        if ($anyTransactionWithEmployee && $anyTransactionWithEmployee->employee_id) {
+                            $employeeId = $anyTransactionWithEmployee->employee_id;
+                            $assignedToType = $anyTransactionWithEmployee->assigned_to_type ?? 'employee';
+                            $projectName = $anyTransactionWithEmployee->project_name;
+                            $locationId = $anyTransactionWithEmployee->location_id;
                         }
+                    }
                 }
-            } else {
-                $employeeId = $beforeMaintenance->employee_id;
-                $assignedToType = $beforeMaintenance->assigned_to_type ?? 'employee';
-                $projectName = $beforeMaintenance->project_name;
-                $locationId = $beforeMaintenance->location_id;
             }
         }
 
@@ -723,8 +813,9 @@ class AssetTransactionController extends Controller
                 $imageData['assign_image'] = $this->uploadImage($request->file('reassign_image'), 'assign');
             }
 
-            // If no employee found, make asset available instead of assigned
-            if (!$employeeId) {
+            // Check if employee was found - must have valid employee_id for reassign
+            if (empty($employeeId)) {
+                // No employee found - make asset available instead of assigned
                 $transaction = AssetTransaction::create(array_merge([
                     'asset_id' => $asset->id,
                     'transaction_type' => 'return',
@@ -734,26 +825,47 @@ class AssetTransactionController extends Controller
                     'employee_id' => null,
                     'project_name' => null,
                     'location_id' => null,
-                    'maintenance_notes' => $request->reassign_notes . ' (Reassigned from maintenance - no previous employee found)',
+                    'maintenance_notes' => ($request->reassign_notes ?? '') . ' (Reassigned from maintenance - no previous employee found)',
                 ], $imageData));
 
                 $asset->update(['status' => 'available']);
                 $successMessage = 'Asset returned from maintenance successfully! Asset is now available for assignment. (No previous employee information found)';
             } else {
-                $transaction = AssetTransaction::create(array_merge([
-                    'asset_id' => $asset->id,
-                    'transaction_type' => 'assign',
-                    'status' => 'assigned',
-                    'issue_date' => $request->reassign_date,
-                    'assigned_to_type' => $assignedToType,
-                    'employee_id' => $employeeId,
-                    'project_name' => $projectName,
-                    'location_id' => $locationId,
-                    'maintenance_notes' => $request->reassign_notes,
-                ], $imageData));
+                // Employee found - verify employee still exists
+                $employee = Employee::find($employeeId);
+                if (!$employee) {
+                    // Employee no longer exists - make asset available
+                    $transaction = AssetTransaction::create(array_merge([
+                        'asset_id' => $asset->id,
+                        'transaction_type' => 'return',
+                        'status' => 'available',
+                        'return_date' => $request->reassign_date,
+                        'assigned_to_type' => null,
+                        'employee_id' => null,
+                        'project_name' => null,
+                        'location_id' => null,
+                        'maintenance_notes' => ($request->reassign_notes ?? '') . ' (Reassigned from maintenance - employee no longer exists)',
+                    ], $imageData));
 
-                $asset->update(['status' => 'assigned']);
-                $successMessage = 'Asset reassigned to same employee successfully! Email notification sent. Asset is ready for collection.';
+                    $asset->update(['status' => 'available']);
+                    $successMessage = 'Asset returned from maintenance successfully! Asset is now available for assignment. (Previous employee no longer exists)';
+                } else {
+                    // Employee exists - reassign to same employee
+                    $transaction = AssetTransaction::create(array_merge([
+                        'asset_id' => $asset->id,
+                        'transaction_type' => 'assign',
+                        'status' => 'assigned',
+                        'issue_date' => $request->reassign_date,
+                        'assigned_to_type' => $assignedToType ?? 'employee',
+                        'employee_id' => $employeeId,
+                        'project_name' => $projectName,
+                        'location_id' => $locationId,
+                        'maintenance_notes' => $request->reassign_notes,
+                    ], $imageData));
+
+                    $asset->update(['status' => 'assigned']);
+                    $successMessage = 'Asset reassigned to same employee successfully! Email notification sent. Asset is ready for collection.';
+                }
             }
 
         } elseif ($request->action_type === 'maintenance') {
