@@ -48,7 +48,7 @@
                 <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>User</option>
                 <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
             </select>
-            <small class="text-muted">Admin can access all features. User has limited access.</small>
+         
         </div>
 
         <button type="submit" class="btn btn-primary">Create User</button>

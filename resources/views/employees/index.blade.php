@@ -56,20 +56,28 @@
                     <label class="form-label">Entity Name <span class="text-danger">*</span></label>
                     <select name="entity_name" class="form-control" required>
                         <option value="">-- Select Entity --</option>
-                        <option value="proscape" {{ old('entity_name') == 'proscape' ? 'selected' : '' }}>Proscape</option>
-                        <option value="water in motion" {{ old('entity_name') == 'water in motion' ? 'selected' : '' }}>Water in Motion</option>
-                        <option value="bioscape" {{ old('entity_name') == 'bioscape' ? 'selected' : '' }}>Bioscape</option>
-                        <option value="tanseeq realty" {{ old('entity_name') == 'tanseeq realty' ? 'selected' : '' }}>Tanseeq Realty</option>
-                        <option value="transmech" {{ old('entity_name') == 'transmech' ? 'selected' : '' }}>Transmech</option>
-                        <option value="timbertech" {{ old('entity_name') == 'timbertech' ? 'selected' : '' }}>Timbertech</option>
-                        <option value="ventana" {{ old('entity_name') == 'ventana' ? 'selected' : '' }}>Ventana</option>
-                        <option value="garden center" {{ old('entity_name') == 'garden center' ? 'selected' : '' }}>Garden Center</option>
+                        @foreach(\App\Helpers\EntityHelper::getEntities() as $ent)
+                            <option value="{{ $ent }}" {{ old('entity_name') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Department Name <span class="text-danger">*</span></label>
-                    <input type="text" name="department_name" value="{{ old('department_name') }}" class="form-control" required>
+                    <label class="form-label">Department Name</label>
+                    <input type="text" name="department_name" value="{{ old('department_name') }}" class="form-control">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Designation</label>
+                    <input type="text" name="designation" list="designation-list" class="form-control" autocomplete="off"
+                           value="{{ old('designation') }}" placeholder="Type or select (e.g. Project Manager, PC Secretary)">
+                    <datalist id="designation-list">
+                        <option value="Project Manager">
+                        <option value="Person in Charge">
+                        <option value="Document Controller">
+                        <option value="PC Secretary">
+                    </datalist>
+
                 </div>
             </div>
 
@@ -84,79 +92,6 @@
         </form>
     </div>
 
-    {{-- Employee List Table --}}
-    @if(isset($employees) && $employees->count() > 0)
-        <div class="master-table-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 style="color: white; margin: 0;">
-                    <i class="bi bi-people me-2"></i>All Employees ({{ $employees->count() }})
-                </h5>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-download"></i> Download
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
-                        <li><a class="dropdown-item" href="{{ route('employees.export', ['format' => 'pdf']) }}">
-                            <i class="bi bi-file-earmark-pdf me-2"></i>PDF
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ route('employees.export', ['format' => 'csv']) }}">
-                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
-                        </a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table mb-0" id="employeeTable">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Employee ID</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>Entity</th>
-                                <th>Department</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="employeeBody">
-                            @foreach($employees as $emp)
-                                <tr>
-                                    <td>{{ $loop->iteration }}</td>
-                                    <td>{{ $emp->employee_id }}</td>
-                                    <td>{{ $emp->name ?? 'N/A' }}</td>
-                                    <td>{{ $emp->email ?? 'N/A' }}</td>
-                                    <td>{{ $emp->phone ?? 'N/A' }}</td>
-                                    <td>{{ $emp->entity_name ?? 'N/A' }}</td>
-                                    <td>{{ $emp->department_name ?? 'N/A' }}</td>
-                                    <td>{{ $emp->created_at->format('Y-m-d') }}</td>
-                                    <td>
-                                        <a href="{{ route('employees.edit', $emp->id) }}" class="btn btn-sm btn-warning">
-                                            <i class="bi bi-pencil"></i> Edit
-                                        </a>
-                                        <form action="{{ route('employees.destroy', $emp->id) }}" method="POST" style="display:inline-block;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button onclick="return confirm('Are you sure you want to delete this employee?')" class="btn btn-sm btn-danger">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    @else
-        <div class="alert alert-info text-center">
-            <i class="bi bi-info-circle display-4 d-block mb-3"></i>
-            <h4>No Employees Found</h4>
-            <p>No employees have been added yet.</p>
-        </div>
-    @endif
+   
 </div>
 @endsection

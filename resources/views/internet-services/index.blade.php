@@ -20,6 +20,11 @@
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ session('success') }}
+            @if(session('returned_service_id'))
+                <a href="{{ route('internet-services.download-form', session('returned_service_id')) }}" class="btn btn-sm btn-outline-light ms-2" target="_blank">
+                    <i class="bi bi-download me-1"></i>Download Form (PDF)
+                </a>
+            @endif
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
@@ -58,14 +63,6 @@
                         <option value="closed" {{ request('status') == 'closed' ? 'selected' : '' }}>Closed</option>
                     </select>
                 </div>
-                <div class="col-md-2 mb-3">
-                    <label class="form-label">Transaction Type</label>
-                    <select name="transaction_type" class="form-control">
-                        <option value="">All</option>
-                        <option value="assign" {{ request('transaction_type') == 'assign' ? 'selected' : '' }}>Assign</option>
-                        <option value="return" {{ request('transaction_type') == 'return' ? 'selected' : '' }}>Return</option>
-                    </select>
-                </div>
                 <div class="col-md-3 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">
                         <i class="bi bi-search me-1"></i>Search
@@ -79,7 +76,7 @@
     </div>
 
     
-    @if(request()->hasAny(['search', 'service_type', 'status', 'transaction_type']) && $internetServices->count() > 0)
+    @if(request()->hasAny(['search', 'service_type', 'status']) && $internetServices->count() > 0)
         <div class="master-table-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 style="color: white; margin: 0;"><i class="bi bi-list-ul me-2"></i>All Internet Services</h5>
@@ -88,10 +85,10 @@
                         <i class="bi bi-download"></i> Download
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
-                        <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status', 'transaction_type']), ['format' => 'pdf'])) }}">
+                        <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status']), ['format' => 'pdf'])) }}">
                             <i class="bi bi-file-pdf me-2"></i>PDF
                         </a></li>
-                        <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status', 'transaction_type']), ['format' => 'csv'])) }}">
+                        <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status']), ['format' => 'csv'])) }}">
                             <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
                         </a></li>
                     </ul>
@@ -183,7 +180,7 @@
                 </p>
             </div>
         </div>
-    @elseif(request()->hasAny(['search', 'service_type', 'status', 'transaction_type']))
+    @elseif(request()->hasAny(['search', 'service_type', 'status']))
         <div class="alert alert-info text-center">
             <i class="bi bi-wifi-off display-4 d-block mb-3"></i>
             <h4>No Results Found</h4>

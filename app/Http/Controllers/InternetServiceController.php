@@ -312,12 +312,13 @@ class InternetServiceController extends Controller
         $validated['person_in_charge'] = $emp->name ?? $emp->entity_name;
         $validated['contact_details'] = $emp->phone ?? 'N/A';
         
-        // Recalculate cost if end date is provided: MRC (per day) × number of days
-        if (!empty($validated['service_end_date']) && !empty($validated['mrc'])) {
+        // Cost = MRC (per month) × number of months. 30 days = 1 month, 60 = 2 months, etc.
+        if (!empty($validated['service_end_date']) && isset($validated['mrc']) && (float)$validated['mrc'] > 0) {
             $startDate = new \DateTime($validated['service_start_date']);
             $endDate = new \DateTime($validated['service_end_date']);
             $diffDays = $startDate->diff($endDate)->days + 1; // +1 to include both start and end days
-            $validated['cost'] = round($validated['mrc'] * $diffDays, 2); // MRC is per day
+            $months = $diffDays / 30; // 30 days = 1 month
+            $validated['cost'] = round((float)$validated['mrc'] * $months, 2);
         }
 
         $internetService->update($validated);
@@ -350,14 +351,13 @@ class InternetServiceController extends Controller
                 ->with('error', 'This service has already been returned.');
         }
         
-        // Calculate cost: MRC (per month) × number of months
-        $mrc = $internetService->mrc ?? 0;
+        // Cost = MRC × number of months. 30 days = 1 month, 60 = 2 months (1 month = MRC, 2 months = double)
+        $mrc = (float)($internetService->mrc ?? 0);
         $startDate = $internetService->service_start_date;
         $endDate = new \DateTime($validated['service_end_date']);
-        
-        $diffDays = $startDate->diff($endDate)->days + 1; // +1 to include both start and end days
-        $months = $diffDays / 30.44; // Average days per month
-        $cost = $mrc * $months; // MRC is per month, so multiply by months
+        $diffDays = $startDate->diff($endDate)->days + 1;
+        $months = $diffDays / 30; // 30 days = 1 month
+        $cost = $mrc * $months;
         
         // Update service
         $internetService->update([
@@ -368,7 +368,8 @@ class InternetServiceController extends Controller
         ]);
         
         return redirect()->route('internet-services.index')
-            ->with('success', 'Service returned successfully. Cost calculated: ' . number_format($cost, 2));
+            ->with('success', 'Service returned successfully. Cost calculated: ' . number_format($cost, 2))
+            ->with('returned_service_id', $internetService->id);
     }
 
     // Delete

@@ -53,12 +53,25 @@
             <td>{{ $internetService->service_end_date ? $internetService->service_end_date->format('Y-m-d') : 'Ongoing' }}</td>
         </tr>
         <tr>
-            <td><strong>MRC (Cost Per Day)</strong></td>
+            <td><strong>MRC (Monthly)</strong></td>
             <td>{{ $internetService->mrc ? number_format($internetService->mrc, 2) : 'N/A' }}</td>
         </tr>
         <tr>
             <td><strong>Total Cost</strong></td>
-            <td>{{ $internetService->cost ? number_format($internetService->cost, 2) : 'N/A' }}</td>
+            <td>
+                @php
+                    $mrc = (float)($internetService->mrc ?? 0);
+                    $totalCostDisplay = null;
+                    if ($mrc > 0 && $internetService->service_start_date && $internetService->service_end_date) {
+                        $start = $internetService->service_start_date;
+                        $end = $internetService->service_end_date;
+                        $diffDays = $start->diffInDays($end) + 1;
+                        $months = $diffDays / 30; // 30 days = 1 month
+                        $totalCostDisplay = round($mrc * $months, 2);
+                    }
+                @endphp
+                {{ $totalCostDisplay !== null ? number_format($totalCostDisplay, 2) : ($internetService->cost ? number_format($internetService->cost, 2) : 'N/A') }}
+            </td>
         </tr>
         <tr>
             <td><strong>Person in Charge</strong></td>

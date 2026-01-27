@@ -69,15 +69,7 @@
             </select>
         </div>
 
-        {{-- Transaction Type --}}
-        <div class="mb-3">
-            <label class="form-label">Transaction Type</label>
-            <select name="transaction_type" class="form-control">
-                <option value="">-- select transaction type --</option>
-                <option value="assign" {{ $internetService->transaction_type == 'assign' ? 'selected' : '' }}>Assign</option>
-                <option value="return" {{ $internetService->transaction_type == 'return' ? 'selected' : '' }}>Return</option>
-            </select>
-        </div>
+        <input type="hidden" name="transaction_type" value="assign">
 
         {{-- PR Number and PO Number (only for SIM Card) --}}
         <div id="simcardFields" style="display: {{ $internetService->service_type == 'simcard' ? 'block' : 'none' }};">
@@ -94,10 +86,10 @@
             </div>
         </div>
 
-        {{-- Account Number --}}
+        {{-- Account Number (not editable) --}}
         <div class="mb-3">
             <label class="form-label">Account Number</label>
-            <input type="text" name="account_number" class="form-control"
+            <input type="text" name="account_number" class="form-control bg-light" readonly
                    value="{{ $internetService->account_number }}">
         </div>
 
@@ -109,11 +101,11 @@
             <small class="text-muted">Enter the cost per month. End date will be calculated automatically when start date is selected.</small>
         </div>
 
-        {{-- Dates --}}
+        {{-- Dates: Start Date not editable --}}
         <div class="mb-3">
             <label class="form-label">Start Date</label>
-            <input type="date" name="service_start_date" id="service_start_date" class="form-control"
-                   value="{{ $internetService->service_start_date }}">
+            <input type="date" name="service_start_date" id="service_start_date" class="form-control bg-light" readonly
+                   value="{{ $internetService->service_start_date ? $internetService->service_start_date->format('Y-m-d') : '' }}">
         </div>
 
         <div class="mb-3">
@@ -239,9 +231,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (serviceTypeSelect) {
                         serviceTypeSelect.value = data.service_type || '';
                         toggleSimcardFields(); // Update SIM card fields visibility
-                    }
-                    if (document.querySelector(`select[name="transaction_type"]`)) {
-                        document.querySelector(`select[name="transaction_type"]`).value = data.transaction_type || '';
                     }
                     if (document.querySelector(`input[name="pr_number"]`)) {
                         document.querySelector(`input[name="pr_number"]`).value = data.pr_number || '';
@@ -369,21 +358,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Calculate difference in days (including both start and end days)
+        // Difference in days (including both start and end days). 30 days = 1 month, 60 = 2 months
         const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        const months = diffDays / 30; // 1 month = MRC, 2 months = double
         
-        // Calculate months (approximate)
-        const months = diffDays / 30.44; // Average days per month
-        
-        // Calculate cost: MRC (per month) × number of months
+        // Cost = MRC × number of months
         const cost = mrc * months;
         
         costInput.value = cost.toFixed(2);
         
-        // Update info message
         if (costInfo) {
-            costInfo.textContent = `Cost calculated: ${months.toFixed(2)} months × MRC ${mrc.toFixed(2)} per month = ${cost.toFixed(2)}`;
+            costInfo.textContent = `Cost = MRC × months: ${mrc.toFixed(2)} × ${months.toFixed(2)} = ${cost.toFixed(2)} (30 days = 1 month)`;
             costInfo.className = 'text-success';
         }
     }

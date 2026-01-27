@@ -11,7 +11,7 @@
             <p><strong>Account Number:</strong> {{ $internetService->account_number ?? 'N/A' }}</p>
             <p><strong>Service Type:</strong> {{ ucfirst($internetService->service_type ?? 'N/A') }}</p>
             <p><strong>Start Date:</strong> {{ $internetService->service_start_date->format('d-m-Y') }}</p>
-            <p><strong>MRC (Cost Per Day):</strong> {{ number_format($internetService->mrc ?? 0, 2) }} per day</p>
+            <p><strong>MRC (Monthly):</strong> {{ number_format($internetService->mrc ?? 0, 2) }} per month. Cost = MRC × months (30 days = 1 month).</p>
         </div>
     </div>
 
@@ -33,6 +33,9 @@
         </div>
 
         <button type="submit" class="btn btn-primary">Return Service</button>
+        <a href="{{ route('internet-services.download-form', $internetService->id) }}" class="btn btn-outline-primary" target="_blank">
+            <i class="bi bi-download me-1"></i>Download Form (PDF)
+        </a>
         <a href="{{ route('internet-services.index') }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
@@ -80,14 +83,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+        const months = diffDays / 30; // 30 days = 1 month, 60 = 2 months
         
-        // Calculate cost: MRC (per day) × number of days
-        const cost = mrc * diffDays;
+        // Cost = MRC × months (1 month = MRC, 2 months = double)
+        const cost = mrc * months;
         
         costInput.value = cost.toFixed(2);
         
         if (costInfo) {
-            costInfo.textContent = `Cost calculated: ${diffDays} days × MRC ${mrc.toFixed(2)} per day = ${cost.toFixed(2)}`;
+            costInfo.textContent = `Cost = MRC × months: ${mrc.toFixed(2)} × ${months.toFixed(2)} = ${cost.toFixed(2)} (30 days = 1 month)`;
             costInfo.className = 'text-success';
         }
     }
