@@ -54,8 +54,12 @@
             <div class="row">
                 <div class="col-md-10 mb-3">
                     <label class="form-label">Search by Employee Name, ID, Entity, or Email</label>
-                    <input type="text" name="search" id="searchEmployee" class="form-control" 
-                           placeholder="Type employee name, ID, entity, or email..." value="{{ request('search') }}">
+                    <div class="position-relative" id="searchEmployeeWrap">
+                        <input type="text" name="search" id="searchEmployee" class="form-control" 
+                               placeholder="Type employee name, ID, entity, or email..." value="{{ request('search') }}"
+                               autocomplete="off">
+                        <div id="employeeDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 280px; overflow-y: auto;"></div>
+                    </div>
                 </div>
                 <div class="col-md-2 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
@@ -136,4 +140,91 @@
         </div>
     @endif
 </div>
+
+<script>
+(function() {
+    const input = document.getElementById('searchEmployee');
+    const dropdown = document.getElementById('employeeDropdown');
+    const wrap = document.getElementById('searchEmployeeWrap');
+    const form = document.getElementById('searchForm');
+    let debounceTimer = null;
+    const minChars = 1;
+
+    if (!input || !dropdown) return;
+
+    function hideDropdown() {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+    }
+
+    function showDropdown(items) {
+        if (!items || items.length === 0) {
+            dropdown.innerHTML = '<div class="list-group-item text-muted">No employees found</div>';
+        } else {
+            dropdown.innerHTML = items.map(function(emp) {
+                const label = (emp.name || emp.entity_name || '') + (emp.employee_id ? ' (' + emp.employee_id + ')' : '') + (emp.email ? ' — ' + emp.email : '');
+                return '<a href="#" class="list-group-item list-group-item-action employee-suggestion" data-value="' + (emp.employee_id || emp.name || emp.entity_name || '').replace(/"/g, '&quot;') + '" data-id="' + emp.id + '">' + label + '</a>';
+            }).join('');
+        }
+        dropdown.style.display = 'block';
+    }
+
+    function fetchSuggestions(q) {
+        if (!q || q.length < minChars) {
+            hideDropdown();
+            return;
+        }
+        const url = '{{ route("employees.autocomplete") }}?query=' + encodeURIComponent(q);
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                showDropdown(data);
+            })
+            .catch(function() {
+                hideDropdown();
+            });
+    }
+
+    input.addEventListener('input', function() {
+        const q = (input.value || '').trim();
+        clearTimeout(debounceTimer);
+        if (q.length < minChars) {
+            hideDropdown();
+            return;
+        }
+        debounceTimer = setTimeout(function() {
+            fetchSuggestions(q);
+        }, 200);
+    });
+
+    input.addEventListener('focus', function() {
+        const q = (input.value || '').trim();
+        if (q.length >= minChars && dropdown.innerHTML) {
+            dropdown.style.display = 'block';
+        }
+    });
+
+    dropdown.addEventListener('click', function(e) {
+        const item = e.target.closest('.employee-suggestion');
+        if (item) {
+            e.preventDefault();
+            input.value = item.getAttribute('data-value') || item.textContent.trim();
+            hideDropdown();
+            form.submit();
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (wrap && !wrap.contains(e.target)) {
+            hideDropdown();
+        }
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideDropdown();
+        }
+    });
+})();
+</script>
 @endsection

@@ -259,13 +259,15 @@ public function showImportForm()
             return response()->json([]);
         }
 
-        // Search by name (starts with first, then contains) or employee_id
+        // Search by name, employee_id, or email
         $employees = Employee::where(function($q) use ($query) {
-                $q->where('name', 'LIKE', "{$query}%")  // Starts with (priority)
-                  ->orWhere('name', 'LIKE', "%{$query}%") // Contains
-                  ->orWhere('entity_name', 'LIKE', "{$query}%") // Entity name starts with
-                  ->orWhere('entity_name', 'LIKE', "%{$query}%") // Entity name contains
-                  ->orWhere('employee_id', 'LIKE', "{$query}%"); // Employee ID starts with
+                $q->where('name', 'LIKE', "{$query}%")
+                  ->orWhere('name', 'LIKE', "%{$query}%")
+                  ->orWhere('entity_name', 'LIKE', "{$query}%")
+                  ->orWhere('entity_name', 'LIKE', "%{$query}%")
+                  ->orWhere('employee_id', 'LIKE', "{$query}%")
+                  ->orWhere('email', 'LIKE', "{$query}%")
+                  ->orWhere('email', 'LIKE', "%{$query}%");
             })
             ->orderBy('name', 'asc')
             ->take(15)
