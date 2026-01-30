@@ -9,9 +9,10 @@ class AssetHistoryController extends Controller
     public function show($asset_id)
     {
         $asset = Asset::with('category', 'brand')->findOrFail($asset_id);
+        // Order chronologically: assign → return → assign → … (oldest first)
         $history = AssetTransaction::with(['employee', 'location'])
                     ->where('asset_id', $asset_id)
-                    ->orderByDesc('issue_date')
+                    ->orderByRaw('COALESCE(return_date, issue_date) ASC')
                     ->get();
 
         return view('assets.history', compact('asset', 'history'));

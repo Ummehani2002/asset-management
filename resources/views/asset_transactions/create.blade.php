@@ -26,15 +26,27 @@
           enctype="multipart/form-data" 
           id="transactionForm"
           autocomplete="off"
-          novalidate>
+          novalidate
+          data-preselect-asset="{{ $isEdit ? (old('asset_id', $transaction->asset_id ?? $transaction->asset->id ?? '')) : '' }}">
         @csrf
         @if($isEdit) @method('PUT') @endif
 
-        {{-- Asset Category --}}
-        <div class="mb-3">
+        {{-- 1. Transaction Type (first) --}}
+        <div class="mb-3" id="transaction_type_section">
+            <label for="transaction_type">Transaction Type <span class="text-danger">*</span></label>
+            <select name="transaction_type" id="transaction_type" class="form-control" required>
+                <option value="">-- Select Transaction Type --</option>
+                <option value="assign" @if(old('transaction_type', $transaction->transaction_type ?? '') == 'assign') selected @endif>Assign</option>
+                <option value="return" @if(old('transaction_type', $transaction->transaction_type ?? '') == 'return') selected @endif>Return</option>
+            </select>
+            <small class="text-muted">Choose Assign to give the asset to an employee, or Return to take it back.</small>
+        </div>
+
+        {{-- 2. Asset Category (after transaction type) --}}
+        <div class="mb-3" id="category_section" style="display:none;">
             <label for="asset_category_id">Asset Category <span class="text-danger">*</span></label>
             <select name="asset_category_id" id="asset_category_id" class="form-control" required>
-                <option value="">Select Category</option>
+                <option value="">-- Select Category --</option>
                 @foreach($categories as $cat)
                     <option value="{{ $cat->id }}" 
                         @if(old('asset_category_id', $transaction->asset->asset_category_id ?? '') == $cat->id) selected @endif>
@@ -42,20 +54,21 @@
                     </option>
                 @endforeach
             </select>
+            <small class="text-muted">Select the category of the asset from Asset Master.</small>
         </div>
 
-        {{-- Asset Selection (with Serial Number) --}}
+        {{-- 3. Asset (Serial Number) – dropdown from Asset Master of that category --}}
         <div class="mb-3" id="asset_selection_section" style="display:none;">
             <label for="asset_id">Asset (Serial Number) <span class="text-danger">*</span></label>
             <select name="asset_id" id="asset_id" class="form-control" required>
-                <option value="">Select Category First</option>
+                <option value="">-- Select Category First --</option>
                 @if($isEdit && $transaction->asset)
                     <option value="{{ $transaction->asset->id }}" selected>
                         {{ $transaction->asset->assetCategory->category_name ?? 'N/A' }} - {{ $transaction->asset->serial_number }}
                     </option>
                 @endif
             </select>
-            <small class="text-muted" id="asset_status_info"></small>
+            <small class="text-muted" id="asset_status_info">Assets are loaded from Asset Master for the selected category.</small>
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) --}}
@@ -126,14 +139,7 @@
             </select>
         </div>
 
-        {{-- Transaction Type --}}
-        <div class="mb-3" id="transaction_type_section" style="display:none;">
-            <label for="transaction_type">Transaction Type <span class="text-danger">*</span></label>
-            <select name="transaction_type" id="transaction_type" class="form-control" required>
-                <option value="">Select Type</option>
-                <option value="assign" @if(old('transaction_type', $transaction->transaction_type ?? '') == 'assign') selected @endif>Assign</option>
-                <option value="return" @if(old('transaction_type', $transaction->transaction_type ?? '') == 'return') selected @endif>Return</option>
-            </select>
+        <div class="mb-3" id="transaction_type_info_wrapper" style="display:none;">
             <small class="text-muted" id="transaction_type_info"></small>
         </div>
 
@@ -146,9 +152,9 @@
             
             <div class="mb-3 mt-3">
                 <label for="assign_image" class="form-label">
-                    <i class="bi bi-camera me-2"></i>Upload Asset Image <span class="text-danger">*</span>
+                    <i class="bi bi-camera me-2"></i>Upload Asset Image <small class="text-muted">(optional)</small>
                 </label>
-                <input type="file" name="assign_image" id="assign_image" class="form-control" accept="image/*" required>
+                <input type="file" name="assign_image" id="assign_image" class="form-control" accept="image/*">
                 <small class="text-muted">Upload an image of the asset during assignment (Max: 5MB, Formats: JPG, PNG, GIF)</small>
                 @if(isset($transaction) && $transaction->assign_image)
                     <div class="mt-2">
@@ -202,55 +208,86 @@ document.addEventListener('DOMContentLoaded', function() {
     const locationSection = document.getElementById('location_section');
     const transactionType = document.getElementById('transaction_type');
     const transactionTypeSection = document.getElementById('transaction_type_section');
+    const transactionTypeInfoEl = document.getElementById('transaction_type_info');
+    const transactionTypeInfoWrapper = document.getElementById('transaction_type_info_wrapper');
+    const categorySection = document.getElementById('category_section');
     const assignFields = document.getElementById('assign_fields');
     const returnFields = document.getElementById('return_fields');
     const assetStatusInfo = document.getElementById('asset_status_info');
     const employeeAutoFillInfo = document.getElementById('employee_auto_fill_info');
     const projectAutoFillInfo = document.getElementById('project_auto_fill_info');
-    const transactionTypeInfo = document.getElementById('transaction_type_info');
     const assetSelectionSection = document.getElementById('asset_selection_section');
 
     let currentCategory = '';
     let assetDetails = null;
 
-    // Handle category change
+    // Step 1: Transaction Type change → show/hide Category
+    transactionType.addEventListener('change', function() {
+        const txType = this.value;
+        categorySection.style.display = txType ? 'block' : 'none';
+        assetSelectionSection.style.display = 'none';
+        assetDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
+        if (!txType) {
+            categoryDropdown.value = '';
+            hideAssignmentFields();
+            return;
+        }
+        hideAssignmentFields();
+    });
+
+    // On load: if edit or prefilled, show category and asset sections
+    (function initFromExisting() {
+        if (transactionType && transactionType.value) {
+            if (categorySection) categorySection.style.display = 'block';
+            if (categoryDropdown && categoryDropdown.value) {
+                if (assetSelectionSection) assetSelectionSection.style.display = 'block';
+                categoryDropdown.dispatchEvent(new Event('change'));
+            }
+        }
+    })();
+
+    // Step 2: Category change → show Asset dropdown and load assets from Asset Master
     categoryDropdown.addEventListener('change', function() {
         const categoryId = this.value;
         currentCategory = '';
         
         if (!categoryId) {
             assetSelectionSection.style.display = 'none';
-            hideAllFields();
+            assetDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
+            hideAssignmentFields();
             return;
         }
 
-        // Show asset selection
         assetSelectionSection.style.display = 'block';
         assetDropdown.innerHTML = '<option value="">Loading assets...</option>';
 
-        // Fetch assets for this category
         fetch(`/asset-transactions/get-assets-by-category/${categoryId}`)
             .then(res => res.json())
             .then(assets => {
-                assetDropdown.innerHTML = '<option value="">Select Asset</option>';
+                assetDropdown.innerHTML = '<option value="">-- Select Asset (Serial Number) --</option>';
                 assets.forEach(asset => {
                     const option = document.createElement('option');
                     option.value = asset.id;
-                    // Use display status (already normalized to "available" if returned)
                     option.textContent = `${asset.serial_number} (${asset.asset_id}) - Status: ${asset.status}`;
-                    // Store original status for logic, or use status if original_status not provided
                     option.dataset.status = asset.original_status || asset.status;
-                    option.dataset.category = asset.category_name.toLowerCase();
+                    option.dataset.category = (asset.category_name || '').toLowerCase();
                     assetDropdown.appendChild(option);
                 });
-                
                 if (assets.length > 0) {
-                    currentCategory = assets[0].category_name.toLowerCase();
+                    currentCategory = (assets[0].category_name || '').toLowerCase();
                 }
+                var form = document.getElementById('transactionForm');
+                var preselect = form ? form.getAttribute('data-preselect-asset') : '';
+                if (preselect) {
+                    assetDropdown.value = preselect;
+                    assetDropdown.dispatchEvent(new Event('change'));
+                }
+                assetStatusInfo.textContent = 'Assets from Asset Master for this category.';
             })
             .catch(err => {
                 console.error('Error loading assets:', err);
                 assetDropdown.innerHTML = '<option value="">Error loading assets</option>';
+                assetStatusInfo.textContent = 'Error loading assets.';
             });
     });
 
@@ -384,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function showAssignmentFields(data, category) {
-        transactionTypeSection.style.display = 'block';
+        if (transactionTypeInfoWrapper) transactionTypeInfoWrapper.style.display = 'block';
         
         const categoryLower = category.toLowerCase();
         const txType = transactionType.value;
@@ -520,49 +557,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateTransactionTypeOptions(data) {
-        const txTypeSelect = transactionType;
-        const availableTypes = data.available_transactions || [];
-        
-        // Clear existing options except the first one
-        txTypeSelect.innerHTML = '<option value="">Select Type</option>';
-        
-        // Add available transaction types
-        const allTypes = [
-            { value: 'assign', label: 'Assign' },
-            { value: 'return', label: 'Return' }
-        ];
-        
-        allTypes.forEach(type => {
-            if (availableTypes.includes(type.value)) {
-                const option = document.createElement('option');
-                option.value = type.value;
-                option.textContent = type.label;
-                txTypeSelect.appendChild(option);
-            }
-        });
-
-        // Show info message - normalize "returned" to "available"
-        const displayStatus = data.status === 'returned' ? 'available' : data.status;
-        
+        // Transaction type already selected at top; only update the info message below asset
+        const infoEl = transactionTypeInfoEl || document.getElementById('transaction_type_info');
+        if (!infoEl) return;
+        const displayStatus = (data.status === 'returned') ? 'available' : (data.status || '');
         if (displayStatus === 'under_maintenance') {
-            transactionTypeInfo.textContent = 'Asset is under maintenance. You can assign it (return from maintenance to same employee).';
-            transactionTypeInfo.className = 'text-warning';
+            infoEl.textContent = 'Asset is under maintenance. You can assign it (return from maintenance to same employee).';
+            infoEl.className = 'text-warning';
         } else if (displayStatus === 'assigned') {
-            transactionTypeInfo.textContent = 'Asset is currently assigned. You can return it. Use System Maintenance form to send for maintenance.';
-            transactionTypeInfo.className = 'text-info';
+            infoEl.textContent = 'Asset is currently assigned. You can return it. Use System Maintenance form to send for maintenance.';
+            infoEl.className = 'text-info';
         } else {
-            transactionTypeInfo.textContent = 'Asset is available for assignment to a new employee.';
-            transactionTypeInfo.className = 'text-success';
+            infoEl.textContent = 'Asset is available for assignment to a new employee.';
+            infoEl.className = 'text-success';
         }
-        
-        // Update employee section visibility when transaction type changes
         updateEmployeeSectionVisibility();
     }
 
     function hideAssignmentFields() {
         employeeSection.style.display = 'none';
         locationSection.style.display = 'none';
-        transactionTypeSection.style.display = 'none';
+        if (transactionTypeInfoWrapper) transactionTypeInfoWrapper.style.display = 'none';
         assignFields.style.display = 'none';
         returnFields.style.display = 'none';
     }
@@ -643,9 +658,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const assignImage = document.getElementById('assign_image');
             
             if (txType === 'assign') {
-                // For assign, make sure assign fields are required
+                // For assign, make sure assign date is required; image is optional
                 if (issueDate) issueDate.required = true;
-                if (assignImage) assignImage.required = true;
+                if (assignImage) assignImage.required = false;
                 // Remove required from return fields
                 if (returnDate) returnDate.required = false;
             } else if (txType === 'return') {

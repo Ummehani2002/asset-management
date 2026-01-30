@@ -82,6 +82,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/brands/by-category/{categoryId}', [BrandController::class, 'getByCategory']);
     Route::get('/assets/category/{id}', [AssetController::class, 'assetsByCategory'])->name('assets.byCategory');
     Route::get('/api/assets/by-category/{id}', [AssetController::class, 'getAssetsByCategoryApi'])->name('api.assets.byCategory');
+    Route::get('/api/assets/search-serial', [AssetController::class, 'searchBySerialNumber'])->name('api.assets.searchSerial');
     Route::get('/assets/category/{id}/export', [AssetController::class, 'exportByCategory'])->name('assets.byCategory.export');
     Route::get('/category-features/{category}', [CategoryFeatureController::class, 'getByCategory']);
     Route::get('/features/by-brand/{brandId}', [CategoryFeatureController::class, 'getByBrand']);

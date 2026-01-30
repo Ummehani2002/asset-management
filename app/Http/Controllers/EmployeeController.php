@@ -126,6 +126,7 @@ class EmployeeController extends Controller
                 'phone'          => 'nullable|string|max:20',
                 'entity_name'    => 'required|string|max:100',
                 'department_name'=> 'required|string|max:100',
+                'designation'    => 'nullable|string|max:100',
             ]);
 
             Log::info('Creating employee with data:', $data);
@@ -175,12 +176,19 @@ public function edit($id)
     public function update(Request $request, $id)
 {
     $request->validate([
-        'name' => 'required|string|max:255',
-        
+        'email'           => 'nullable|email|max:100',
+        'phone'           => 'nullable|string|max:20',
+        'entity_name'     => 'nullable|string|max:100',
+        'department_name' => 'nullable|string|max:100',
+        'designation'     => 'nullable|string|max:100',
     ]);
 
     $employee = Employee::findOrFail($id);
-    $employee->name = $request->input('name');
+    $employee->email = $request->input('email');
+    $employee->phone = $request->input('phone');
+    $employee->entity_name = $request->input('entity_name');
+    $employee->department_name = $request->input('department_name');
+    $employee->designation = $request->input('designation');
     $employee->save();
     return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
 }

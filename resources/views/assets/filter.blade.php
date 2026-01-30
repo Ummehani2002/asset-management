@@ -22,6 +22,28 @@
         </div>
     @endif
 
+    {{-- Search by Serial Number --}}
+    <div class="master-form-card mb-4">
+        <h5 class="mb-3"><i class="bi bi-search me-2"></i>Search by Serial Number</h5>
+        <div class="row">
+            <div class="col-md-6 position-relative">
+                <label for="serial_search" class="form-label">Type serial number (initial characters)</label>
+                <input type="text" id="serial_search" class="form-control" placeholder="e.g. LPT, 55, PRT..." autocomplete="off">
+                <div id="serial_dropdown" class="list-group position-absolute w-100 mt-1 border rounded shadow-sm" style="z-index: 1050; max-height: 280px; overflow-y: auto; display: none;"></div>
+                <small class="text-muted">Start typing to see matching assets; select one to view details.</small>
+            </div>
+        </div>
+    </div>
+
+    {{-- Asset Details (shown when an asset is selected from serial search) --}}
+    <div id="asset-details-section" class="master-form-card mb-4" style="display: none;">
+        <h5 class="mb-3"><i class="bi bi-box-seam me-2"></i>Asset Details</h5>
+        <div id="asset-details-content" class="card-body"></div>
+        <div class="mt-2">
+            <a href="#" id="asset-details-history-link" class="btn btn-sm btn-outline-info" style="display: none;"><i class="bi bi-clock-history me-1"></i>View History</a>
+        </div>
+    </div>
+
     {{-- Filter Section --}}
     <div class="master-form-card mb-4">
         <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Filter Assets by Category</h5>
@@ -87,6 +109,110 @@
 <script>
     // Store current category ID for download
     let currentCategoryId = null;
+
+    // Serial number search with dropdown
+    (function() {
+        var input = document.getElementById('serial_search');
+        var dropdown = document.getElementById('serial_dropdown');
+        var detailsSection = document.getElementById('asset-details-section');
+        var detailsContent = document.getElementById('asset-details-content');
+        var historyLink = document.getElementById('asset-details-history-link');
+        var debounce = null;
+        var searchUrl = '{{ url("api/assets/search-serial") }}';
+        var detailsUrlBase = '{{ url("get-asset-full-details") }}';
+        var historyUrlBase = '{{ url("asset-history") }}';
+
+        function hideDropdown() { if (dropdown) dropdown.style.display = 'none'; }
+
+        function showDropdown(items) {
+            if (!dropdown) return;
+            dropdown.innerHTML = '';
+            if (!items || items.length === 0) {
+                dropdown.innerHTML = '<div class="list-group-item text-muted text-center small">No assets found</div>';
+            } else {
+                items.forEach(function(item) {
+                    var a = document.createElement('a');
+                    a.href = '#';
+                    a.className = 'list-group-item list-group-item-action';
+                    a.textContent = (item.serial_number || '') + ' — ' + (item.asset_id || '') + ' (' + (item.category_name || '') + ')';
+                    a.dataset.id = item.id;
+                    a.dataset.serial = item.serial_number || '';
+                    a.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        if (input) input.value = item.serial_number || item.asset_id || '';
+                        hideDropdown();
+                        loadAssetDetails(item.id);
+                    });
+                    dropdown.appendChild(a);
+                });
+            }
+            dropdown.style.display = 'block';
+        }
+
+        function loadAssetDetails(assetId) {
+            if (!assetId) return;
+            detailsContent.innerHTML = '<p class="text-muted mb-0">Loading...</p>';
+            detailsSection.style.display = 'block';
+            $.get(detailsUrlBase + '/' + assetId, function(data) {
+                var a = data.asset || {};
+                var catName = (a.asset_category && a.asset_category.category_name) || (a.assetCategory && a.assetCategory.category_name) || 'N/A';
+                var brandName = (a.brand && a.brand.name) || 'N/A';
+                var html = '<div class="row">' +
+                    '<div class="col-md-4"><strong>Asset ID</strong><br>' + (a.asset_id || 'N/A') + '</div>' +
+                    '<div class="col-md-4"><strong>Serial Number</strong><br>' + (a.serial_number || 'N/A') + '</div>' +
+                    '<div class="col-md-4"><strong>Category</strong><br>' + catName + '</div>' +
+                    '</div><div class="row mt-2">' +
+                    '<div class="col-md-4"><strong>Brand</strong><br>' + brandName + '</div>' +
+                    '<div class="col-md-4"><strong>Status</strong><br>' + (a.status || 'N/A') + '</div>' +
+                    '<div class="col-md-4"><strong>Purchase Date</strong><br>' + (a.purchase_date || 'N/A') + '</div>' +
+                    '</div><div class="row mt-2">' +
+                    '<div class="col-md-4"><strong>Warranty Start</strong><br>' + (a.warranty_start || 'N/A') + '</div>' +
+                    '<div class="col-md-4"><strong>Expiry Date</strong><br>' + (a.expiry_date || 'N/A') + '</div>' +
+                    '<div class="col-md-4"><strong>PO Number</strong><br>' + (a.po_number || 'N/A') + '</div>' +
+                    '</div>';
+                if (a.invoice_path) {
+                    html += '<div class="row mt-2"><div class="col-12"><strong>Invoice</strong><br><a href="/storage/' + a.invoice_path + '" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-pdf"></i> View</a></div></div>';
+                }
+                if (data.employee && data.employee.name) {
+                    html += '<div class="row mt-2"><div class="col-12"><strong>Assigned To</strong><br>' + data.employee.name + '</div></div>';
+                }
+                if (data.project && data.project.project_name) {
+                    html += '<div class="row mt-2"><div class="col-12"><strong>Project</strong><br>' + data.project.project_name + '</div></div>';
+                }
+                detailsContent.innerHTML = html;
+                if (historyLink) {
+                    historyLink.href = historyUrlBase + '/' + assetId;
+                    historyLink.style.display = 'inline-block';
+                }
+            }).fail(function() {
+                detailsContent.innerHTML = '<p class="text-danger mb-0">Failed to load asset details.</p>';
+                if (historyLink) historyLink.style.display = 'none';
+            });
+        }
+
+        if (input) {
+            input.addEventListener('input', function() {
+                clearTimeout(debounce);
+                var q = (input.value || '').trim();
+                if (q.length < 1) {
+                    hideDropdown();
+                    detailsSection.style.display = 'none';
+                    return;
+                }
+                debounce = setTimeout(function() {
+                    $.get(searchUrl + '?q=' + encodeURIComponent(q), function(items) {
+                        showDropdown(items);
+                    }).fail(function() { showDropdown([]); });
+                }, 200);
+            });
+            input.addEventListener('blur', function() { setTimeout(hideDropdown, 200); });
+        }
+        document.addEventListener('click', function(e) {
+            if (dropdown && e.target !== input && !dropdown.contains(e.target)) hideDropdown();
+        });
+    })();
+</script>
+<script>
 
     // When filter category changes → load assets
     $('#filter_category').on('change', function () {

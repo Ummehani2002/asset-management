@@ -243,6 +243,28 @@ public function autocompleteSerialNumber(Request $request)
     return view('assets.by_category', compact('category', 'assets'));
 }
 
+public function searchBySerialNumber(Request $request)
+{
+    $q = trim($request->get('q', ''));
+    if (strlen($q) < 1) {
+        return response()->json([]);
+    }
+    $assets = Asset::with(['assetCategory', 'brand'])
+        ->where('serial_number', 'LIKE', $q . '%')
+        ->orderBy('serial_number')
+        ->limit(15)
+        ->get()
+        ->map(function ($asset) {
+            return [
+                'id' => $asset->id,
+                'asset_id' => $asset->asset_id ?? 'N/A',
+                'serial_number' => $asset->serial_number ?? 'N/A',
+                'category_name' => $asset->assetCategory->category_name ?? 'N/A',
+            ];
+        });
+    return response()->json($assets);
+}
+
 public function getAssetsByCategoryApi($id)
 {
     $assets = Asset::with(['category', 'brand', 'featureValues.feature'])
@@ -614,7 +636,7 @@ public function getAssetDetails($assetId)
 }
 public function getFullDetails($id)
 {
-    $asset = Asset::with('assetCategory', 'employee', 'project')->find($id);
+    $asset = Asset::with('assetCategory', 'brand', 'employee', 'project')->find($id);
     return response()->json([
         'asset' => $asset,
         'invoice' => $asset->invoice_path, // assuming saved in DB

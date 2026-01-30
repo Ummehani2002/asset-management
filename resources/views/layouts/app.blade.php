@@ -806,9 +806,6 @@ data-bs-toggle="collapse"
     <a href="{{ route('asset-transactions.index') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-list-ul"></i> All Transactions
     </a>
-    <a href="{{ route('asset-transactions.view') }}" class="btn btn-sm btn-outline-light mb-1">
-        <i class="bi bi-funnel"></i> View (Filter)
-    </a>
     <a href="{{ route('asset-transactions.create') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-arrow-left-right"></i> Assign/Return
     </a>
@@ -896,7 +893,7 @@ data-bs-toggle="collapse"
     <div class="content">
         {{-- Global Success/Error Messages --}}
         @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
+            <div class="alert alert-success alert-dismissible fade show auto-dismiss-3s" role="alert" style="margin-bottom: 20px;">
                 <i class="bi bi-check-circle-fill me-2"></i>
                 <strong>Success!</strong> {{ session('success') }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -937,6 +934,18 @@ data-bs-toggle="collapse"
 
     <!-- ✅ Bootstrap JS Bundle (needed for collapse dropdowns) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Auto-dismiss success message after 3 seconds -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.alert-success.auto-dismiss-3s').forEach(function(el) {
+            setTimeout(function() {
+                el.style.transition = 'opacity 0.3s ease';
+                el.style.opacity = '0';
+                setTimeout(function() { el.remove(); }, 300);
+            }, 3000);
+        });
+    });
+    </script>
     <!-- Flatpickr – calendar for all date inputs -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>

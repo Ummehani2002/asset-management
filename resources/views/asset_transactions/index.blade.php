@@ -103,7 +103,6 @@
                                 <th>Transaction ID</th>
                                 <th>Asset</th>
                                 <th>Category</th>
-                                <th>Type</th>
                                 <th>Status</th>
                                 <th>Assigned To</th>
                                 <th>Location</th>
@@ -122,15 +121,6 @@
                                         <small class="text-muted">{{ $t->asset->serial_number ?? 'N/A' }}</small>
                                     </td>
                                     <td>{{ $t->asset->assetCategory->category_name ?? 'N/A' }}</td>
-                                    <td>
-                                        <span class="badge 
-                                            @if($t->transaction_type == 'assign') bg-success
-                                            @elseif($t->transaction_type == 'return') bg-warning
-                                            @else bg-info
-                                            @endif">
-                                            {{ ucfirst(str_replace('_', ' ', $t->transaction_type)) }}
-                                        </span>
-                                    </td>
                                     <td>
                                         <span class="badge 
                                             @if($t->asset->status == 'assigned') bg-primary

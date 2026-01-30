@@ -127,7 +127,7 @@
                                             <a href="{{ route('location.edit', $loc->id) }}" class="btn btn-sm btn-warning">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </a>
-                                            <form action="{{ route('location.destroy', $loc->id) }}" method="POST" style="display:inline-block;">
+                                            <form action="{{ route('location-master.destroy', $loc->id) }}" method="POST" style="display:inline-block;">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button onclick="return confirm('Are you sure you want to delete this location?')" class="btn btn-sm btn-danger">
