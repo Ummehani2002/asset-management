@@ -98,7 +98,32 @@
                         <tbody>
                             @forelse($category->brands as $brand)
                                 <tr>
-                                    <td><strong>{{ $brand->name }}</strong></td>
+                                    <td>
+                                        <strong>{{ $brand->name }}</strong>
+                                        <div class="mt-2">
+                                            <form action="{{ route('brand-models.store') }}" method="POST" class="d-inline-flex align-items-center gap-2" autocomplete="off">
+                                                @csrf
+                                                <input type="hidden" name="brand_id" value="{{ $brand->id }}">
+                                                <input type="text" name="model_number" class="form-control form-control-sm" style="max-width: 180px;" placeholder="Model number" required>
+                                                <button type="submit" class="btn btn-sm btn-info"><i class="bi bi-plus-circle"></i> Add Model</button>
+                                            </form>
+                                        </div>
+                                        @if(isset($brand->models) && $brand->models->count() > 0)
+                                            <div class="mt-1 small">
+                                                @foreach($brand->models as $bModel)
+                                                    <span class="badge bg-secondary me-1 mb-1">
+                                                        {{ $bModel->model_number }}
+                                                        <a href="{{ route('brand-models.edit-features', $bModel->id) }}" class="text-white ms-1" title="Type all feature values for this model – they will autofill in Asset Master"><i class="bi bi-pencil-square me-1"></i>Set values</a>
+                                                        <form action="{{ route('brand-models.destroy', $bModel->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this model?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-link p-0 ms-1 text-white" style="font-size: 0.7rem; vertical-align: middle;"><i class="bi bi-x-lg"></i></button>
+                                                        </form>
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </td>
                                     <td>
                                         @if($brand->features->count())
                                             <table class="table table-sm table-bordered mb-2">

@@ -126,6 +126,62 @@ public function getFeaturesByBrand($brandId)
     return response()->json($features);
 }
 
+    /**
+     * Get models for a brand (for Asset create model dropdown).
+     */
+    public function getModelsByBrand($brandId)
+{
+    $models = \App\Models\BrandModel::where('brand_id', $brandId)->orderBy('model_number')->get(['id', 'model_number']);
+    return response()->json($models);
+}
+
+    /**
+     * Get all models for a category (all brands in that category). For Asset create: select category → model → brand and features autofill.
+     */
+    public function getModelsByCategory($categoryId)
+{
+    $brands = \App\Models\Brand::where('asset_category_id', $categoryId)->orderBy('name')->get(['id', 'name']);
+    $out = [];
+    foreach ($brands as $brand) {
+        $models = \App\Models\BrandModel::where('brand_id', $brand->id)->orderBy('model_number')->get(['id', 'model_number']);
+        foreach ($models as $m) {
+            $out[] = [
+                'id' => $m->id,
+                'model_number' => $m->model_number,
+                'brand_id' => $brand->id,
+                'brand_name' => $brand->name,
+            ];
+        }
+    }
+    return response()->json($out);
+}
+
+    /**
+     * Get feature values for a model (to auto-fill feature fields in Asset create).
+     */
+    public function getModelFeatureValues($modelId)
+{
+    $model = \App\Models\BrandModel::with(['featureValues.categoryFeature', 'brand.features'])->find($modelId);
+    if (!$model) {
+        return response()->json([]);
+    }
+    $out = [];
+    foreach ($model->featureValues as $fv) {
+        $f = $fv->categoryFeature;
+        if ($f->sub_fields && is_array($f->sub_fields) && count($f->sub_fields) > 0) {
+            $decoded = @json_decode($fv->feature_value, true);
+            if (is_array($decoded)) {
+                $out[$f->id] = $decoded;
+            } else {
+                $out[$f->id] = [];
+            }
+        } else {
+            $out[$f->id] = $fv->feature_value ?? '';
+        }
+    }
+    return response()->json($out);
+}
+
 /**
  * Get category prefix for asset ID generation
  */

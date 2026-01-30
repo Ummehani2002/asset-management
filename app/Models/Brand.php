@@ -13,6 +13,11 @@ public function features()
     return $this->hasMany(CategoryFeature::class, 'brand_id');
 }
 
+public function models()
+{
+    return $this->hasMany(BrandModel::class, 'brand_id');
+}
+
 public function category()
     {
         return $this->belongsTo(AssetCategory::class, 'asset_category_id');

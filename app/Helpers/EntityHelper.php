@@ -13,11 +13,16 @@ class EntityHelper
      */
     public static function getEntities()
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('entities')) {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('entities')) {
+                return self::defaultEntities();
+            }
+            $names = Entity::orderBy('name')->pluck('name')->toArray();
+            return $names ?: self::defaultEntities();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('EntityHelper::getEntities failed: ' . $e->getMessage());
             return self::defaultEntities();
         }
-        $names = Entity::orderBy('name')->pluck('name')->toArray();
-        return $names ?: self::defaultEntities();
     }
 
     /**

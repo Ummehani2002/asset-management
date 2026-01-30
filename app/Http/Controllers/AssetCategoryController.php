@@ -3,6 +3,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\AssetCategory;
 use App\Models\Brand;
+use App\Models\BrandModel;
+use App\Models\ModelFeatureValue;
 use App\Models\CategoryFeature;
 use App\Models\Asset;
 use Illuminate\Support\Facades\Schema;
@@ -29,7 +31,7 @@ class AssetCategoryController extends Controller
             // Try to get categories, fallback to empty collection if table doesn't exist
             try {
                 $categories = $hasAssetCategories 
-                    ? AssetCategory::with(['brands.features'])->get() 
+                    ? AssetCategory::with(['brands.features', 'brands.models.featureValues'])->get() 
                     : collect([]);
             } catch (\Exception $e) {
                 Log::warning('Error loading categories: ' . $e->getMessage());
@@ -303,4 +305,53 @@ private function exportCategoryExcel($category)
 
     return response()->stream($callback, 200, $headers);
 }
+
+    public function storeModel(Request $request)
+    {
+        $request->validate([
+            'brand_id' => 'required|exists:brands,id',
+            'model_number' => 'required|string|max:255',
+        ]);
+        BrandModel::create($request->only('brand_id', 'model_number'));
+        return redirect()->back()->with('success', 'Model added successfully.');
+    }
+
+    public function editModelFeatures($id)
+    {
+        $model = BrandModel::with(['brand.features', 'featureValues.categoryFeature'])->findOrFail($id);
+        $features = $model->brand->features;
+        $valuesByFeature = $model->featureValues->keyBy('category_feature_id');
+        return view('brand-models.edit-features', compact('model', 'features', 'valuesByFeature'));
+    }
+
+    public function updateModelFeatureValues(Request $request, $id)
+    {
+        $model = BrandModel::with('brand.features')->findOrFail($id);
+        $features = $model->brand->features;
+        foreach ($features as $feature) {
+            $value = null;
+            if ($feature->sub_fields && is_array($feature->sub_fields) && count($feature->sub_fields) > 0) {
+                $sub = [];
+                foreach ($feature->sub_fields as $subField) {
+                    $key = 'features_' . $feature->id . '_' . $subField;
+                    $sub[$subField] = $request->input($key, '');
+                }
+                $value = json_encode($sub);
+            } else {
+                $value = $request->input('features_' . $feature->id, '');
+            }
+            ModelFeatureValue::updateOrCreate(
+                ['brand_model_id' => $model->id, 'category_feature_id' => $feature->id],
+                ['feature_value' => $value]
+            );
+        }
+        return redirect()->route('categories.manage')->with('success', 'Model feature values saved.');
+    }
+
+    public function destroyModel($id)
+    {
+        $model = BrandModel::findOrFail($id);
+        $model->delete();
+        return redirect()->back()->with('success', 'Model deleted.');
+    }
 }

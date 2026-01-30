@@ -59,6 +59,10 @@ Route::post('/brands/store', [AssetCategoryController::class, 'storeBrand'])->na
 Route::get('/brands/{id}/edit', [BrandController::class, 'edit'])->name('brands.edit');
 Route::put('/brands/{id}', [BrandController::class, 'update'])->name('brands.update');
 Route::delete('/brands/{id}', [BrandController::class, 'destroy'])->name('brands.destroy');
+Route::post('/brand-models', [AssetCategoryController::class, 'storeModel'])->name('brand-models.store');
+Route::get('/brand-models/{id}/edit-features', [AssetCategoryController::class, 'editModelFeatures'])->name('brand-models.edit-features');
+Route::put('/brand-models/{id}/feature-values', [AssetCategoryController::class, 'updateModelFeatureValues'])->name('brand-models.update-feature-values');
+Route::delete('/brand-models/{id}', [AssetCategoryController::class, 'destroyModel'])->name('brand-models.destroy');
 
 
 use App\Http\Controllers\EmployeeController;
@@ -87,6 +91,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/category-features/{category}', [CategoryFeatureController::class, 'getByCategory']);
     Route::get('/features/by-brand/{brandId}', [CategoryFeatureController::class, 'getByBrand']);
     Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeaturesByBrand']);
+    Route::get('/models-by-brand/{brandId}', [AssetController::class, 'getModelsByBrand'])->name('models.by-brand');
+    Route::get('/models-by-category/{categoryId}', [AssetController::class, 'getModelsByCategory'])->name('models.by-category');
+    Route::get('/model-feature-values/{modelId}', [AssetController::class, 'getModelFeatureValues'])->name('model.feature-values');
 });
 Route::post('/features/store', [AssetCategoryController::class, 'storeFeature'])->name('features.store');
 Route::get('/features/{id}/edit', [CategoryFeatureController::class, 'edit'])->name('features.edit');
@@ -228,15 +235,18 @@ Route::middleware(['auth'])->group(function () {
 
 
 use App\Http\Controllers\ProjectController;
-Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
-Route::get('/projects-autocomplete', [ProjectController::class, 'autocomplete'])->name('projects.autocomplete');
-Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
-Route::get('/projects/export', [ProjectController::class, 'export'])->name('projects.export');
-Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
-Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
-Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
-Route::put('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
-Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+// Project Master - All authenticated users (fixes production when routes are behind auth)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+    Route::get('/projects-autocomplete', [ProjectController::class, 'autocomplete'])->name('projects.autocomplete');
+    Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
+    Route::get('/projects/export', [ProjectController::class, 'export'])->name('projects.export');
+    Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
+    Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
+    Route::put('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
+    Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+});
 
 
 use App\Http\Controllers\InternetServiceController;
