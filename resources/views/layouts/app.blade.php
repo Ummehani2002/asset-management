@@ -966,10 +966,10 @@ data-bs-toggle="collapse"
 
     <!-- ✅ Bootstrap JS Bundle (needed for collapse dropdowns) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Auto-dismiss success message after 3 seconds -->
+    <!-- Auto-dismiss all success messages after 3 seconds -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.alert-success.auto-dismiss-3s').forEach(function(el) {
+        document.querySelectorAll('.content .alert-success').forEach(function(el) {
             setTimeout(function() {
                 el.style.transition = 'opacity 0.3s ease';
                 el.style.opacity = '0';
