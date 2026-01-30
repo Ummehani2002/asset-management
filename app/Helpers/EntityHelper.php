@@ -2,14 +2,30 @@
 
 namespace App\Helpers;
 
+use App\Models\Entity;
+
 class EntityHelper
 {
     /**
-     * Get list of all entities/companies
-     * 
+     * Get list of all entities/companies (from DB; fallback to default list if table empty)
+     *
      * @return array
      */
     public static function getEntities()
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('entities')) {
+            return self::defaultEntities();
+        }
+        $names = Entity::orderBy('name')->pluck('name')->toArray();
+        return $names ?: self::defaultEntities();
+    }
+
+    /**
+     * Default entity names (used when entities table is missing or empty)
+     *
+     * @return array
+     */
+    public static function defaultEntities()
     {
         return [
             'proscape',
@@ -19,7 +35,7 @@ class EntityHelper
             'transmech',
             'timbertech',
             'ventana',
-            'garden center'
+            'garden center',
         ];
     }
 

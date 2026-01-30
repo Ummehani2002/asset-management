@@ -18,4 +18,9 @@ public function assetTransactions()
 {
     return $this->hasMany(\App\Models\AssetTransaction::class);
 }
+
+    public function managedEntities()
+    {
+        return $this->hasMany(Entity::class, 'asset_manager_id');
+    }
 }

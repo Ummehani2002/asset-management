@@ -763,12 +763,40 @@
 </button>
 
 <div class="collapse" id="locationMenu">
-    <a href="{{ route('location-master.store') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('location-master.index') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-geo"></i> New Location
     </a>
 
     <a href="{{ url('/location-assets') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-search"></i> Location Asset Lookup
+    </a>
+</div>
+
+    <!-- Entity Master -->
+<button class="btn btn-outline-primary mb-2"
+        data-bs-toggle="collapse"
+        data-bs-target="#entityMenu"
+        aria-expanded="false"
+        aria-controls="entityMenu">
+    <i class="bi bi-building"></i> Entity Master ▾
+</button>
+<div class="collapse" id="entityMenu">
+    <a href="{{ route('entity-master.index') }}" class="btn btn-sm btn-outline-light mb-1">
+        <i class="bi bi-building-add"></i> Entity Master
+    </a>
+</div>
+
+    <!-- Asset Manager -->
+<button class="btn btn-outline-primary mb-2"
+        data-bs-toggle="collapse"
+        data-bs-target="#assetManagerMenu"
+        aria-expanded="false"
+        aria-controls="assetManagerMenu">
+    <i class="bi bi-person-gear"></i> Asset Manager ▾
+</button>
+<div class="collapse" id="assetManagerMenu">
+    <a href="{{ route('asset-manager.index') }}" class="btn btn-sm btn-outline-light mb-1">
+        <i class="bi bi-person-plus"></i> Assign Asset Manager
     </a>
 </div>
 

@@ -104,6 +104,18 @@ Route::put('/employee-master/{employee}', [EmployeeController::class, 'update'])
 
 
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\EntityController;
+use App\Http\Controllers\AssetManagerController;
+Route::get('/entity-master', [EntityController::class, 'index'])->name('entity-master.index');
+Route::post('/entity-master', [EntityController::class, 'store'])->name('entity-master.store');
+Route::get('/entity-master/{id}/edit', [EntityController::class, 'edit'])->name('entity-master.edit');
+Route::put('/entity-master/{id}', [EntityController::class, 'update'])->name('entity-master.update');
+Route::delete('/entity-master/{id}', [EntityController::class, 'destroy'])->name('entity-master.destroy');
+
+Route::get('/asset-manager', [AssetManagerController::class, 'index'])->name('asset-manager.index');
+Route::get('/asset-manager/{id}/edit', [AssetManagerController::class, 'edit'])->name('asset-manager.edit');
+Route::put('/asset-manager/{id}', [AssetManagerController::class, 'update'])->name('asset-manager.update');
+
 Route::get('/location-master', [LocationController::class, 'index'])->name('location-master.index');
 Route::get('/location-master/export', [LocationController::class, 'export'])->name('location-master.export');
 Route::post('/location-master', [LocationController::class, 'store'])->name('location-master.store');
