@@ -32,6 +32,54 @@ class AssetTransactionController extends Controller
         }
     }
 
+    public function searchSuggestions(Request $request)
+    {
+        $query = trim($request->get('query', ''));
+        if (strlen($query) < 1) {
+            return response()->json([]);
+        }
+        $suggestions = collect([]);
+        $q = $query;
+        if (Schema::hasTable('assets')) {
+            Asset::where('serial_number', 'like', "%{$q}%")
+                ->orWhere('asset_id', 'like', "%{$q}%")
+                ->take(5)
+                ->get(['serial_number', 'asset_id'])
+                ->each(function ($a) use (&$suggestions) {
+                    $val = $a->serial_number ?? $a->asset_id;
+                    if ($val && !$suggestions->contains('value', $val)) {
+                        $suggestions->push(['value' => $val, 'label' => ($val) . ' (Asset)']);
+                    }
+                });
+        }
+        if (Schema::hasTable('employees')) {
+            Employee::where('name', 'like', "%{$q}%")
+                ->orWhere('entity_name', 'like', "%{$q}%")
+                ->orWhere('employee_id', 'like', "%{$q}%")
+                ->take(5)
+                ->get(['name', 'entity_name', 'employee_id'])
+                ->each(function ($e) use (&$suggestions) {
+                    $val = $e->name ?? $e->entity_name ?? $e->employee_id;
+                    if ($val && !$suggestions->contains('value', $val)) {
+                        $suggestions->push(['value' => $val, 'label' => $val . ' (Employee)']);
+                    }
+                });
+        }
+        if (Schema::hasTable('projects')) {
+            Project::where('project_name', 'like', "%{$q}%")
+                ->orWhere('project_id', 'like', "%{$q}%")
+                ->take(5)
+                ->get(['project_name', 'project_id'])
+                ->each(function ($p) use (&$suggestions) {
+                    $val = $p->project_name ?? $p->project_id;
+                    if ($val && !$suggestions->contains('value', $val)) {
+                        $suggestions->push(['value' => $val, 'label' => $val . ' (Project)']);
+                    }
+                });
+        }
+        return response()->json($suggestions->take(15)->values()->toArray());
+    }
+
     public function index(Request $request)
     {
         try {

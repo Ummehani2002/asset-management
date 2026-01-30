@@ -52,22 +52,38 @@ class BudgetExpenseController extends Controller
             }
         }
         
-        // Get unique cost heads from existing entity budgets
+        // Cost heads: predefined list (from cost heads master) + any from existing entity budgets
+        $costHeadsList = \App\Http\Controllers\EntityBudgetController::getCostHeadsList();
+        $predefinedNames = array_column($costHeadsList, 'name');
+        $costHeadsWithTypes = [];
+        foreach ($costHeadsList as $item) {
+            $costHeadsWithTypes[$item['name']] = $item['expense_type'];
+        }
         if (Schema::hasTable('entity_budgets')) {
             try {
-                $costHeads = EntityBudget::distinct()->pluck('cost_head')->filter()->values()->toArray();
+                $fromDb = EntityBudget::distinct()->pluck('cost_head')->filter()->values()->toArray();
+                $costHeads = array_values(array_unique(array_merge($predefinedNames, $fromDb)));
+                sort($costHeads);
             } catch (\Exception $e) {
                 Log::warning('Error loading cost heads: ' . $e->getMessage());
+                $costHeads = $predefinedNames;
             }
+        } else {
+            $costHeads = $predefinedNames;
         }
         
-        return view('budget_expenses.create', compact('entities', 'costHeads', 'expenseTypes'));
+        return view('budget_expenses.create', compact('entities', 'costHeads', 'costHeadsWithTypes', 'expenseTypes'));
     } catch (\Throwable $e) {
         Log::error('BudgetExpense create fatal error: ' . $e->getMessage());
         $entities = collect([]);
-        $costHeads = [];
+        $costHeadsList = \App\Http\Controllers\EntityBudgetController::getCostHeadsList();
+        $costHeads = array_column($costHeadsList, 'name');
+        $costHeadsWithTypes = [];
+        foreach ($costHeadsList as $item) {
+            $costHeadsWithTypes[$item['name']] = $item['expense_type'];
+        }
         $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
-        return view('budget_expenses.create', compact('entities', 'costHeads', 'expenseTypes'))
+        return view('budget_expenses.create', compact('entities', 'costHeads', 'costHeadsWithTypes', 'expenseTypes'))
             ->with('error', 'An error occurred. Please check logs.');
     }
 }

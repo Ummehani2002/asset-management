@@ -41,7 +41,11 @@
             <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Search</label>
-                    <input type="text" name="search" class="form-control" placeholder="Search by asset, employee, project..." value="{{ request('search') }}">
+                    <div class="position-relative" id="txnSearchWrap">
+                        <input type="text" name="search" id="txnSearchInput" class="form-control" placeholder="Type asset, employee, or project..." value="{{ request('search') }}" autocomplete="off">
+                        <div id="txnSearchDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
+                    </div>
+                    <small class="text-muted">Start typing to see suggestions.</small>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Asset Status</label>
@@ -236,4 +240,40 @@
         </div>
     @endif
 </div>
+<script>
+(function() {
+    var input = document.getElementById('txnSearchInput');
+    var dropdown = document.getElementById('txnSearchDropdown');
+    var wrap = document.getElementById('txnSearchWrap');
+    var form = document.getElementById('searchForm');
+    var debounceTimer = null;
+    if (!input || !dropdown) return;
+    function hide() { dropdown.style.display = 'none'; dropdown.innerHTML = ''; }
+    function show(items) {
+        if (!items || items.length === 0) { dropdown.innerHTML = '<div class="list-group-item text-muted">No suggestions</div>'; }
+        else {
+            dropdown.innerHTML = items.map(function(item) {
+                var val = (item.value || '').replace(/"/g, '&quot;');
+                return '<a href="#" class="list-group-item list-group-item-action txn-sugg" data-value="' + val + '">' + (item.label || item.value) + '</a>';
+            }).join('');
+        }
+        dropdown.style.display = 'block';
+    }
+    input.addEventListener('input', function() {
+        var q = (input.value || '').trim();
+        clearTimeout(debounceTimer);
+        if (q.length < 1) { hide(); return; }
+        debounceTimer = setTimeout(function() {
+            fetch('{{ url("asset-transactions-search-suggestions") }}?query=' + encodeURIComponent(q))
+                .then(function(r) { return r.json(); }).then(show).catch(hide);
+        }, 200);
+    });
+    dropdown.addEventListener('click', function(e) {
+        var el = e.target.closest('.txn-sugg');
+        if (el) { e.preventDefault(); input.value = el.getAttribute('data-value'); hide(); form.submit(); }
+    });
+    document.addEventListener('click', function(e) { if (wrap && !wrap.contains(e.target)) hide(); });
+    input.addEventListener('keydown', function(e) { if (e.key === 'Escape') hide(); });
+})();
+</script>
 @endsection

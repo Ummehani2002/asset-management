@@ -36,7 +36,11 @@
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Search (optional)</label>
-                    <input type="text" name="search" class="form-control" placeholder="Location ID, name, or category..." value="{{ request('search') }}">
+                    <div class="position-relative" id="locationSearchWrap">
+                        <input type="text" name="search" id="locationSearchInput" class="form-control" placeholder="Type location ID, name, or category..." value="{{ request('search') }}" autocomplete="off">
+                        <div id="locationSearchDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
+                    </div>
+                    <small class="text-muted">Start typing to see matching locations.</small>
                 </div>
                 <div class="col-md-4 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">
@@ -124,4 +128,41 @@
         </div>
     @endif
 </div>
+<script>
+(function() {
+    var input = document.getElementById('locationSearchInput');
+    var dropdown = document.getElementById('locationSearchDropdown');
+    var wrap = document.getElementById('locationSearchWrap');
+    var form = document.getElementById('locationSearchForm');
+    var debounceTimer = null;
+    if (!input || !dropdown) return;
+    function hide() { dropdown.style.display = 'none'; dropdown.innerHTML = ''; }
+    function show(items) {
+        if (!items || items.length === 0) { dropdown.innerHTML = '<div class="list-group-item text-muted">No locations found</div>'; }
+        else {
+            dropdown.innerHTML = items.map(function(loc) {
+                var label = (loc.location_id || '') + ' — ' + (loc.location_name || '') + (loc.location_category ? ' (' + loc.location_category + ')' : '');
+                var val = loc.location_id || loc.location_name || '';
+                return '<a href="#" class="list-group-item list-group-item-action loc-sugg" data-value="' + (val + '').replace(/"/g, '&quot;') + '">' + label + '</a>';
+            }).join('');
+        }
+        dropdown.style.display = 'block';
+    }
+    input.addEventListener('input', function() {
+        var q = (input.value || '').trim();
+        clearTimeout(debounceTimer);
+        if (q.length < 1) { hide(); return; }
+        debounceTimer = setTimeout(function() {
+            fetch('{{ url("location-autocomplete") }}?query=' + encodeURIComponent(q))
+                .then(function(r) { return r.json(); }).then(show).catch(hide);
+        }, 200);
+    });
+    dropdown.addEventListener('click', function(e) {
+        var el = e.target.closest('.loc-sugg');
+        if (el) { e.preventDefault(); input.value = el.getAttribute('data-value'); hide(); form.submit(); }
+    });
+    document.addEventListener('click', function(e) { if (wrap && !wrap.contains(e.target)) hide(); });
+    input.addEventListener('keydown', function(e) { if (e.key === 'Escape') hide(); });
+})();
+</script>
 @endsection

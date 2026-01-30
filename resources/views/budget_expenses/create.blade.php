@@ -113,6 +113,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const costHeadsWithTypes = @json($costHeadsWithTypes ?? []);
     const entitySelect = document.getElementById('entity_id');
     const costHeadSelect = document.getElementById('cost_head');
     const expenseTypeSelect = document.getElementById('expense_type');
@@ -214,6 +215,12 @@ document.addEventListener('DOMContentLoaded', function() {
         availableBalanceEl.textContent = (budgetAmount - totalExpenses - newExpense).toFixed(2);
     }
 
+    // When cost head changes, auto-set expense type from predefined list
+    costHeadSelect.addEventListener('change', function() {
+        if (costHeadsWithTypes[this.value]) {
+            expenseTypeSelect.value = costHeadsWithTypes[this.value];
+        }
+    });
     // update details when selects change
     entitySelect.addEventListener('change', fetchDetails);
     costHeadSelect.addEventListener('change', fetchDetails);

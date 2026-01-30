@@ -8,8 +8,9 @@ class EntityBudget extends Model
         'employee_id',
         'cost_head',
         'expense_type',
+        'category',
+        'budget_2024',
         'budget_2025',
-       
     ];
 
     public function employee()

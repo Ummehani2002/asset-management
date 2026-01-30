@@ -75,8 +75,12 @@
 
            <div class="col-md-4 mb-3">
     <label for="cost_head">Cost Head</label>
-    <input type="text" name="cost_head" id="cost_head" class="form-control" required 
-           placeholder="Enter Cost Head">
+    <select name="cost_head" id="cost_head" class="form-control" required>
+        <option value="">Select Cost Head</option>
+        @foreach($costHeadsList as $item)
+            <option value="{{ $item['name'] }}" data-expense-type="{{ $item['expense_type'] }}" data-category="{{ $item['category'] ?? 'Overhead' }}">{{ $item['name'] }}</option>
+        @endforeach
+    </select>
 </div>
 
             <div class="col-md-4 mb-3">
@@ -88,6 +92,7 @@
                     <option value="Subscription">Subscription</option>
                 </select>
             </div>
+            <input type="hidden" name="category" id="category" value="Overhead">
         </div>
 
         <div class="row">
@@ -198,4 +203,16 @@
         </div>
     @endif
 </div>
+
+<script>
+document.getElementById('cost_head').addEventListener('change', function() {
+    var opt = this.options[this.selectedIndex];
+    if (opt && opt.value) {
+        var expenseType = opt.getAttribute('data-expense-type');
+        var category = opt.getAttribute('data-category');
+        if (expenseType) document.getElementById('expense_type').value = expenseType;
+        if (category) document.getElementById('category').value = category;
+    }
+});
+</script>
 @endsection

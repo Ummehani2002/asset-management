@@ -13,12 +13,46 @@ use Illuminate\Support\Collection;
 
 class EntityBudgetController extends Controller
 {
+    /**
+     * Standard cost heads with default expense type and category (all Overhead).
+     * Used for Entity Budget and Budget Expense dropdowns.
+     */
+    public static function getCostHeadsList(): array
+    {
+        return [
+            ['name' => 'Network', 'expense_type' => 'Capex Software', 'category' => 'Overhead'],
+            ['name' => 'Multifunction Printers & Plotters', 'expense_type' => 'Maintenance', 'category' => 'Overhead'],
+            ['name' => 'New Laptops, Desktops & Workstations', 'expense_type' => 'Capex Software', 'category' => 'Overhead'],
+            ['name' => 'CAD Softwares', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Office 365', 'expense_type' => 'Capex Software', 'category' => 'Overhead'],
+            ['name' => 'Candy', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Consumables', 'expense_type' => 'Maintenance', 'category' => 'Overhead'],
+            ['name' => 'Computer Service', 'expense_type' => 'Maintenance', 'category' => 'Overhead'],
+            ['name' => 'Email Security Services', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'On Screen Take OFF', 'expense_type' => 'Capex Software', 'category' => 'Overhead'],
+            ['name' => 'Primavera', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'MS Office', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Power BI Report', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Operating System', 'expense_type' => 'Capex Software', 'category' => 'Overhead'],
+            ['name' => 'Crowd Strike Antivirus', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'DMS', 'expense_type' => 'Maintenance', 'category' => 'Overhead'],
+            ['name' => 'Firewall & Hosting Security', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Sonic Wall – Security Services', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Baracuda Email Backup', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Power BI Licenses', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Domain Renewal', 'expense_type' => 'Maintenance', 'category' => 'Overhead'],
+            ['name' => 'Hosting', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Check Point Email Security Services', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+        ];
+    }
+
     public function create(Request $request)
     {
         try {
             // Initialize default values
             $entities = collect([]);
-            $costHeads = ['Overhead', 'AMC', 'Software'];
+            $costHeadsList = self::getCostHeadsList();
+            $costHeads = array_column($costHeadsList, 'name');
             $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
             $budgets = collect([]);
 
@@ -27,7 +61,7 @@ class EntityBudgetController extends Controller
                 DB::connection()->getPdo();
             } catch (\Exception $e) {
                 Log::error('EntityBudget create: Database connection failed: ' . $e->getMessage());
-                return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
+                return view('entity_budget.create', compact('entities', 'costHeads', 'costHeadsList', 'expenseTypes', 'budgets'))
                     ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
             }
 
@@ -37,7 +71,7 @@ class EntityBudgetController extends Controller
                 $hasEntityBudgets = Schema::hasTable('entity_budgets');
             } catch (\Exception $e) {
                 Log::error('EntityBudget create: Schema check failed: ' . $e->getMessage());
-                return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
+                return view('entity_budget.create', compact('entities', 'costHeads', 'costHeadsList', 'expenseTypes', 'budgets'))
                     ->with('error', 'Unable to check database tables. Please verify database connection.');
             }
             
@@ -146,7 +180,7 @@ class EntityBudgetController extends Controller
             $selectedYear = $request->get('year', $currentYear);
             
             $hasAllTables = $hasEmployees && $hasEntityBudgets;
-            return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets', 'availableYears', 'selectedYear'))
+            return view('entity_budget.create', compact('entities', 'costHeads', 'costHeadsList', 'expenseTypes', 'budgets', 'availableYears', 'selectedYear'))
                 ->with('warning', $hasAllTables ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
         } catch (\Throwable $e) {
             Log::error('EntityBudget create fatal error: ' . $e->getMessage());
@@ -156,10 +190,11 @@ class EntityBudgetController extends Controller
             
             // Return with default values
             $entities = collect([]);
-            $costHeads = ['Overhead', 'AMC', 'Software'];
+            $costHeadsList = self::getCostHeadsList();
+            $costHeads = array_column($costHeadsList, 'name');
             $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
             $budgets = collect([]);
-            return view('entity_budget.create', compact('entities', 'costHeads', 'expenseTypes', 'budgets'))
+            return view('entity_budget.create', compact('entities', 'costHeads', 'costHeadsList', 'expenseTypes', 'budgets'))
                 ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
@@ -287,6 +322,7 @@ class EntityBudgetController extends Controller
                 'employee_id' => $validated['entity_id'],
                 'cost_head' => $validated['cost_head'],
                 'expense_type' => $validated['expense_type'],
+                'category' => $request->get('category'),
             ];
             
             $budgetData[$yearColumn] = $validated['budget_amount'];

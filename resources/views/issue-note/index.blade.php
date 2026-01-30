@@ -33,7 +33,11 @@
             <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Search</label>
-                    <input type="text" name="search" class="form-control" placeholder="Search by employee, department, entity..." value="{{ request('search') }}">
+                    <div class="position-relative" id="issueNoteSearchWrap">
+                        <input type="text" name="search" id="issueNoteSearchInput" class="form-control" placeholder="Type employee, department, or entity..." value="{{ request('search') }}" autocomplete="off">
+                        <div id="issueNoteSearchDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
+                    </div>
+                    <small class="text-muted">Start typing to see suggestions.</small>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Note Type</label>
@@ -144,5 +148,43 @@
         </div>
     @endif
 </div>
+<script>
+(function() {
+    var input = document.getElementById('issueNoteSearchInput');
+    var dropdown = document.getElementById('issueNoteSearchDropdown');
+    var wrap = document.getElementById('issueNoteSearchWrap');
+    var form = document.getElementById('searchForm');
+    var debounceTimer = null;
+    if (!input || !dropdown) return;
+    function hide() { dropdown.style.display = 'none'; dropdown.innerHTML = ''; }
+    function show(items) {
+        if (!items || items.length === 0) { dropdown.innerHTML = '<div class="list-group-item text-muted">No suggestions</div>'; }
+        else {
+            dropdown.innerHTML = items.map(function(emp) {
+                var label = (emp.name || emp.entity_name || '') + (emp.employee_id ? ' (' + emp.employee_id + ')' : '');
+                var val = emp.name || emp.entity_name || emp.employee_id || '';
+                val = (val + '').replace(/"/g, '&quot;');
+                return '<a href="#" class="list-group-item list-group-item-action in-sugg" data-value="' + val + '">' + label + '</a>';
+            }).join('');
+        }
+        dropdown.style.display = 'block';
+    }
+    input.addEventListener('input', function() {
+        var q = (input.value || '').trim();
+        clearTimeout(debounceTimer);
+        if (q.length < 1) { hide(); return; }
+        debounceTimer = setTimeout(function() {
+            fetch('{{ route("employees.autocomplete") }}?query=' + encodeURIComponent(q))
+                .then(function(r) { return r.json(); }).then(show).catch(hide);
+        }, 200);
+    });
+    dropdown.addEventListener('click', function(e) {
+        var el = e.target.closest('.in-sugg');
+        if (el) { e.preventDefault(); input.value = el.getAttribute('data-value'); hide(); form.submit(); }
+    });
+    document.addEventListener('click', function(e) { if (wrap && !wrap.contains(e.target)) hide(); });
+    input.addEventListener('keydown', function(e) { if (e.key === 'Escape') hide(); });
+})();
+</script>
 @endsection
 

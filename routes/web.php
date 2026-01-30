@@ -148,6 +148,7 @@ use App\Http\Controllers\AssetTransactionController;
 
 
 // Asset Transactions
+Route::get('/asset-transactions-search-suggestions', [AssetTransactionController::class, 'searchSuggestions'])->name('asset-transactions.searchSuggestions');
 Route::prefix('asset-transactions')->group(function () {
     Route::get('/', [AssetTransactionController::class, 'index'])->name('asset-transactions.index');
     Route::get('/view', [AssetTransactionController::class, 'view'])->name('asset-transactions.view');
@@ -241,6 +242,7 @@ Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->nam
 use App\Http\Controllers\InternetServiceController;
 // Internet Services - All authenticated users
 Route::middleware(['auth'])->group(function () {
+    Route::get('internet-services-search-suggestions', [InternetServiceController::class, 'searchSuggestions'])->name('internet-services.searchSuggestions');
     Route::get('internet-services', [InternetServiceController::class, 'index'])->name('internet-services.index');
     Route::get('internet-services/create', [InternetServiceController::class, 'create'])->name('internet-services.create');
     Route::get('internet-services/export', [InternetServiceController::class, 'export'])->name('internet-services.export');
