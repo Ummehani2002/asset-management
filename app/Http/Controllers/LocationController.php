@@ -139,11 +139,15 @@ public function edit($id)
 public function update(Request $request, $id)
 {
     $request->validate([
-        'location_name' => 'required|string|max:255',
+        'location_name'     => 'required|string|max:255',
+        'location_category' => 'nullable|string|max:255',
+        'location_entity'   => 'required|string|max:255',
     ]);
 
     $location = Location::findOrFail($id);
     $location->location_name = $request->input('location_name');
+    $location->location_category = $request->input('location_category');
+    $location->location_entity = $request->input('location_entity');
     $location->save();
 
     return redirect()->route('location-master.index')->with('success', 'Location updated successfully.');
