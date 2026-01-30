@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\Employee;
+use App\Helpers\EntityHelper;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -17,10 +18,11 @@ class ProjectController extends Controller
         try {
             if (!Schema::hasTable('projects')) {
                 Log::warning('projects table does not exist');
-                $projects = collect([]);
-                return view('projects.index', compact('projects'))
-                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
-            }
+            $projects = collect([]);
+            $entities = EntityHelper::getEntities();
+            return view('projects.index', compact('projects', 'entities'))
+                ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+        }
 
             $query = Project::query();
 
@@ -41,15 +43,31 @@ class ProjectController extends Controller
             }
 
             $projects = $query->orderByDesc('created_at')->get();
-            return view('projects.index', compact('projects'));
+            $entities = EntityHelper::getEntities();
+            return view('projects.index', compact('projects', 'entities'));
         } catch (\Exception $e) {
             Log::error('Project index error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
             $projects = collect([]);
-            return view('projects.index', compact('projects'))
+            $entities = EntityHelper::getEntities();
+            return view('projects.index', compact('projects', 'entities'))
                 ->with('warning', 'Unable to load projects. Please ensure migrations are run: php artisan migrate --force');
         }
+    }
+
+    public function autocomplete(Request $request)
+    {
+        $query = trim($request->get('query', ''));
+        if (strlen($query) < 1) {
+            return response()->json([]);
+        }
+        $projects = Project::where('project_id', 'like', $query . '%')
+            ->orWhere('project_name', 'like', $query . '%')
+            ->orderBy('project_id')
+            ->take(15)
+            ->get(['id', 'project_id', 'project_name', 'entity']);
+        return response()->json($projects);
     }
 
     public function export(Request $request)
@@ -101,16 +119,16 @@ class ProjectController extends Controller
     public function create()
     {
         try {
-            // Initialize default values
-            $employees = collect([]);
-            $entities = collect([]);
+            $projectManagers = collect([]);
+            $pcSecretaries = collect([]);
+            $entities = EntityHelper::getEntities();
 
             // Test database connection first
             try {
                 DB::connection()->getPdo();
             } catch (\Exception $e) {
                 Log::error('Project create: Database connection failed: ' . $e->getMessage());
-                return view('projects.create', compact('employees','entities'))
+                return view('projects.create', compact('projectManagers','pcSecretaries','entities'))
                     ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
             }
 
@@ -119,17 +137,32 @@ class ProjectController extends Controller
                 $hasEmployees = Schema::hasTable('employees');
             } catch (\Exception $e) {
                 Log::error('Project create: Schema check failed: ' . $e->getMessage());
-                return view('projects.create', compact('employees','entities'))
+                return view('projects.create', compact('projectManagers','pcSecretaries','entities'))
                     ->with('error', 'Unable to check database tables. Please verify database connection.');
             }
-            
+
             if ($hasEmployees) {
                 try {
-                    $employees = Employee::select('id','name','entity_name')->get();
-                    
-                    // Ensure they're collections
-                    if (!$employees instanceof \Illuminate\Support\Collection) {
-                        $employees = collect($employees);
+                    $projectManagers = Employee::select('id','name','entity_name','designation')
+                        ->where(function ($q) {
+                            $q->where('designation', 'like', '%Project Manager%')
+                              ->orWhere('designation', 'like', '%project manager%');
+                        })
+                        ->orderBy('name')->orderBy('entity_name')
+                        ->get();
+                    $pcSecretaries = Employee::select('id','name','entity_name','designation')
+                        ->where(function ($q) {
+                            $q->where('designation', 'like', '%PC Secretary%')
+                              ->orWhere('designation', 'like', '%pc secretary%')
+                              ->orWhere('designation', 'like', '%Secretary%');
+                        })
+                        ->orderBy('name')->orderBy('entity_name')
+                        ->get();
+                    if (!$projectManagers instanceof \Illuminate\Support\Collection) {
+                        $projectManagers = collect($projectManagers);
+                    }
+                    if (!$pcSecretaries instanceof \Illuminate\Support\Collection) {
+                        $pcSecretaries = collect($pcSecretaries);
                     }
                 } catch (\Illuminate\Database\QueryException $e) {
                     Log::error('Project create: Employees query error: ' . $e->getMessage());
@@ -137,20 +170,8 @@ class ProjectController extends Controller
                     Log::warning('Error loading employees for project create: ' . $e->getMessage());
                 }
             }
-            
-            // Use fixed list of entities
-            $entities = [
-                'proscape',
-                'water in motion',
-                'bioscape',
-                'tanseeq realty',
-                'transmech',
-                'timbertech',
-                'ventana',
-                'garden center'
-            ];
-            
-            return view('projects.create', compact('employees','entities'))
+
+            return view('projects.create', compact('projectManagers','pcSecretaries','entities'))
                 ->with('warning', $hasEmployees ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
         } catch (\Throwable $e) {
             Log::error('Project create fatal error: ' . $e->getMessage());
@@ -158,9 +179,10 @@ class ProjectController extends Controller
             Log::error('Stack trace: ' . $e->getTraceAsString());
             Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
             
-            $employees = collect([]);
-            $entities = collect([]);
-            return view('projects.create', compact('employees','entities'))
+            $projectManagers = collect([]);
+            $pcSecretaries = collect([]);
+            $entities = EntityHelper::getEntities();
+            return view('projects.create', compact('projectManagers','pcSecretaries','entities'))
                 ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
@@ -267,19 +289,23 @@ class ProjectController extends Controller
     public function edit($id)
     {
         $project = Project::findOrFail($id);
-        $employees = Employee::select('id','name','entity_name')->get();
-        // Use fixed list of entities
-        $entities = [
-            'proscape',
-            'water in motion',
-            'bioscape',
-            'tanseeq realty',
-            'transmech',
-            'timbertech',
-            'ventana',
-            'garden center'
-        ];
-        return view('projects.edit', compact('project','employees','entities'));
+        $entities = EntityHelper::getEntities();
+        $projectManagers = Employee::select('id','name','entity_name','designation')
+            ->where(function ($q) {
+                $q->where('designation', 'like', '%Project Manager%')
+                  ->orWhere('designation', 'like', '%project manager%');
+            })
+            ->orderBy('name')->orderBy('entity_name')
+            ->get();
+        $pcSecretaries = Employee::select('id','name','entity_name','designation')
+            ->where(function ($q) {
+                $q->where('designation', 'like', '%PC Secretary%')
+                  ->orWhere('designation', 'like', '%pc secretary%')
+                  ->orWhere('designation', 'like', '%Secretary%');
+            })
+            ->orderBy('name')->orderBy('entity_name')
+            ->get();
+        return view('projects.edit', compact('project','projectManagers','pcSecretaries','entities'));
     }
 
     public function update(Request $request, $id)

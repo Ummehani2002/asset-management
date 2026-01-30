@@ -26,6 +26,14 @@
         </div>
     @endif
 
+    @if(!empty($managedEntityNames))
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="bi bi-person-gear"></i>
+            <strong>Asset Manager view:</strong> You are viewing and managing assets only for your entity/entities: <strong>{{ implode(', ', array_map('ucwords', $managedEntityNames)) }}</strong>.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     <!-- Search and Filter Form -->
     <div class="master-form-card mb-4">
         <h5 class="mb-3"><i class="bi bi-search me-2"></i>Advanced Search & Filter</h5>

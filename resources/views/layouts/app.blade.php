@@ -767,8 +767,12 @@
         <i class="bi bi-geo"></i> New Location
     </a>
 
+    <a href="{{ route('location-master.search') }}" class="btn btn-sm btn-outline-light mb-1">
+        <i class="bi bi-search"></i> Location Search
+    </a>
+
     <a href="{{ url('/location-assets') }}" class="btn btn-sm btn-outline-light mb-1">
-        <i class="bi bi-search"></i> Location Asset Lookup
+        <i class="bi bi-pc-display"></i> Location Asset Lookup
     </a>
 </div>
 
@@ -992,6 +996,10 @@ data-bs-toggle="collapse"
                 if (el.max) opts.maxDate = el.max;
                 if (el.readOnly) opts.clickOpens = true;
                 if (el.hasAttribute('readonly')) opts.allowInput = false;
+                // Default to today's date when field is empty (all date inputs)
+                if (!el.value || el.value.trim() === '') {
+                    opts.defaultDate = 'today';
+                }
                 window.flatpickr(el, opts);
             });
         }

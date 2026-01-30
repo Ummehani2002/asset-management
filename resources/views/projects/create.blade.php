@@ -36,34 +36,37 @@
             <label class="form-label">Entity</label>
             <select name="entity" class="form-control">
                 <option value="">-- Select Entity --</option>
-                @foreach($entities as $ent)
-                    <option value="{{ $ent }}" @if(old('entity') == $ent) selected @endif>{{ $ent }}</option>
+                @foreach($entities ?? [] as $ent)
+                    <option value="{{ $ent }}" @if(old('entity') == $ent) selected @endif>{{ ucwords($ent) }}</option>
                 @endforeach
             </select>
+            <small class="text-muted">Entities are managed in Entity Master.</small>
         </div>
 
         <div class="mb-3">
             <label class="form-label">Project Manager</label>
             <select name="project_manager" class="form-control">
                 <option value="">-- Select Manager --</option>
-                @foreach($employees as $e)
+                @foreach($projectManagers ?? [] as $e)
                     <option value="{{ $e->name ?? $e->entity_name }}" @if(old('project_manager') == ($e->name ?? $e->entity_name)) selected @endif>
                         {{ $e->name ?? $e->entity_name }}
                     </option>
                 @endforeach
             </select>
+            <small class="text-muted">Only employees with designation "Project Manager" are listed.</small>
         </div>
 
         <div class="mb-3">
             <label class="form-label">PC Secretary</label>
             <select name="pc_secretary" class="form-control">
                 <option value="">-- Select PC Secretary --</option>
-                @foreach($employees as $e)
+                @foreach($pcSecretaries ?? [] as $e)
                     <option value="{{ $e->name ?? $e->entity_name }}" @if(old('pc_secretary') == ($e->name ?? $e->entity_name)) selected @endif>
                         {{ $e->name ?? $e->entity_name }}
                     </option>
                 @endforeach
             </select>
+            <small class="text-muted">Only employees with designation "PC Secretary" (or Secretary) are listed.</small>
         </div>
 
         <button type="submit" class="btn btn-primary">Save Project</button>

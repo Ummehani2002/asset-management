@@ -44,12 +44,21 @@
         <form method="GET" action="{{ route('projects.index') }}" id="searchForm">
             <div class="row">
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Search</label>
-                    <input type="text" name="search" class="form-control" placeholder="Search by project ID, name, entity..." value="{{ request('search') }}">
+                    <label class="form-label">Search (Project ID / Name)</label>
+                    <div class="position-relative" id="searchProjectWrap">
+                        <input type="text" name="search" id="searchProject" class="form-control" placeholder="Type project ID or name..." value="{{ request('search') }}" autocomplete="off">
+                        <div id="projectDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
+                    </div>
+                    <small class="text-muted">Start typing to see matching projects.</small>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Entity</label>
-                    <input type="text" name="entity" class="form-control" placeholder="Filter by entity" value="{{ request('entity') }}">
+                    <select name="entity" class="form-control">
+                        <option value="">-- All entities --</option>
+                        @foreach($entities ?? [] as $ent)
+                            <option value="{{ $ent }}" {{ request('entity') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="col-md-5 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">
@@ -62,6 +71,53 @@
             </div>
         </form>
     </div>
+
+    <script>
+    (function() {
+        var input = document.getElementById('searchProject');
+        var dropdown = document.getElementById('projectDropdown');
+        var wrap = document.getElementById('searchProjectWrap');
+        var form = document.getElementById('searchForm');
+        var debounceTimer = null;
+        if (!input || !dropdown) return;
+        function hideDropdown() { dropdown.style.display = 'none'; dropdown.innerHTML = ''; }
+        function showDropdown(items) {
+            if (!items || items.length === 0) {
+                dropdown.innerHTML = '<div class="list-group-item text-muted">No projects found</div>';
+            } else {
+                dropdown.innerHTML = items.map(function(p) {
+                    var label = (p.project_id || '') + ' — ' + (p.project_name || '');
+                    return '<a href="#" class="list-group-item list-group-item-action project-suggestion" data-value="' + (p.project_id || p.project_name || '').replace(/"/g, '&quot;') + '">' + label + '</a>';
+                }).join('');
+            }
+            dropdown.style.display = 'block';
+        }
+        input.addEventListener('input', function() {
+            var q = (input.value || '').trim();
+            clearTimeout(debounceTimer);
+            if (q.length < 1) { hideDropdown(); return; }
+            debounceTimer = setTimeout(function() {
+                fetch('{{ route("projects.autocomplete") }}?query=' + encodeURIComponent(q))
+                    .then(function(r) { return r.json(); })
+                    .then(showDropdown)
+                    .catch(hideDropdown);
+            }, 200);
+        });
+        dropdown.addEventListener('click', function(e) {
+            var item = e.target.closest('.project-suggestion');
+            if (item) {
+                e.preventDefault();
+                input.value = item.getAttribute('data-value');
+                hideDropdown();
+                form.submit();
+            }
+        });
+        document.addEventListener('click', function(e) {
+            if (wrap && !wrap.contains(e.target)) hideDropdown();
+        });
+        input.addEventListener('keydown', function(e) { if (e.key === 'Escape') hideDropdown(); });
+    })();
+    </script>
 
     @if(request()->hasAny(['search', 'entity']) && $projects->count() > 0)
         <div class="master-table-card">

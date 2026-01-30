@@ -18,6 +18,20 @@ use Illuminate\Support\Collection;
 
 class AssetTransactionController extends Controller
 {
+    /** Apply scope so asset managers only see their entity's transactions. No-op for admins. */
+    private function scopeByAssetManagerEntities($query): void
+    {
+        if (!auth()->check()) {
+            return;
+        }
+        $entityNames = auth()->user()->getManagedEntityNames();
+        if ($entityNames !== null) {
+            $query->whereHas('employee', function ($q) use ($entityNames) {
+                $q->whereIn('entity_name', $entityNames);
+            });
+        }
+    }
+
     public function index(Request $request)
     {
         try {
@@ -180,9 +194,12 @@ class AssetTransactionController extends Controller
             });
         }
 
-        $transactions = $query->orderByDesc('created_at')->paginate(25);
+        $this->scopeByAssetManagerEntities($query);
 
-        return view('asset_transactions.index', compact('transactions'));
+        $transactions = $query->orderByDesc('created_at')->paginate(25);
+        $managedEntityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
+
+        return view('asset_transactions.index', compact('transactions', 'managedEntityNames'));
         } catch (\Exception $e) {
             Log::error('AssetTransaction index error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -320,6 +337,8 @@ class AssetTransactionController extends Controller
                     break;
             }
         }
+
+        $this->scopeByAssetManagerEntities($query);
 
         $transactions = $query->orderByDesc('created_at')->paginate(25);
         $currentFilter = $request->get('filter', '');
@@ -463,6 +482,8 @@ class AssetTransactionController extends Controller
             }
         }
 
+        $this->scopeByAssetManagerEntities($query);
+
         $transactions = $query->orderByDesc('created_at')->get();
         $format = $request->get('format', 'pdf');
         $assetStatus = $downloadAll ? 'all' : ($request->get('asset_status', 'all'));
@@ -587,10 +608,15 @@ class AssetTransactionController extends Controller
                 }
             }
             
-            // Get employees
+            // Get employees (restrict to managed entities when user is an asset manager)
             if ($hasEmployees) {
                 try {
-                    $employees = Employee::all();
+                    $entityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
+                    $employeeQuery = Employee::orderBy('name')->orderBy('entity_name');
+                    if ($entityNames !== null) {
+                        $employeeQuery->whereIn('entity_name', $entityNames);
+                    }
+                    $employees = $employeeQuery->get();
                     if (!$employees instanceof \Illuminate\Support\Collection) {
                         $employees = collect($employees);
                     }
@@ -669,12 +695,23 @@ class AssetTransactionController extends Controller
 
         $asset = Asset::with('assetCategory')->findOrFail($request->asset_id);
         $latest = $asset->latestTransaction;
-        
+
         // Validate that asset is assigned
         if ($asset->status !== 'assigned') {
             throw ValidationException::withMessages([
                 'asset_id' => 'Only assigned assets can be sent for maintenance. Current status: ' . ucfirst($asset->status ?? 'unknown'),
             ]);
+        }
+
+        // Asset manager: only allow maintenance for assets assigned to employees in their managed entities
+        $entityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
+        if ($entityNames !== null && $latest && $latest->employee_id) {
+            $employee = Employee::find($latest->employee_id);
+            if (!$employee || !in_array($employee->entity_name ?? '', $entityNames)) {
+                throw ValidationException::withMessages([
+                    'asset_id' => 'You can only send for maintenance assets assigned to employees in your managed entity/entities.',
+                ]);
+            }
         }
 
         // Get employee from latest assignment
@@ -734,7 +771,7 @@ class AssetTransactionController extends Controller
 
         $asset = Asset::with('assetCategory')->findOrFail($request->asset_id);
         $latest = $asset->latestTransaction;
-        
+
         // Validate that asset is under maintenance
         if ($asset->status !== 'under_maintenance') {
             throw ValidationException::withMessages([
@@ -799,6 +836,17 @@ class AssetTransactionController extends Controller
                         }
                     }
                 }
+            }
+        }
+
+        // Asset manager: only allow actions on assets belonging to their managed entities
+        $entityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
+        if ($entityNames !== null && $employeeId) {
+            $employee = Employee::find($employeeId);
+            if (!$employee || !in_array($employee->entity_name ?? '', $entityNames)) {
+                throw ValidationException::withMessages([
+                    'asset_id' => 'You can only process assets for employees in your managed entity/entities.',
+                ]);
             }
         }
 
@@ -1020,6 +1068,17 @@ class AssetTransactionController extends Controller
     }
 
     $request->validate($rules);
+
+    // Asset manager: only allow assign/return for employees in their managed entities
+    $entityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
+    if ($entityNames !== null && $request->employee_id) {
+        $employee = Employee::find($request->employee_id);
+        if (!$employee || !in_array($employee->entity_name ?? '', $entityNames)) {
+            throw ValidationException::withMessages([
+                'employee_id' => 'You can only assign or return assets for employees in your managed entity/entities.',
+            ]);
+        }
+    }
 
     $asset   = Asset::with('assetCategory')->findOrFail($request->asset_id);
     $latest  = $asset->latestTransaction;

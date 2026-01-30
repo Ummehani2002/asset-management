@@ -36,8 +36,8 @@
             <label class="form-label">Entity</label>
             <select name="entity" class="form-control">
                 <option value="">-- Select Entity --</option>
-                @foreach($entities as $ent)
-                    <option value="{{ $ent }}" @if(old('entity', $project->entity) == $ent) selected @endif>{{ $ent }}</option>
+                @foreach($entities ?? [] as $ent)
+                    <option value="{{ $ent }}" @if(old('entity', $project->entity) == $ent) selected @endif>{{ ucwords($ent) }}</option>
                 @endforeach
             </select>
         </div>
@@ -46,7 +46,7 @@
             <label class="form-label">Project Manager</label>
             <select name="project_manager" class="form-control">
                 <option value="">-- Select Manager --</option>
-                @foreach($employees as $e)
+                @foreach($projectManagers ?? [] as $e)
                     <option value="{{ $e->name ?? $e->entity_name }}" 
                         @if(old('project_manager', $project->project_manager) == ($e->name ?? $e->entity_name)) selected @endif>
                         {{ $e->name ?? $e->entity_name }}
@@ -59,7 +59,7 @@
             <label class="form-label">PC Secretary</label>
             <select name="pc_secretary" class="form-control">
                 <option value="">-- Select PC Secretary --</option>
-                @foreach($employees as $e)
+                @foreach($pcSecretaries ?? [] as $e)
                     <option value="{{ $e->name ?? $e->entity_name }}" 
                         @if(old('pc_secretary', $project->pc_secretary) == ($e->name ?? $e->entity_name)) selected @endif>
                         {{ $e->name ?? $e->entity_name }}

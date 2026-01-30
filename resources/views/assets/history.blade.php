@@ -10,7 +10,7 @@
                     <h2 class="h4 mb-1">
                         <i class="bi bi-clock-history me-2"></i>Asset History
                     </h2>
-                    <p class="mb-0 opacity-90">Complete flow from assign to return for this asset</p>
+                    <p class="mb-0 opacity-90">Assignments, returns, and maintenance for this asset</p>
                 </div>
                 <a href="{{ route('assets.index') }}" class="btn btn-outline-light btn-sm">
                     <i class="bi bi-arrow-left me-1"></i>Back to Assets
@@ -44,9 +44,9 @@
                 <div class="col-md-3">
                     <strong>Current Status</strong><br>
                     @php
-                        $latest = $history->last();
-                        $statusLabel = $latest ? ($latest->transaction_type === 'return' ? 'Returned / Available' : 'Assigned') : 'No transactions yet';
-                        $statusClass = $latest && $latest->transaction_type === 'return' ? 'success' : 'info';
+                        $status = $asset->status ?? 'available';
+                        $statusLabel = $status === 'assigned' ? 'Assigned' : ($status === 'under_maintenance' ? 'Under Maintenance' : 'Available / Returned');
+                        $statusClass = $status === 'assigned' ? 'info' : ($status === 'under_maintenance' ? 'warning' : 'success');
                     @endphp
                     <span class="badge bg-{{ $statusClass }}">{{ $statusLabel }}</span>
                 </div>
@@ -54,10 +54,10 @@
         </div>
     </div>
 
-    {{-- Transaction flow: Assign → Return → Assign → … --}}
+    {{-- Timeline: Assign → Return / Maintenance → Assign → … --}}
     <div class="card">
         <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="bi bi-arrow-down-up me-2"></i>Transaction Flow (Assign → Return)</h5>
+            <h5 class="mb-0"><i class="bi bi-arrow-down-up me-2"></i>Transaction Timeline</h5>
         </div>
         <div class="card-body">
             @if($history->isEmpty())
@@ -67,46 +67,81 @@
                     @foreach($history as $index => $txn)
                         @php
                             $step = $index + 1;
-                            $isAssign = ($txn->transaction_type ?? '') === 'assign';
-                            $eventDate = $txn->return_date ?? $txn->issue_date;
+                            $type = $txn->transaction_type ?? '';
+                            $isAssign = $type === 'assign';
+                            $isReturn = $type === 'return';
+                            $isMaintenance = $type === 'system_maintenance';
+                            $eventDate = $txn->return_date ?? $txn->issue_date ?? $txn->receive_date ?? $txn->created_at;
                             $dateFormatted = $eventDate ? (is_object($eventDate) ? $eventDate->format('d-m-Y') : \Carbon\Carbon::parse($eventDate)->format('d-m-Y')) : 'N/A';
+                            $badgeClass = $isAssign ? 'bg-primary' : ($isMaintenance ? 'bg-warning text-dark' : 'bg-secondary');
+                            $borderClass = $isAssign ? 'border-primary' : ($isMaintenance ? 'border-warning' : 'border-secondary');
                         @endphp
                         <div class="d-flex align-items-start mb-4 {{ $loop->last ? '' : 'pb-3' }}">
                             <div class="flex-shrink-0 me-3">
-                                <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold {{ $isAssign ? 'bg-primary text-white' : 'bg-secondary text-white' }}" style="width: 36px; height: 36px; font-size: 14px;">
+                                <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold {{ $badgeClass }} text-white" style="width: 36px; height: 36px; font-size: 14px;">
                                     {{ $step }}
                                 </span>
                             </div>
                             <div class="flex-grow-1">
-                                <div class="card border {{ $isAssign ? 'border-primary' : 'border-secondary' }}" style="border-left-width: 4px !important;">
+                                <div class="card border {{ $borderClass }}" style="border-left-width: 4px !important;">
                                     <div class="card-body py-3">
                                         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                            <span class="badge {{ $isAssign ? 'bg-primary' : 'bg-secondary' }}">
-                                                {{ $isAssign ? 'Assigned' : 'Returned' }}
+                                            <span class="badge {{ $badgeClass }}">
+                                                @if($isAssign)
+                                                    Assigned
+                                                @elseif($isMaintenance)
+                                                    Maintenance
+                                                @else
+                                                    Returned
+                                                @endif
                                             </span>
                                             <span class="text-muted small">{{ $dateFormatted }}</span>
                                         </div>
+
                                         @if($isAssign)
                                             <p class="mb-1">
-                                                <strong>Assigned to:</strong>
-                                                {{ $txn->employee->name ?? $txn->assigned_to ?? 'N/A' }}
-                                                @if($txn->employee && $txn->employee->email)
-                                                    <span class="text-muted small">({{ $txn->employee->email }})</span>
+                                                <strong>Issued to:</strong>
+                                                {{ $txn->employee->name ?? $txn->employee->entity_name ?? $txn->assigned_to ?? 'N/A' }}
+                                                @if($txn->employee && ($txn->employee->employee_id ?? null))
+                                                    <span class="text-muted small">(ID: {{ $txn->employee->employee_id }})</span>
                                                 @endif
+                                            </p>
+                                            <p class="mb-1 small">
+                                                <strong>Issue date:</strong> {{ $txn->issue_date ? \Carbon\Carbon::parse($txn->issue_date)->format('d-m-Y') : 'N/A' }}
                                             </p>
                                             @if($txn->project_name)
                                                 <p class="mb-1 small"><strong>Project:</strong> {{ $txn->project_name }}</p>
                                             @endif
                                             @if($txn->location)
-                                                <p class="mb-0 small"><strong>Location:</strong> {{ $txn->location->location_name }}</p>
+                                                <p class="mb-0 small"><strong>Location:</strong> {{ $txn->location->location_name ?? 'N/A' }}</p>
                                             @endif
-                                        @else
-                                            <p class="mb-0">
-                                                <strong>Returned on</strong> {{ $dateFormatted }}.
-                                                @if($txn->employee)
-                                                    <span class="text-muted">(returned from {{ $txn->employee->name }})</span>
-                                                @endif
+
+                                        @elseif($isReturn)
+                                            <p class="mb-1">
+                                                <strong>Returned on:</strong> {{ $txn->return_date ? \Carbon\Carbon::parse($txn->return_date)->format('d-m-Y') : 'N/A' }}
                                             </p>
+                                            @if($txn->employee)
+                                                <p class="mb-0 small text-muted">Returned from: {{ $txn->employee->name ?? $txn->employee->entity_name ?? 'N/A' }}</p>
+                                            @endif
+
+                                        @elseif($isMaintenance)
+                                            <p class="mb-1">
+                                                <strong>Sent for maintenance:</strong> {{ $txn->receive_date ? \Carbon\Carbon::parse($txn->receive_date)->format('d-m-Y') : 'N/A' }}
+                                            </p>
+                                            @if($txn->employee)
+                                                <p class="mb-1 small text-muted">Previously assigned to: {{ $txn->employee->name ?? $txn->employee->entity_name ?? 'N/A' }}</p>
+                                            @endif
+                                            @if(!empty($txn->repair_type))
+                                                <p class="mb-1 small"><strong>Repair type:</strong> {{ $txn->repair_type }}</p>
+                                            @endif
+                                            @if(!empty($txn->maintenance_notes))
+                                                <p class="mb-1 small"><strong>Notes:</strong> {{ $txn->maintenance_notes }}</p>
+                                            @endif
+                                            @if(!empty($txn->delivery_date))
+                                                <p class="mb-0 small"><strong>Returned from maintenance:</strong> {{ \Carbon\Carbon::parse($txn->delivery_date)->format('d-m-Y') }}</p>
+                                            @else
+                                                <p class="mb-0 small text-muted">(Not yet returned from maintenance)</p>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>

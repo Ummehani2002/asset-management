@@ -38,6 +38,19 @@
             <small class="text-muted">Admin can access all features. User has limited access.</small>
         </div>
 
+        <div class="mb-3">
+            <label>Link to Employee (for Asset Manager)</label>
+            <select name="employee_id" class="form-control">
+                <option value="">-- No employee link --</option>
+                @foreach($employees ?? [] as $emp)
+                    <option value="{{ $emp->id }}" {{ old('employee_id', $user->employee_id) == $emp->id ? 'selected' : '' }}>
+                        {{ $emp->name ?? $emp->entity_name ?? 'N/A' }} ({{ $emp->employee_id ?? '' }})
+                    </option>
+                @endforeach
+            </select>
+            <small class="text-muted">When this user is set as Asset Manager for an entity (in Asset Manager), they will only see and manage that entity's assets.</small>
+        </div>
+
         <button type="submit" class="btn btn-primary">Update User</button>
         <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
             <i class="bi bi-x-circle me-2"></i>Cancel

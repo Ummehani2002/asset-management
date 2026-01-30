@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -43,7 +44,8 @@ class UserController extends Controller
     public function edit($id)
     {
         $user = User::findOrFail($id);
-        return view('users.edit', compact('user'));
+        $employees = Employee::orderBy('name')->orderBy('entity_name')->get(['id', 'name', 'entity_name', 'employee_id']);
+        return view('users.edit', compact('user', 'employees'));
     }
 
     public function update(Request $request, $id)
@@ -51,13 +53,19 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'username' => 'required|unique:users,username,'.$user->id,
-            'role'     => 'required|in:admin,user',
+            'name'        => 'required|string|max:255',
+            'username'    => 'required|unique:users,username,'.$user->id,
+            'email'       => 'required|email',
+            'role'        => 'required|in:admin,user',
+            'employee_id' => 'nullable|exists:employees,id',
         ]);
 
+        $user->name = $request->name;
         $user->username = $request->username;
+        $user->email = $request->email;
         $user->role = $request->role;
-        
+        $user->employee_id = $request->employee_id ?: null;
+
         // Update password if provided
         if ($request->filled('password')) {
             $request->validate([
@@ -65,7 +73,7 @@ class UserController extends Controller
             ]);
             $user->password = Hash::make($request->password);
         }
-        
+
         $user->save();
 
         return redirect()->route('users.index')->with('success', 'User updated successfully!');

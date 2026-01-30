@@ -5,6 +5,7 @@ use App\Models\Location;
 use App\Imports\LocationsImport;
 use App\Models\Asset;
 use App\Models\AssetTransaction;
+use App\Helpers\EntityHelper;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -15,65 +16,75 @@ class LocationController extends Controller
     public function index()
     {
         try {
-            // Initialize locations as empty collection first
-            $locations = collect([]);
-            
             // Test database connection first
             try {
                 DB::connection()->getPdo();
             } catch (\Exception $e) {
                 Log::error('Database connection failed: ' . $e->getMessage());
                 Log::error('Connection error details: ' . $e->getFile() . ':' . $e->getLine());
-                return view('location.index', compact('locations'))
+                $entities = EntityHelper::getEntities();
+                return view('location.index', compact('entities'))
                     ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
             }
-            
-            // Check if locations table exists
-            try {
-                if (!Schema::hasTable('locations')) {
-                    Log::warning('locations table does not exist');
-                    return view('location.index', compact('locations'))
-                        ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
-                }
-            } catch (\Exception $e) {
-                Log::error('Schema check failed: ' . $e->getMessage());
-                return view('location.index', compact('locations'))
-                    ->with('error', 'Unable to check database tables. Please verify database connection.');
+
+            if (!Schema::hasTable('locations')) {
+                Log::warning('locations table does not exist');
+                $entities = EntityHelper::getEntities();
+                return view('location.index', compact('entities'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
 
-            try {
-                $locations = Location::all();
-                // Ensure it's always a collection
-                if (!$locations instanceof \Illuminate\Support\Collection) {
-                    $locations = collect($locations);
-                }
-            } catch (\Illuminate\Database\QueryException $e) {
-                Log::error('Location query error: ' . $e->getMessage());
-                Log::error('Query error code: ' . $e->getCode());
-                Log::error('Query error SQL: ' . ($e->getSql() ?? 'N/A'));
-                $locations = collect([]);
-                return view('location.index', compact('locations'))
-                    ->with('warning', 'Database query error occurred. Please ensure migrations are run: php artisan migrate --force');
-            } catch (\Exception $e) {
-                Log::error('Location fetch error: ' . $e->getMessage());
-                Log::error('Fetch error file: ' . $e->getFile() . ':' . $e->getLine());
-                $locations = collect([]);
-            }
-            
-            return view('location.index', compact('locations'));
+            $entities = EntityHelper::getEntities();
+            return view('location.index', compact('entities'));
         } catch (\Throwable $e) {
             Log::error('Location index fatal error: ' . $e->getMessage());
             Log::error('Error class: ' . get_class($e));
             Log::error('Stack trace: ' . $e->getTraceAsString());
             Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
             
-            // Return empty list instead of crashing
-            $locations = collect([]);
-            return view('location.index', compact('locations'))
+            $entities = EntityHelper::getEntities();
+            return view('location.index', compact('entities'))
                 ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
-  public function store(Request $request)
+
+    public function search(Request $request)
+    {
+        $locations = collect([]);
+        $entities = EntityHelper::getEntities();
+
+        try {
+            if (!Schema::hasTable('locations')) {
+                return view('location.search', compact('locations', 'entities'))
+                    ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
+            }
+
+            $query = Location::query();
+
+            if ($request->filled('entity')) {
+                $query->where('location_entity', $request->entity);
+            }
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('location_id', 'like', "%{$search}%")
+                      ->orWhere('location_name', 'like', "%{$search}%")
+                      ->orWhere('location_category', 'like', "%{$search}%");
+                });
+            }
+
+            $locations = $query->orderBy('location_id')->get();
+            if (!$locations instanceof \Illuminate\Support\Collection) {
+                $locations = collect($locations);
+            }
+        } catch (\Exception $e) {
+            Log::error('Location search error: ' . $e->getMessage());
+        }
+
+        return view('location.search', compact('locations', 'entities'));
+    }
+
+    public function store(Request $request)
 {
     try {
         if (!Schema::hasTable('locations')) {
@@ -337,8 +348,19 @@ public function autocomplete(Request $request)
 
     public function export(Request $request)
     {
-        // Export ALL locations
-        $locations = Location::orderBy('location_id')->get();
+        $query = Location::query();
+        if ($request->filled('entity')) {
+            $query->where('location_entity', $request->entity);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('location_id', 'like', "%{$search}%")
+                  ->orWhere('location_name', 'like', "%{$search}%")
+                  ->orWhere('location_category', 'like', "%{$search}%");
+            });
+        }
+        $locations = $query->orderBy('location_id')->get();
         $format = $request->get('format', 'pdf');
 
         if ($format === 'excel' || $format === 'csv') {

@@ -117,6 +117,7 @@ Route::get('/asset-manager/{id}/edit', [AssetManagerController::class, 'edit'])-
 Route::put('/asset-manager/{id}', [AssetManagerController::class, 'update'])->name('asset-manager.update');
 
 Route::get('/location-master', [LocationController::class, 'index'])->name('location-master.index');
+Route::get('/location-master/search', [LocationController::class, 'search'])->name('location-master.search');
 Route::get('/location-master/export', [LocationController::class, 'export'])->name('location-master.export');
 Route::post('/location-master', [LocationController::class, 'store'])->name('location-master.store');
 Route::put('/location-master/{id}', [LocationController::class, 'update'])->name('location-master.update');
@@ -227,6 +228,7 @@ Route::middleware(['auth'])->group(function () {
 
 use App\Http\Controllers\ProjectController;
 Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+Route::get('/projects-autocomplete', [ProjectController::class, 'autocomplete'])->name('projects.autocomplete');
 Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
 Route::get('/projects/export', [ProjectController::class, 'export'])->name('projects.export');
 Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
