@@ -103,7 +103,10 @@ class BudgetExpenseController extends Controller
             $totalExpenses = BudgetExpense::where('entity_budget_id', $budget->id)
                 ->sum('expense_amount');
             
-            if (($totalExpenses + $validated['expense_amount']) > $budget->budget_2025) {
+            $currentYear = (int) date('Y');
+            $yearColumn = 'budget_' . $currentYear;
+            $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
+            if (($totalExpenses + $validated['expense_amount']) > $budgetAmount) {
                 throw new \Exception('Insufficient budget balance');
             }
 
@@ -197,8 +200,12 @@ class BudgetExpenseController extends Controller
                 
             $totalExpenses = $expenses->sum('expense_amount');
 
-            $formattedExpenses = $expenses->map(function ($expense) use ($budget) {
-                $balanceAfter = $budget->budget_2025 - BudgetExpense::where('entity_budget_id', $budget->id)
+            $currentYear = (int) date('Y');
+            $yearColumn = 'budget_' . $currentYear;
+            $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
+
+            $formattedExpenses = $expenses->map(function ($expense) use ($budget, $budgetAmount) {
+                $balanceAfter = $budgetAmount - BudgetExpense::where('entity_budget_id', $budget->id)
                     ->where('created_at', '<=', $expense->created_at)
                     ->sum('expense_amount');
 
@@ -219,9 +226,9 @@ class BudgetExpenseController extends Controller
                 'entity_name' => $budget->employee->entity_name ?? 'N/A',
                 'cost_head' => ucfirst($budget->cost_head),
                 'expense_type' => $budget->expense_type,
-                'budget_amount' => number_format($budget->budget_2025, 2),
+                'budget_amount' => number_format($budgetAmount, 2),
                 'total_expenses' => number_format($totalExpenses, 2),
-                'available_balance' => number_format($budget->budget_2025 - $totalExpenses, 2),
+                'available_balance' => number_format($budgetAmount - $totalExpenses, 2),
                 'expenses' => $formattedExpenses
             ]);
 

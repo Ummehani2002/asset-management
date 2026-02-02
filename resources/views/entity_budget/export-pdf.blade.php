@@ -25,7 +25,7 @@
                 <th>Entity</th>
                 <th>Cost Head</th>
                 <th>Expense Type</th>
-                <th class="text-right">Budget 2025</th>
+                <th class="text-right">Budget {{ $year ?? date('Y') }}</th>
                 <th class="text-right">Total Expenses</th>
                 <th class="text-right">Available Balance</th>
             </tr>
@@ -33,15 +33,18 @@
         <tbody>
             @foreach($budgets as $index => $budget)
                 @php
+                    $budgetYear = $year ?? date('Y');
+                    $yearColumn = 'budget_' . $budgetYear;
+                    $budgetAmount = isset($budget->$yearColumn) ? $budget->$yearColumn : 0;
                     $totalExpenses = $budget->expenses->sum('expense_amount');
-                    $availableBalance = $budget->budget_2025 - $totalExpenses;
+                    $availableBalance = $budgetAmount - $totalExpenses;
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $budget->employee->entity_name ?? 'N/A' }}</td>
                     <td>{{ ucfirst($budget->cost_head) }}</td>
                     <td>{{ $budget->expense_type }}</td>
-                    <td class="text-right">{{ number_format($budget->budget_2025, 2) }}</td>
+                    <td class="text-right">{{ number_format($budgetAmount, 2) }}</td>
                     <td class="text-right">{{ number_format($totalExpenses, 2) }}</td>
                     <td class="text-right">{{ number_format($availableBalance, 2) }}</td>
                 </tr>
