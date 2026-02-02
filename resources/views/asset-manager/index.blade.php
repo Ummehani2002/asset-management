@@ -20,9 +20,7 @@
         <div class="card-header">
             <h5 style="color: white; margin: 0;"><i class="bi bi-list-ul me-2"></i>Assign Asset Manager per Entity</h5>
         </div>
-        <div class="card-body">
-            <p class="text-muted mb-3">Appoint one employee as asset manager for each entity. Use <strong>Assign / Change</strong> to select the employee.</p>
-        </div>
+       
         <div class="card-body p-0 pt-0">
             <div class="table-responsive">
                 <table class="table mb-0">
