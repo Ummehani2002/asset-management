@@ -9,7 +9,7 @@ class AssetHistoryController extends Controller
 {
     public function show($asset_id)
     {
-        $asset = Asset::with('category', 'brand')->findOrFail($asset_id);
+        $asset = Asset::with('category', 'brand', 'location')->findOrFail($asset_id);
 
         // Assign & Return only - tabular form
         $assignReturnHistory = AssetTransaction::with(['employee', 'location'])

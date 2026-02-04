@@ -1084,10 +1084,15 @@ class AssetTransactionController extends Controller
         
         \Log::info('Transaction created successfully. ID: ' . $transaction->id);
 
-        // 🔹 Update asset status
-        $asset->update([
-            'status' => $status,
-        ]);
+        // 🔹 Update asset status (and location if assets table has location_id)
+        $assetUpdate = ['status' => $status];
+        if ($request->transaction_type === 'assign' && $request->location_id && \Schema::hasColumn('assets', 'location_id')) {
+            $location = Location::find($request->location_id);
+            if ($location) {
+                $assetUpdate['location_id'] = $location->location_id;
+            }
+        }
+        $asset->update($assetUpdate);
         
         \Log::info('Asset status updated to: ' . $status);
 

@@ -57,6 +57,15 @@
                     {{ $currentAssetManager }}
                 </div>
                 <div class="col-md-3 col-6 mb-2">
+                    <strong>Current Location</strong><br>
+                    @php
+                        $currentLocation = ($latestAssign && $latestAssign->location) 
+                            ? $latestAssign->location->location_name 
+                            : (optional($asset->location)->location_name ?? '-');
+                    @endphp
+                    {{ $currentLocation }}
+                </div>
+                <div class="col-md-3 col-6 mb-2">
                     <strong>Current Status</strong><br>
                     @php
                         $latest = $assignReturnHistory->last();
@@ -107,7 +116,7 @@
                                     <td>{{ $txn->entity_name ?? '-' }}</td>
                                     <td>{{ $txn->asset_manager_name ?? '-' }}</td>
                                     <td>{{ $txn->project_name ?? '-' }}</td>
-                                    <td>{{ $txn->location->location_name ?? '-' }}</td>
+                                    <td>{{ $txn->location->location_name ?? optional($asset->location)->location_name ?? '-' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

@@ -768,7 +768,7 @@ public function getAssetsByEmployee($id)
 
     // Get all assets with status 'assigned'
     $assignedAssets = \App\Models\Asset::where('status', 'assigned')
-        ->with(['category', 'brand', 'latestTransaction.location'])
+        ->with(['category', 'brand', 'location', 'latestTransaction.location'])
         ->get();
 
     \Log::info("Total assigned assets: " . $assignedAssets->count());
@@ -792,7 +792,7 @@ public function getAssetsByEmployee($id)
     // Format the response
     $assets = $employeeAssets->map(function ($asset) {
         $latestTxn = $asset->latestTransaction;
-        // Get location: prefer latest assign txn, fallback to any recent assign txn with location
+        // Get location: prefer latest assign txn, fallback to any assign txn with location, then asset's location
         $locationName = '-';
         if ($latestTxn && $latestTxn->location) {
             $locationName = $latestTxn->location->location_name;
@@ -805,6 +805,8 @@ public function getAssetsByEmployee($id)
                 ->first();
             if ($txnWithLocation && $txnWithLocation->location) {
                 $locationName = $txnWithLocation->location->location_name;
+            } elseif ($asset->location) {
+                $locationName = $asset->location->location_name;
             }
         }
         return [

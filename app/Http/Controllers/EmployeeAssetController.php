@@ -60,7 +60,7 @@ public function export($id, Request $request)
 
     // Use same logic as AssetController::getAssetsByEmployee - only currently assigned assets
     $assignedAssets = Asset::where('status', 'assigned')
-        ->with(['category', 'brand', 'latestTransaction.location'])
+        ->with(['category', 'brand', 'location', 'latestTransaction.location'])
         ->get()
         ->filter(function ($asset) use ($id) {
             $latestTxn = $asset->latestTransaction;
@@ -71,7 +71,7 @@ public function export($id, Request $request)
 
     $assets = $assignedAssets->map(function ($asset) {
         $latestTxn = $asset->latestTransaction;
-        // Get location: prefer latest assign txn, fallback to any recent assign txn with location
+        // Get location: prefer latest assign txn, fallback to any assign txn with location, then asset's location
         $locationName = '-';
         if ($latestTxn && $latestTxn->location) {
             $locationName = $latestTxn->location->location_name;
@@ -84,6 +84,8 @@ public function export($id, Request $request)
                 ->first();
             if ($txnWithLocation && $txnWithLocation->location) {
                 $locationName = $txnWithLocation->location->location_name;
+            } elseif ($asset->location) {
+                $locationName = $asset->location->location_name;
             }
         }
         return [
