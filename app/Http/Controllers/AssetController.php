@@ -582,6 +582,14 @@ public function store(Request $request)
             'status' => 'available', // Set default status
         ];
 
+        // Laptop-only manual fields
+        if (Schema::hasColumn('assets', 'os_license_key')) {
+            $assetData['os_license_key'] = $request->os_license_key;
+            $assetData['antivirus_license_version'] = $request->antivirus_license_version;
+            $assetData['patch_management_software'] = $request->patch_management_software;
+            $assetData['autocad_license_key'] = $request->autocad_license_key;
+        }
+
         if ($invoicePath) {
             $assetData['invoice_path'] = $invoicePath;
         }

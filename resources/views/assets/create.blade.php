@@ -34,9 +34,9 @@
                <div class="mb-3">
     <label>Category</label>
     <select name="asset_category_id" id="category" class="form-control" required>
-        <option value="">-- Select Category --</option>
+        <option value="" data-category-name="">-- Select Category --</option>
         @foreach($categories as $cat)
-            <option value="{{ $cat->id }}">{{ $cat->category_name }}</option>
+            <option value="{{ $cat->id }}" data-category-name="{{ strtolower($cat->category_name) }}">{{ $cat->category_name }}</option>
         @endforeach
     </select>
 </div>
@@ -102,6 +102,29 @@
             <input type="number" name="value" class="form-control" step="0.01" min="0" placeholder="Enter value">
         </div>
 
+        {{-- Laptop-only: manual entry fields --}}
+        <div id="laptop-license-fields" class="border rounded p-3 mb-3 bg-light" style="display: none;">
+            <h6 class="mb-3"><i class="bi bi-laptop me-2"></i>Laptop License & Software Details</h6>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Operating System License Key</label>
+                    <input type="text" name="os_license_key" class="form-control" placeholder="Enter OS license key">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Antivirus License Version</label>
+                    <input type="text" name="antivirus_license_version" class="form-control" placeholder="Enter antivirus license version">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Patch Management Software</label>
+                    <input type="text" name="patch_management_software" class="form-control" placeholder="Enter patch management software">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>AutoCAD License Key</label>
+                    <input type="text" name="autocad_license_key" class="form-control" placeholder="Enter AutoCAD license key">
+                </div>
+            </div>
+        </div>
+
         <div class="mb-3">
             <label>Upload Invoice</label>
             <input type="file" name="invoice" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
@@ -136,14 +159,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // When category changes → load models by category, load brands (for dropdown), clear features
+    // When category changes → load models by category, load brands (for dropdown), clear features, show/hide laptop fields
     $('#category').on('change', function () {
         const categoryId = $(this).val();
+        const opt = $(this).find('option:selected');
+        const categoryName = opt.data('category-name') || '';
 
         $('#brand').html('<option value="">-- Select Model first --</option>');
         $('#brand_model').html('<option value="">-- Select Model --</option>');
         $('#feature-fields').html('');
         $('input[name="asset_id"]').val('');
+
+        // Show laptop license fields only for Laptop category
+        if (categoryName === 'laptop') {
+            $('#laptop-license-fields').show();
+            $('#laptop-license-fields input').prop('disabled', false);
+        } else {
+            $('#laptop-license-fields').hide();
+            $('#laptop-license-fields input').val('').prop('disabled', true);
+        }
+
+        if (!categoryId) {
+            $('#laptop-license-fields').hide();
+            $('#laptop-license-fields input').val('').prop('disabled', true);
+        }
 
         if (categoryId) {
             $.get(`{{ url('assets/next-id') }}/${categoryId}`, function (response) {

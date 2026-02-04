@@ -21,6 +21,10 @@ class Asset extends Model
         'serial_number',
         'invoice_path',
         'status',
+        'os_license_key',
+        'antivirus_license_version',
+        'patch_management_software',
+        'autocad_license_key',
     ];
     public function category()
     {
