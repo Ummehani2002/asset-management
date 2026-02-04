@@ -103,20 +103,23 @@ $(document).ready(function(){
                         employeeList.empty();
                         
                         if (data.length === 0) {
-                            employeeList.append('<div class="list-group-item text-muted text-center">No employees found</div>');
+                            employeeList.append('<div class="list-group-item text-muted text-center">No similar employees found</div>');
                         } else {
                             data.forEach(function(employee){
                                 let displayName = employee.name || employee.entity_name || 'N/A';
                                 let employeeId = employee.employee_id || '';
-                                let highlight = query.length > 0 ? displayName.replace(new RegExp(query, 'gi'), '<strong>$&</strong>') : displayName;
+                                let dept = employee.department_name || '';
+                                let designation = employee.designation || '';
+                                let extra = [employeeId, dept, designation].filter(Boolean).join(' · ');
+                                let highlight = query.length > 0 ? displayName.replace(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '<strong>$&</strong>') : displayName;
                                 
                                 employeeList.append(`
                                     <a href="#" class="list-group-item list-group-item-action employee-item" 
                                        data-id="${employee.id}" 
-                                       data-name="${displayName}"
+                                       data-name="${displayName.replace(/"/g, '&quot;')}"
                                        style="cursor: pointer; border-left: 3px solid #1F2A44;">
                                         <div class="fw-semibold">${highlight}</div>
-                                        ${employeeId ? '<small class="text-muted">ID: ' + employeeId + '</small>' : ''}
+                                        ${extra ? '<small class="text-muted">' + extra + '</small>' : ''}
                                     </a>
                                 `);
                             });

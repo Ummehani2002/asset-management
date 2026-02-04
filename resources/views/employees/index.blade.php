@@ -4,8 +4,7 @@
 <div class="container-fluid master-page">
     <!-- Page Header -->
     <div class="page-header">
-        <h2><i class="bi bi-person-badge me-2"></i>Employee Master</h2>
-      
+        <h2 class="mb-0"><i class="bi bi-person-badge me-2"></i>Employee Master</h2>
     </div>
 
     {{-- Success/Error Messages --}}

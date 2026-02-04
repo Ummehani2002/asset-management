@@ -58,7 +58,8 @@
                         <input type="text" name="search" id="searchEmployee" class="form-control" 
                                placeholder="Type employee name, ID, entity, or email..." value="{{ request('search') }}"
                                autocomplete="off">
-                        <div id="employeeDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 280px; overflow-y: auto;"></div>
+                        <div id="employeeDropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" 
+                             style="z-index: 9999; display: none; max-height: 280px; overflow-y: auto; background: #fff; top: 100%;"></div>
                     </div>
                 </div>
                 <div class="col-md-2 mb-3 d-flex align-items-end">
@@ -149,6 +150,12 @@
     @endif
 </div>
 
+<style>
+#searchEmployeeWrap { overflow: visible !important; }
+#searchEmployeeWrap .row { overflow: visible !important; }
+#employeeDropdown.list-group .list-group-item { cursor: pointer; }
+</style>
+
 <script>
 (function() {
     const input = document.getElementById('searchEmployee');
@@ -167,14 +174,23 @@
 
     function showDropdown(items) {
         if (!items || items.length === 0) {
-            dropdown.innerHTML = '<div class="list-group-item text-muted">No employees found</div>';
+            dropdown.innerHTML = '<div class="list-group-item text-muted">No similar employees found</div>';
         } else {
             dropdown.innerHTML = items.map(function(emp) {
-                const label = (emp.name || emp.entity_name || '') + (emp.employee_id ? ' (' + emp.employee_id + ')' : '') + (emp.email ? ' — ' + emp.email : '');
-                return '<a href="#" class="list-group-item list-group-item-action employee-suggestion" data-value="' + (emp.employee_id || emp.name || emp.entity_name || '').replace(/"/g, '&quot;') + '" data-id="' + emp.id + '">' + label + '</a>';
+                const name = emp.name || emp.entity_name || 'N/A';
+                const extra = [emp.employee_id, emp.department_name, emp.designation].filter(Boolean).join(' · ');
+                const label = '<div class="fw-semibold">' + escapeHtml(name) + '</div>' + (extra ? '<small class="text-muted">' + escapeHtml(extra) + '</small>' : '');
+                return '<a href="#" class="list-group-item list-group-item-action employee-suggestion" data-value="' + escapeHtml(emp.name || emp.entity_name || emp.employee_id || '') + '" data-id="' + emp.id + '">' + label + '</a>';
             }).join('');
         }
         dropdown.style.display = 'block';
+    }
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML.replace(/"/g, '&quot;');
     }
 
     function fetchSuggestions(q) {
@@ -182,14 +198,32 @@
             hideDropdown();
             return;
         }
+        dropdown.innerHTML = '<div class="list-group-item text-muted">Loading...</div>';
+        dropdown.style.display = 'block';
         const url = '{{ route("employees.autocomplete") }}?query=' + encodeURIComponent(q);
-        fetch(url)
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                showDropdown(data);
+        fetch(url, { credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) {
+                    return r.text().then(function(t) {
+                        try {
+                            var d = JSON.parse(t);
+                            dropdown.innerHTML = '<div class="list-group-item text-danger">' + (d.error || 'Error loading suggestions') + '</div>';
+                        } catch (e) {
+                            dropdown.innerHTML = '<div class="list-group-item text-danger">Error loading suggestions (status ' + r.status + ')</div>';
+                        }
+                    });
+                }
+                return r.json();
             })
-            .catch(function() {
-                hideDropdown();
+            .then(function(data) {
+                if (data && Array.isArray(data)) {
+                    showDropdown(data);
+                } else if (data && data.error) {
+                    dropdown.innerHTML = '<div class="list-group-item text-danger">' + data.error + '</div>';
+                }
+            })
+            .catch(function(err) {
+                dropdown.innerHTML = '<div class="list-group-item text-danger">Error loading suggestions. Please try again.</div>';
             });
     }
 
@@ -207,8 +241,12 @@
 
     input.addEventListener('focus', function() {
         const q = (input.value || '').trim();
-        if (q.length >= minChars && dropdown.innerHTML) {
-            dropdown.style.display = 'block';
+        if (q.length >= minChars) {
+            if (dropdown.innerHTML) {
+                dropdown.style.display = 'block';
+            } else {
+                fetchSuggestions(q);
+            }
         }
     });
 

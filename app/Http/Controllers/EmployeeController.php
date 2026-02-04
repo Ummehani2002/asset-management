@@ -5,8 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use App\Models\Asset;
-use App\Imports\EmployeesImport;
-use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
@@ -238,56 +236,188 @@ public function getDetails($id)
             'phone' => $employee->phone ?? 'N/A',
         ]);
     }
+public function showImportForm()
+{
+    $entities = \App\Helpers\EntityHelper::getEntities();
+    return view('employees.import', compact('entities'));
+}
+
 public function import(Request $request)
 {
     $request->validate([
-        'file' => 'required|mimes:xlsx,xls,csv'
+        'file' => 'required|mimes:csv,txt',
+        'default_entity' => 'required|string|max:100',
+        'delete_existing' => 'nullable|boolean',
     ]);
 
+    $defaultEntity = $request->default_entity;
+    $deleteExisting = (bool) $request->delete_existing;
+
     try {
-        Excel::import(new EmployeesImport, $request->file('file'));
-        return back()->with('success', 'Employees imported successfully!');
-    } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
-        return back()->withErrors($e->failures());
+        if ($deleteExisting) {
+            $count = Employee::count();
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+            Employee::truncate();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            Log::info("Deleted {$count} existing employees before import.");
+        }
+
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if ($extension === 'csv') {
+            $imported = $this->importFromCsv($file, $defaultEntity);
+        } else {
+            $imported = $this->importFromExcel($file, $defaultEntity);
+        }
+
+        return back()->with('success', "Successfully imported {$imported} employees.");
+    } catch (\Exception $e) {
+        Log::error('Employee import error: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        return back()->with('error', 'Import failed: ' . $e->getMessage());
     }
 }
 
-public function showImportForm()
+private function importFromCsv($file, $defaultEntity)
 {
-    return view('employees.import');
+    $path = $file->getRealPath();
+    $content = file_get_contents($path);
+    if ($content === false) {
+        throw new \Exception('Could not read file.');
+    }
+    $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+    $tempPath = sys_get_temp_dir() . '/emp_import_' . uniqid() . '.csv';
+    file_put_contents($tempPath, $content);
+
+    $handle = fopen($tempPath, 'r');
+    if (!$handle) {
+        @unlink($tempPath);
+        throw new \Exception('Could not open file.');
+    }
+
+    $headers = [];
+    $imported = 0;
+    $rowNum = 0;
+
+    while (($row = fgetcsv($handle)) !== false) {
+        $rowNum++;
+        if ($rowNum === 1) {
+            $headers = array_map(function ($h) {
+                return trim(preg_replace('/^\xEF\xBB\xBF/', '', $h));
+            }, $row);
+            continue;
+        }
+
+        $data = array_combine($headers, array_pad($row, count($headers), ''));
+        if (!$data || count(array_filter($row)) === 0) continue;
+
+        $employee = $this->mapRowToEmployee($data, $defaultEntity);
+        if ($employee) {
+            try {
+                Employee::create($employee);
+                $imported++;
+            } catch (\Exception $e) {
+                Log::warning("Row {$rowNum} skipped: " . $e->getMessage());
+            }
+        }
+    }
+    fclose($handle);
+    @unlink($tempPath);
+    return $imported;
+}
+
+private function mapRowToEmployee(array $data, $defaultEntity)
+{
+    $normalize = function ($key) use ($data) {
+        $keys = array_keys($data);
+        foreach ($keys as $k) {
+            if (str_replace(' ', '', strtolower($k)) === str_replace(' ', '', strtolower($key))) {
+                return trim($data[$k] ?? '');
+            }
+        }
+        return trim($data[$key] ?? '');
+    };
+
+    $employeeId = $normalize('EmployeeID') ?: $normalize('Employee ID');
+    if (empty($employeeId)) return null;
+
+    $name = $normalize('Name');
+    $email = $normalize('Email');
+    $phone = $normalize('Phone');
+    $designation = $normalize('Designation');
+    $department = $normalize('Department Name') ?: $normalize('Department');
+
+    return [
+        'employee_id' => (string) $employeeId,
+        'name' => $name ?: null,
+        'email' => $email ?: null,
+        'phone' => $phone ?: null,
+        'entity_name' => $defaultEntity,
+        'department_name' => $department ?: 'N/A',
+        'designation' => $designation ?: null,
+        'is_active' => true,
+    ];
 }
    public function autocomplete(Request $request)
     {
-        $query = trim($request->get('query', ''));
-        
-        if(empty($query)) {
-            return response()->json([]);
-        }
+        try {
+            if (!Schema::hasTable('employees')) {
+                return response()->json([]);
+            }
 
-        // Search by name, employee_id, or email
-        $employees = Employee::where(function($q) use ($query) {
-                $q->where('name', 'LIKE', "{$query}%")
-                  ->orWhere('name', 'LIKE', "%{$query}%")
-                  ->orWhere('entity_name', 'LIKE', "{$query}%")
-                  ->orWhere('entity_name', 'LIKE', "%{$query}%")
-                  ->orWhere('employee_id', 'LIKE', "{$query}%")
-                  ->orWhere('email', 'LIKE', "{$query}%")
-                  ->orWhere('email', 'LIKE', "%{$query}%");
-            })
-            ->orderBy('name', 'asc')
-            ->take(15)
-            ->get(['id', 'name', 'entity_name', 'employee_id', 'email']);
-
-        // Sort results: names starting with query first
-        $employees = $employees->sortBy(function($employee) use ($query) {
-            $name = strtolower($employee->name ?? $employee->entity_name ?? '');
-            $queryLower = strtolower($query);
+            $query = trim($request->get('query', ''));
             
-            if(strpos($name, $queryLower) === 0) return 1; // Starts with
-            return 2; // Contains
-        })->values();
+            if (empty($query)) {
+                return response()->json([]);
+            }
 
-        return response()->json($employees);
+            $like = '%' . addcslashes($query, '%_\\') . '%';
+
+            $selectCols = ['id', 'name', 'entity_name', 'employee_id', 'email'];
+            if (Schema::hasColumn('employees', 'department_name')) {
+                $selectCols[] = 'department_name';
+            }
+            if (Schema::hasColumn('employees', 'designation')) {
+                $selectCols[] = 'designation';
+            }
+
+            $employees = Employee::where(function($q) use ($like) {
+                $q->where('name', 'LIKE', $like)
+                  ->orWhere('entity_name', 'LIKE', $like)
+                  ->orWhere('employee_id', 'LIKE', $like)
+                  ->orWhere('email', 'LIKE', $like)
+                  ->orWhere('phone', 'LIKE', $like);
+                if (Schema::hasColumn('employees', 'department_name')) {
+                    $q->orWhere('department_name', 'LIKE', $like);
+                }
+                if (Schema::hasColumn('employees', 'designation')) {
+                    $q->orWhere('designation', 'LIKE', $like);
+                }
+            })
+                ->orderBy('name', 'asc')
+                ->take(25)
+                ->get($selectCols);
+
+            $queryLower = strtolower($query);
+            $employees = $employees->sortBy(function($employee) use ($queryLower) {
+                $name = strtolower($employee->name ?? $employee->entity_name ?? '');
+                $email = strtolower($employee->email ?? '');
+                $dept = strtolower($employee->department_name ?? '');
+                $empId = strtolower($employee->employee_id ?? '');
+                if (strpos($name, $queryLower) === 0) return 1;
+                if (strpos($empId, $queryLower) === 0) return 2;
+                if (strpos($email, $queryLower) === 0) return 3;
+                if (strpos($name, $queryLower) !== false) return 4;
+                if (strpos($dept, $queryLower) !== false) return 5;
+                return 6;
+            })->values();
+
+            return response()->json($employees);
+        } catch (\Throwable $e) {
+            Log::error('Employee autocomplete error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     public function export(Request $request)

@@ -100,14 +100,18 @@ Route::post('/features/store', [AssetCategoryController::class, 'storeFeature'])
 Route::get('/features/{id}/edit', [CategoryFeatureController::class, 'edit'])->name('features.edit');
 Route::put('/features/{id}', [CategoryFeatureController::class, 'update'])->name('features.update');
 Route::delete('/features/{id}', [CategoryFeatureController::class, 'destroy'])->name('features.destroy');
-Route::get('/employee-master', [EmployeeController::class, 'index'])->name('employees.index');
-Route::get('/employee-master/search', [EmployeeController::class, 'search'])->name('employees.search');
-Route::get('/employee-master/export', [EmployeeController::class, 'export'])->name('employees.export');
-Route::get('/employee-master/create', [EmployeeController::class, 'create'])->name('employees.create');
-Route::post('/employee-master', [EmployeeController::class, 'store'])->name('employees.store');
-Route::get('/employee-master/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
-Route::delete('/employee-master/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
-Route::put('/employee-master/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/employee-master', [EmployeeController::class, 'index'])->name('employees.index');
+    Route::get('/employee-master/search', [EmployeeController::class, 'search'])->name('employees.search');
+    Route::get('/employee-master/export', [EmployeeController::class, 'export'])->name('employees.export');
+    Route::get('/employee-master/import', [EmployeeController::class, 'showImportForm'])->name('employees.import.form');
+    Route::post('/employee-master/import', [EmployeeController::class, 'import'])->name('employees.import');
+    Route::get('/employee-master/create', [EmployeeController::class, 'create'])->name('employees.create');
+    Route::post('/employee-master', [EmployeeController::class, 'store'])->name('employees.store');
+    Route::get('/employee-master/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
+    Route::delete('/employee-master/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
+    Route::put('/employee-master/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+});
 
 
 
