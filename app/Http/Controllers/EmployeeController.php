@@ -246,16 +246,21 @@ public function import(Request $request)
 {
     $request->validate([
         'file' => 'required|mimes:csv,txt',
-        'default_entity' => 'required|string|max:100',
+        'default_entity' => 'nullable|string|max:100',
         'delete_existing' => 'nullable|boolean',
+        'sync_entities' => 'nullable|boolean',
     ]);
 
-    $defaultEntity = $request->default_entity;
+    $defaultEntity = trim($request->default_entity ?? '') ?: 'N/A';
     $deleteExisting = (bool) $request->delete_existing;
+    $syncEntities = (bool) $request->sync_entities;
 
     try {
         if ($deleteExisting) {
             $count = Employee::count();
+            if (Schema::hasTable('entities') && Schema::hasColumn('entities', 'asset_manager_id')) {
+                DB::table('entities')->update(['asset_manager_id' => null]);
+            }
             DB::statement('SET FOREIGN_KEY_CHECKS=0');
             Employee::truncate();
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -263,15 +268,16 @@ public function import(Request $request)
         }
 
         $file = $request->file('file');
-        $extension = strtolower($file->getClientOriginalExtension());
+        $result = $this->importFromCsv($file, $defaultEntity);
 
-        if ($extension === 'csv') {
-            $imported = $this->importFromCsv($file, $defaultEntity);
-        } else {
-            $imported = $this->importFromExcel($file, $defaultEntity);
+        $imported = is_array($result) ? $result['count'] : $result;
+        $entityNames = is_array($result) ? ($result['entities'] ?? []) : [];
+
+        if ($syncEntities && !empty($entityNames) && Schema::hasTable('entities')) {
+            $this->syncEntitiesFromImport($entityNames, $deleteExisting);
         }
 
-        return back()->with('success', "Successfully imported {$imported} employees.");
+        return back()->with('success', "Successfully imported {$imported} employees." . ($syncEntities && !empty($entityNames) ? ' Entities updated.' : ''));
     } catch (\Exception $e) {
         Log::error('Employee import error: ' . $e->getMessage());
         Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -298,6 +304,7 @@ private function importFromCsv($file, $defaultEntity)
 
     $headers = [];
     $imported = 0;
+    $entityNames = [];
     $rowNum = 0;
 
     while (($row = fgetcsv($handle)) !== false) {
@@ -317,6 +324,10 @@ private function importFromCsv($file, $defaultEntity)
             try {
                 Employee::create($employee);
                 $imported++;
+                $ent = trim($employee['entity_name'] ?? '');
+                if ($ent && !in_array($ent, $entityNames, true)) {
+                    $entityNames[] = $ent;
+                }
             } catch (\Exception $e) {
                 Log::warning("Row {$rowNum} skipped: " . $e->getMessage());
             }
@@ -324,7 +335,7 @@ private function importFromCsv($file, $defaultEntity)
     }
     fclose($handle);
     @unlink($tempPath);
-    return $imported;
+    return ['count' => $imported, 'entities' => $entityNames];
 }
 
 private function mapRowToEmployee(array $data, $defaultEntity)
@@ -347,17 +358,34 @@ private function mapRowToEmployee(array $data, $defaultEntity)
     $phone = $normalize('Phone');
     $designation = $normalize('Designation');
     $department = $normalize('Department Name') ?: $normalize('Department');
+    $entity = $normalize('Entity') ?: $normalize('Entity Name') ?: $normalize('Company');
 
     return [
         'employee_id' => (string) $employeeId,
         'name' => $name ?: null,
         'email' => $email ?: null,
         'phone' => $phone ?: null,
-        'entity_name' => $defaultEntity,
+        'entity_name' => $entity ?: $defaultEntity,
         'department_name' => $department ?: 'N/A',
         'designation' => $designation ?: null,
         'is_active' => true,
     ];
+}
+
+private function syncEntitiesFromImport(array $entityNames, $replaceExisting)
+{
+    if (!Schema::hasTable('entities')) return;
+
+    if ($replaceExisting) {
+        \App\Models\Entity::query()->delete();
+    }
+
+    foreach ($entityNames as $name) {
+        $name = trim($name);
+        if (empty($name)) continue;
+        if (\App\Models\Entity::where('name', $name)->exists()) continue;
+        \App\Models\Entity::create(['name' => $name]);
+    }
 }
    public function autocomplete(Request $request)
     {

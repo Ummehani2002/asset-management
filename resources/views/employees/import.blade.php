@@ -36,8 +36,9 @@
             <h5 class="card-title mb-4">Import ~1500 employees from Excel/CSV</h5>
 
             <div class="alert alert-info mb-4">
-                <strong>Expected columns:</strong> Name, EmployeeID, Designation, Department Name, Email, Phone<br>
-                <strong>File format:</strong> Save your Excel as <strong>CSV UTF-8</strong> (File → Save As → CSV UTF-8 Comma delimited). Then upload the .csv file.
+                <strong>Expected columns:</strong> Name, EmployeeID, Designation, Department Name, Email, Phone, Entity (optional)<br>
+                <strong>Entity:</strong> If your Excel has an Entity/Entity Name/Company column, it will be used. Otherwise use Default Entity below.<br>
+                <strong>File format:</strong> Save your Excel as <strong>CSV UTF-8</strong> (File → Save As → CSV UTF-8 Comma delimited).
             </div>
 
             <form action="{{ route('employees.import') }}" method="POST" enctype="multipart/form-data">
@@ -54,16 +55,26 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Default Entity <span class="text-danger">*</span></label>
-                    <select name="default_entity" class="form-control" required>
-                        <option value="">-- Select Entity --</option>
+                    <label class="form-label">Default Entity</label>
+                    <select name="default_entity" class="form-control">
+                        <option value="">-- Use Entity from Excel if available --</option>
                         @foreach($entities ?? [] as $ent)
                             <option value="{{ $ent }}" {{ old('default_entity') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
                         @endforeach
                         <option value="tanseeq" {{ old('default_entity') == 'tanseeq' ? 'selected' : '' }}>Tanseeq</option>
                         <option value="N/A" {{ old('default_entity') == 'N/A' ? 'selected' : '' }}>N/A</option>
                     </select>
-                    <small class="text-muted">Used when your file has no Entity column (e.g. for Tanseeq employees)</small>
+                    <small class="text-muted">Used when a row has no Entity column or empty Entity value</small>
+                </div>
+
+                <div class="mb-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="sync_entities" value="1" id="sync_entities" checked>
+                        <label class="form-check-label fw-semibold" for="sync_entities">
+                            Update Entity Master from Excel
+                        </label>
+                    </div>
+                    <small class="text-muted">Add entities from the Excel to Entity Master. If "Delete existing employees" is checked, replace Entity Master with entities from Excel.</small>
                 </div>
 
                 <div class="mb-4">

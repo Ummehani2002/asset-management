@@ -71,19 +71,18 @@
             <small class="text-muted" id="asset_status_info">Assets are loaded from Asset Master for the selected category.</small>
         </div>
 
-        {{-- Employee Selection (for Laptop - Assign) --}}
+        {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}
         <div class="mb-3" id="employee_section" style="display:none;">
-            <label for="employee_id">Employee Name <span class="text-danger" id="employee_required">*</span></label>
-            <select name="employee_id" id="employee_id" class="form-control">
-                <option value="">Select Employee</option>
-                @foreach($employees as $emp)
-                    <option value="{{ $emp->id }}"
-                        @if(old('employee_id', $transaction->employee_id ?? '') == $emp->id) selected @endif>
-                        {{ $emp->name }} ({{ $emp->email }})
-                    </option>
-                @endforeach
-            </select>
-            <small class="text-muted" id="employee_auto_fill_info"></small>
+            <label for="employee_search">Employee Name or ID <span class="text-danger" id="employee_required">*</span></label>
+            <div class="position-relative" id="employee_search_wrap">
+                <input type="text" id="employee_search" class="form-control" placeholder="Type name or employee ID..."
+                       value="{{ old('employee_display') }}"
+                       autocomplete="off">
+                <input type="hidden" name="employee_id" id="employee_id" value="{{ old('employee_id', $transaction->employee_id ?? '') }}">
+                <div id="employee_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" 
+                     style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
+            </div>
+            <small class="text-muted" id="employee_auto_fill_info">Type initial letters of name or ID to search</small>
         </div>
         
         {{-- Hidden employee_id field for return transactions (always included in form) --}}
@@ -220,6 +219,77 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let currentCategory = '';
     let assetDetails = null;
+
+    // Employee autocomplete - type ID or name to search
+    const employeeSearch = document.getElementById('employee_search');
+    const employeeDropdown = document.getElementById('employee_dropdown');
+    const employeeSearchWrap = document.getElementById('employee_search_wrap');
+    let employeeDebounce = null;
+    if (employeeSearch && employeeDropdown) {
+        function hideEmployeeDropdown() {
+            employeeDropdown.style.display = 'none';
+            employeeDropdown.innerHTML = '';
+        }
+        function showEmployeeDropdown(items) {
+            if (!items || items.length === 0) {
+                employeeDropdown.innerHTML = '<div class="list-group-item text-muted">No employees found</div>';
+            } else {
+                employeeDropdown.innerHTML = items.map(function(emp) {
+                    const name = emp.name || emp.entity_name || 'N/A';
+                    const extra = [emp.employee_id, emp.department_name, emp.designation].filter(Boolean).join(' · ');
+                    const label = '<div class="fw-semibold">' + (name.replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</div>' + (extra ? '<small class="text-muted">' + (extra.replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</small>' : '');
+                    return '<a href="#" class="list-group-item list-group-item-action employee-suggestion" data-id="' + emp.id + '" data-name="' + (name.replace(/"/g, '&quot;')) + '" data-employee-id="' + (emp.employee_id || '').replace(/"/g, '&quot;') + '">' + label + '</a>';
+                }).join('');
+            }
+            employeeDropdown.style.display = 'block';
+        }
+        employeeSearch.addEventListener('input', function() {
+            const q = (employeeSearch.value || '').trim();
+            clearTimeout(employeeDebounce);
+            document.getElementById('employee_id').value = '';
+            if (q.length < 1) {
+                hideEmployeeDropdown();
+                return;
+            }
+            employeeDebounce = setTimeout(function() {
+                employeeDropdown.innerHTML = '<div class="list-group-item text-muted">Loading...</div>';
+                employeeDropdown.style.display = 'block';
+                fetch('{{ route("employees.autocomplete") }}?query=' + encodeURIComponent(q), { credentials: 'same-origin' })
+                    .then(function(r) { return r.ok ? r.json() : r.json().then(function(d) { throw d.error || 'Error'; }); })
+                    .then(function(data) {
+                        if (Array.isArray(data)) showEmployeeDropdown(data);
+                        else hideEmployeeDropdown();
+                    })
+                    .catch(function() {
+                        employeeDropdown.innerHTML = '<div class="list-group-item text-danger">Error loading suggestions</div>';
+                    });
+            }, 200);
+        });
+        employeeSearch.addEventListener('focus', function() {
+            const q = (employeeSearch.value || '').trim();
+            if (q.length >= 1 && employeeDropdown.innerHTML && employeeDropdown.style.display !== 'none') {
+                employeeDropdown.style.display = 'block';
+            }
+        });
+        employeeDropdown.addEventListener('click', function(e) {
+            const item = e.target.closest('.employee-suggestion');
+            if (item) {
+                e.preventDefault();
+                const id = item.getAttribute('data-id');
+                const name = item.getAttribute('data-name') || '';
+                const empId = item.getAttribute('data-employee-id') || '';
+                document.getElementById('employee_id').value = id;
+                employeeSearch.value = empId ? (name + ' (' + empId + ')') : name;
+                hideEmployeeDropdown();
+            }
+        });
+        document.addEventListener('click', function(e) {
+            if (employeeSearchWrap && !employeeSearchWrap.contains(e.target)) hideEmployeeDropdown();
+        });
+        employeeSearch.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') hideEmployeeDropdown();
+        });
+    }
 
     // Step 1: Transaction Type change → show/hide Category
     transactionType.addEventListener('change', function() {
@@ -453,6 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Auto-fill employee if available and assigning
                 if (data.current_employee_id && txType === 'assign') {
                     document.getElementById('employee_id').value = data.current_employee_id;
+                    if (employeeSearch) employeeSearch.value = data.current_employee_name || 'Previous employee';
                     employeeAutoFillInfo.textContent = `Auto-filled: ${data.current_employee_name || 'Previous employee'}`;
                     employeeAutoFillInfo.className = 'text-success';
                 }

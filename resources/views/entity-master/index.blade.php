@@ -29,7 +29,7 @@
 
     {{-- New Entity Form --}}
     <div class="master-form-card">
-        <h5 class="mb-3" style="color: var(--primary); font-weight: 600;">New Entity</h5>
+        <h5 class="mb-3" style="color: var(--primary); font-weight: 600;">Add Entity Manually</h5>
         <form method="POST" action="{{ route('entity-master.store') }}" autocomplete="off">
             @csrf
             <div class="row">
