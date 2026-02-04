@@ -283,26 +283,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Calculate expiry date based on warranty_start + warranty_years
     function calculateExpiry() {
         const startDate = $('#warranty_start').val();
-        const years = parseInt($('#warranty_years').val());
+        const years = parseInt($('#warranty_years').val(), 10);
 
-        if (startDate && years && years > 0) {
-            const date = new Date(startDate);
-            date.setFullYear(date.getFullYear() + years);
+        if (startDate && !isNaN(years) && years > 0) {
+            const parts = startDate.split('-');
+            if (parts.length === 3) {
+                const y = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10) - 1;
+                const d = parseInt(parts[2], 10);
+                const date = new Date(y, m, d);
+                date.setFullYear(date.getFullYear() + years);
 
-            const yyyy = date.getFullYear();
-            let mm = (date.getMonth() + 1).toString().padStart(2, '0');
-            let dd = date.getDate().toString().padStart(2, '0');
+                const yyyy = date.getFullYear();
+                const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+                const dd = date.getDate().toString().padStart(2, '0');
 
-            $('#expiry_date').val(`${yyyy}-${mm}-${dd}`);
+                $('#expiry_date').val(yyyy + '-' + mm + '-' + dd);
+            }
         } else {
             $('#expiry_date').val('');
         }
     }
 
-    $('#warranty_start, #warranty_years').on('change keyup', calculateExpiry);
+    $('#warranty_start, #warranty_years').on('change keyup input', calculateExpiry);
 
-    
-    $(document).ready(calculateExpiry);
+    $(document).ready(function() {
+        calculateExpiry();
+    });
 
 </script>
 @endsection
