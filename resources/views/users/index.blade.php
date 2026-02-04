@@ -47,8 +47,9 @@
             <select name="role" class="form-control" required>
                 <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>User</option>
                 <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
+                <option value="asset_manager" {{ old('role') == 'asset_manager' ? 'selected' : '' }}>Asset Manager</option>
             </select>
-         
+            <small class="text-muted">Asset Manager: access to all masters, can assign/approve maintenance tasks.</small>
         </div>
 
         <button type="submit" class="btn btn-primary">Create User</button>

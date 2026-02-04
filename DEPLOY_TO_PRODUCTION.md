@@ -113,6 +113,12 @@ php artisan migrate:status
 php artisan migrate --force
 ```
 
+**Ensure entities exist in production:**
+
+```bash
+php artisan db:seed --class=EntitySeeder --force
+```
+
 **Verify locations table exists:**
 
 ```bash
@@ -121,6 +127,19 @@ php artisan tinker
 ```
 
 Should return `true`. If `false`, run migrations.
+
+**Verify entities table and data:**
+
+```bash
+php artisan tinker
+>>> \App\Models\Entity::count()
+```
+
+Should return a number (default entities: Proscape, Water in Motion, Bioscape, etc.). If `0`, run:
+
+```bash
+php artisan db:seed --class=EntitySeeder --force
+```
 
 ---
 
@@ -135,6 +154,10 @@ Should return `true`. If `false`, run migrations.
    - Go to: `https://asset-mgmt.laravel.cloud/location-assets`
    - Should load without 500 error
    - Should show search interface
+
+3. **Test `/entity-master`:**
+   - Go to: `https://asset-mgmt.laravel.cloud/entity-master`
+   - Should load and show entity list (Proscape, Water in Motion, etc.)
 
 ---
 
@@ -183,6 +206,7 @@ Should return `true`. If `false`, run migrations.
 - [ ] Deployment completed successfully in Laravel Cloud
 - [ ] Caches cleared (`php artisan optimize:clear`)
 - [ ] Migrations verified (`php artisan migrate:status`)
+- [ ] Entities seeded (`php artisan db:seed --class=EntitySeeder --force`)
 - [ ] `/location-master` page loads without 500 error
 - [ ] `/location-assets` page loads without 500 error
 - [ ] Error messages display correctly (if any)

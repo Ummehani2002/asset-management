@@ -156,6 +156,9 @@ Route::prefix('asset-transactions')->group(function () {
     Route::get('/maintenance', [AssetTransactionController::class, 'maintenance'])->name('asset-transactions.maintenance');
     Route::post('/maintenance-store', [AssetTransactionController::class, 'maintenanceStore'])->name('asset-transactions.maintenance-store');
     Route::post('/maintenance-reassign', [AssetTransactionController::class, 'maintenanceReassign'])->name('asset-transactions.maintenance-reassign');
+    Route::post('/maintenance-assign', [AssetTransactionController::class, 'maintenanceAssign'])->name('asset-transactions.maintenance-assign');
+    Route::post('/maintenance-approve/{id}', [AssetTransactionController::class, 'maintenanceApprove'])->name('asset-transactions.maintenance-approve');
+    Route::post('/maintenance-reject/{id}', [AssetTransactionController::class, 'maintenanceReject'])->name('asset-transactions.maintenance-reject');
     Route::post('/store', [AssetTransactionController::class, 'store'])->name('asset-transactions.store');
     Route::get('/{id}/edit', [AssetTransactionController::class, 'edit'])->name('asset-transactions.edit');
     Route::put('/{id}', [AssetTransactionController::class, 'update'])->name('asset-transactions.update');
@@ -164,9 +167,11 @@ Route::get('/asset-transactions/get-latest-employee/{asset}', [AssetTransactionC
 
     // Ajax helpers
     Route::get('/get-assets-by-category/{id}', [AssetTransactionController::class, 'getAssetsByCategory']);
+    Route::get('/get-maintenance-assets-by-category/{id}', [AssetTransactionController::class, 'getMaintenanceAssetsByCategory']);
     Route::get('/get-category-name/{id}', [AssetTransactionController::class, 'getCategoryName']);
     Route::get('/get-latest-employee/{assetId}', [AssetTransactionController::class, 'getLatestEmployee']);
     Route::get('/get-asset-details/{assetId}', [AssetTransactionController::class, 'getAssetDetails']);
+    Route::get('/get-locations', [AssetTransactionController::class, 'getLocations']);
 });
 
 // Asset filters - All users can filter/view

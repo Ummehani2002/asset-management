@@ -124,18 +124,52 @@
             </select>
         </div>
 
+        {{-- Entity (for Laptop - filter locations by entity) --}}
+        <div class="mb-3" id="entity_section" style="display:none;">
+            <label for="entity_id">Entity</label>
+            <select id="entity_id" class="form-control">
+                <option value="">-- Select Entity (optional - filters locations) --</option>
+                @foreach($entities as $ent)
+                    <option value="{{ $ent->id }}" data-name="{{ strtolower($ent->name ?? '') }}">
+                        {{ ucwords($ent->name ?? '') }}
+                        @if(!empty($ent->asset_manager_name))
+                            (AM: {{ $ent->asset_manager_name }})
+                        @endif
+                    </option>
+                @endforeach
+            </select>
+            <small class="text-muted">Select entity to filter locations, or select location to auto-fill entity below.</small>
+        </div>
+
         {{-- Location (for Laptop only) --}}
         <div class="mb-3" id="location_section" style="display:none;">
             <label for="location_id">Location <span class="text-danger" id="location_required">*</span></label>
             <select name="location_id" id="location_id" class="form-control">
                 <option value="">Select Location</option>
                 @foreach($locations as $loc)
-                    <option value="{{ $loc->id }}" 
+                    <option value="{{ $loc->id }}" data-entity="{{ strtolower($loc->location_entity ?? '') }}"
                         @if(old('location_id', $transaction->location_id ?? '') == $loc->id) selected @endif>
                         {{ $loc->location_name }} ({{ $loc->location_id }})
                     </option>
                 @endforeach
             </select>
+        </div>
+
+        {{-- Entity & Asset Manager display (auto-filled from location for maintenance) --}}
+        <div class="mb-3" id="entity_display_section" style="display:none;">
+            <div class="card bg-light p-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Entity:</strong><br>
+                        <span id="display_entity_name">-</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Asset Manager:</strong><br>
+                        <span id="display_asset_manager">-</span>
+                    </div>
+                </div>
+            </div>
+            <small class="text-muted">Auto-filled from location for easy maintenance reference.</small>
         </div>
 
         <div class="mb-3" id="transaction_type_info_wrapper" style="display:none;">
@@ -199,6 +233,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Entity-Location linking: entities data for asset manager display
+    const entitiesData = @json($entitiesData ?? []);
+
     const categoryDropdown = document.getElementById('asset_category_id');
     const assetDropdown = document.getElementById('asset_id');
     const employeeSection = document.getElementById('employee_section');
@@ -216,8 +253,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const employeeAutoFillInfo = document.getElementById('employee_auto_fill_info');
     const projectAutoFillInfo = document.getElementById('project_auto_fill_info');
     const assetSelectionSection = document.getElementById('asset_selection_section');
+    const entitySection = document.getElementById('entity_section');
+    const entityDisplaySection = document.getElementById('entity_display_section');
+    const entitySelect = document.getElementById('entity_id');
+    const locationSelect = document.getElementById('location_id');
 
     let currentCategory = '';
+    let allLocationOptions = []; // Store original options for filtering
     let assetDetails = null;
 
     // Employee autocomplete - type ID or name to search
@@ -290,6 +332,94 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Escape') hideEmployeeDropdown();
         });
     }
+
+    // Store all location options for filtering by entity (fetch via API if empty)
+    function loadLocationOptions(entityName) {
+        const url = entityName 
+            ? '/asset-transactions/get-locations?entity=' + encodeURIComponent(entityName)
+            : '/asset-transactions/get-locations';
+        return fetch(url, { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(locations => {
+                return locations.map(loc => ({
+                    value: String(loc.id),
+                    text: (loc.location_name || '') + ' (' + (loc.location_id || '') + ')',
+                    entity: (loc.location_entity || '').toLowerCase()
+                }));
+            })
+            .catch(err => { console.error('Error loading locations:', err); return []; });
+    }
+    function refreshAllLocationOptions() {
+        const preserveLocationId = locationSelect ? locationSelect.value : '';
+        loadLocationOptions().then(opts => {
+            allLocationOptions = opts;
+            if (opts.length > 0 && locationSelect && typeof onEntityChange === 'function') {
+                onEntityChange();
+                if (preserveLocationId) locationSelect.value = preserveLocationId;
+            }
+        });
+    }
+    if (locationSelect) {
+        allLocationOptions = Array.from(locationSelect.querySelectorAll('option')).map(opt => ({
+            value: opt.value,
+            text: opt.textContent,
+            entity: opt.getAttribute('data-entity') || ''
+        })).filter(o => o.value);
+        // If no locations from server, fetch via API
+        if (allLocationOptions.length === 0) {
+            refreshAllLocationOptions();
+        }
+    }
+
+    // Entity-Location linking: when location selected → auto-fill entity and asset manager
+    function onLocationChange() {
+        const locOpt = locationSelect?.options[locationSelect.selectedIndex];
+        const entityName = locOpt?.getAttribute('data-entity') || '';
+        if (!entityName) {
+            entityDisplaySection.style.display = 'none';
+            if (entitySelect) entitySelect.value = '';
+            return;
+        }
+        // Find matching entity and set dropdown
+        const match = entitiesData.find(e => (e.name || '').toLowerCase() === entityName.toLowerCase());
+        if (match && entitySelect) {
+            entitySelect.value = match.id;
+            entityDisplaySection.style.display = 'block';
+            document.getElementById('display_entity_name').textContent = match.display_name;
+            document.getElementById('display_asset_manager').textContent = match.asset_manager_name || 'N/A';
+        } else {
+            entityDisplaySection.style.display = 'block';
+            document.getElementById('display_entity_name').textContent = entityName ? entityName.charAt(0).toUpperCase() + entityName.slice(1) : '-';
+            document.getElementById('display_asset_manager').textContent = 'N/A';
+        }
+    }
+
+    // Entity-Location linking: when entity selected → filter locations
+    function onEntityChange() {
+        const entityOpt = entitySelect?.options[entitySelect.selectedIndex];
+        const entityName = entityOpt?.getAttribute('data-name') || '';
+        locationSelect.innerHTML = '<option value="">Select Location</option>';
+        let toShow = !entityName ? allLocationOptions : allLocationOptions.filter(o => 
+            o.entity && (o.entity || '').toLowerCase() === entityName.toLowerCase()
+        );
+        // If filter produces no results, show all locations (entity may not match location_entity)
+        if (toShow.length === 0 && allLocationOptions.length > 0) {
+            toShow = allLocationOptions;
+        }
+        toShow.forEach(o => {
+            if (o.value) {
+                const opt = document.createElement('option');
+                opt.value = o.value;
+                opt.textContent = o.text;
+                opt.setAttribute('data-entity', o.entity);
+                locationSelect.appendChild(opt);
+            }
+        });
+        onLocationChange();
+    }
+
+    if (locationSelect) locationSelect.addEventListener('change', onLocationChange);
+    if (entitySelect) entitySelect.addEventListener('change', onEntityChange);
 
     // Step 1: Transaction Type change → show/hide Category
     transactionType.addEventListener('change', function() {
@@ -416,9 +546,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (txType === 'assign') {
             assignFields.style.display = 'block';
-            // Ensure location is shown for laptop
+            // Ensure location and entity are shown for laptop
             if (currentCategory.toLowerCase() === 'laptop') {
                 locationSection.style.display = 'block';
+                if (entitySection) entitySection.style.display = 'block';
                 document.getElementById('location_id').required = true;
                 if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
             }
@@ -514,12 +645,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show fields based on category
         if (categoryLower === 'laptop') {
-            // For Laptop: Show employee and location
+            // For Laptop: Show employee, entity, and location
             if (txType === 'assign') {
                 locationSection.style.display = 'block';
+                if (entitySection) entitySection.style.display = 'block';
                 document.getElementById('location_id').required = true;
                 if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
-                
+                // Fetch locations if dropdown is empty
+                if (allLocationOptions.length === 0 && typeof refreshAllLocationOptions === 'function') {
+                    refreshAllLocationOptions();
+                }
                 // Auto-fill employee if available and assigning
                 if (data.current_employee_id && txType === 'assign') {
                     document.getElementById('employee_id').value = data.current_employee_id;
@@ -531,11 +666,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Auto-fill location if available
                 if (data.current_location_id) {
                     document.getElementById('location_id').value = data.current_location_id;
+                    onLocationChange();
                 }
             }
         } else if (categoryLower === 'printer') {
             // For Printer: Show project name
             locationSection.style.display = 'none';
+            if (entitySection) entitySection.style.display = 'none';
+            if (entityDisplaySection) entityDisplaySection.style.display = 'none';
             document.getElementById('location_id').required = false;
             if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
             
@@ -548,6 +686,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // For other categories
             locationSection.style.display = 'none';
+            if (entitySection) entitySection.style.display = 'none';
+            if (entityDisplaySection) entityDisplaySection.style.display = 'none';
             document.getElementById('location_id').required = false;
             if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
         }
@@ -615,8 +755,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (document.getElementById('project_name')) {
                     document.getElementById('project_name').required = false;
                 }
-                // Show location for laptop (required)
+                // Show location and entity for laptop (required)
                 locationSection.style.display = 'block';
+                if (entitySection) entitySection.style.display = 'block';
                 document.getElementById('location_id').required = true;
                 if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
             } else if (categoryLower === 'printer') {
@@ -660,6 +801,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideAssignmentFields() {
         employeeSection.style.display = 'none';
         locationSection.style.display = 'none';
+        if (entitySection) entitySection.style.display = 'none';
+        if (entityDisplaySection) entityDisplaySection.style.display = 'none';
         document.getElementById('location_id').required = false;
         if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
         if (transactionTypeInfoWrapper) transactionTypeInfoWrapper.style.display = 'none';
@@ -830,6 +973,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize on page load
     if (categoryDropdown.value) {
         categoryDropdown.dispatchEvent(new Event('change'));
+    }
+    // If location is pre-selected (edit mode or old input), trigger entity display
+    if (locationSelect && locationSelect.value) {
+        onLocationChange();
     }
     
     // Final test - make sure form can submit

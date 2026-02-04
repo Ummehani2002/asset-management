@@ -34,8 +34,9 @@
             <select name="role" class="form-control" required>
                 <option value="user" {{ old('role', $user->role ?? 'user') == 'user' ? 'selected' : '' }}>User</option>
                 <option value="admin" {{ old('role', $user->role ?? 'user') == 'admin' ? 'selected' : '' }}>Admin</option>
+                <option value="asset_manager" {{ old('role', $user->role ?? 'user') == 'asset_manager' ? 'selected' : '' }}>Asset Manager</option>
             </select>
-            <small class="text-muted">Admin can access all features. User has limited access.</small>
+            <small class="text-muted">Admin: full access. Asset Manager: access to all masters + can assign/approve maintenance. User: limited access.</small>
         </div>
 
         <div class="mb-3">

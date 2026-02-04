@@ -6,7 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\AssetTransaction;
 use App\Models\Asset;
 use App\Models\Employee;
+use App\Models\Entity;
 use App\Models\Location;
+use App\Models\MaintenanceAssignment;
 use App\Models\Project;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
@@ -542,7 +544,9 @@ class AssetTransactionController extends Controller
                 DB::connection()->getPdo();
             } catch (\Exception $e) {
                 Log::error('AssetTransaction create: Database connection failed: ' . $e->getMessage());
-                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
+                $entities = collect([]);
+                $entitiesData = [];
+                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'))
                     ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
             }
 
@@ -555,7 +559,9 @@ class AssetTransactionController extends Controller
                 $hasProjects = Schema::hasTable('projects');
             } catch (\Exception $e) {
                 Log::error('AssetTransaction create: Schema check failed: ' . $e->getMessage());
-                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
+                $entities = collect([]);
+                $entitiesData = [];
+                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'))
                     ->with('error', 'Unable to check database tables. Please verify database connection.');
             }
             
@@ -629,8 +635,31 @@ class AssetTransactionController extends Controller
                 }
             }
 
+            $entities = collect([]);
+            $entitiesData = [];
+            if (Schema::hasTable('entities')) {
+                try {
+                    $entities = Entity::with('assetManager')->orderBy('name')->get()->map(function ($e) {
+                        $am = $e->assetManager;
+                        $e->asset_manager_name = $am ? ($am->name ?? $am->entity_name ?? 'N/A') : null;
+                        $e->asset_manager_employee_id = $am?->employee_id ?? null;
+                        return $e;
+                    });
+                    $entitiesData = $entities->map(function ($e) {
+                        return [
+                            'id' => $e->id,
+                            'name' => strtolower($e->name ?? ''),
+                            'display_name' => ucwords($e->name ?? ''),
+                            'asset_manager_name' => $e->asset_manager_name ?? null,
+                            'asset_manager_employee_id' => $e->asset_manager_employee_id ?? null,
+                        ];
+                    })->values()->toArray();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading entities: ' . $e->getMessage());
+                }
+            }
             $hasAllTables = $hasAssetCategories && $hasAssets && $hasEmployees && $hasLocations && $hasProjects;
-            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
+            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'))
                 ->with('warning', $hasAllTables ? null : 'Some database tables not found. Please run migrations: php artisan migrate --force');
         } catch (\Throwable $e) {
             Log::error('AssetTransaction create fatal error: ' . $e->getMessage());
@@ -644,7 +673,9 @@ class AssetTransactionController extends Controller
             $employees = collect([]);
             $locations = collect([]);
             $projects = collect([]);
-            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects'))
+            $entities = collect([]);
+            $entitiesData = [];
+            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'))
                 ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
@@ -652,7 +683,33 @@ class AssetTransactionController extends Controller
     public function maintenance()
     {
         $categories = \App\Models\AssetCategory::all();
-        return view('asset_transactions.maintenance', compact('categories'));
+        $entities = Entity::with('assetManager')->orderBy('name')->get()->map(function ($e) {
+            $am = $e->assetManager;
+            $e->asset_manager_name = $am ? ($am->name ?? $am->entity_name ?? 'N/A') : null;
+            $e->asset_manager_employee_id = $am?->employee_id ?? null;
+            $e->asset_manager_id = $am?->id ?? null;
+            return $e;
+        });
+        $assetManagerIds = Entity::whereNotNull('asset_manager_id')->pluck('asset_manager_id')->unique();
+        $assetManagers = Employee::whereIn('id', $assetManagerIds)->orderBy('name')->get(['id', 'name', 'entity_name', 'employee_id']);
+        $assetManagers = $assetManagers->map(function ($am) {
+            $entities = Entity::where('asset_manager_id', $am->id)->pluck('name')->map(fn($n) => ucwords($n))->join(', ');
+            $am->managed_entities = $entities ?: ($am->entity_name ? ucwords($am->entity_name) : '-');
+            return $am;
+        });
+        $pendingApprovals = collect([]);
+        if (auth()->user()?->employee_id) {
+            $pendingApprovals = MaintenanceAssignment::with(['asset.assetCategory', 'assetTransaction.employee', 'assignedBy'])
+                ->where('assigned_to_employee_id', auth()->user()->employee_id)
+                ->where('status', 'pending')
+                ->orderByDesc('created_at')
+                ->get();
+            $pendingApprovals->each(function ($pa) {
+                $pa->asset_entity = $pa->assetTransaction?->employee?->entity_name ? ucwords($pa->assetTransaction->employee->entity_name) : '-';
+                $pa->assigned_by_entities = Entity::where('asset_manager_id', $pa->assigned_by_employee_id)->pluck('name')->map(fn($n) => ucwords($n))->join(', ') ?: '-';
+            });
+        }
+        return view('asset_transactions.maintenance', compact('categories', 'entities', 'assetManagers', 'pendingApprovals'));
     }
 
     public function maintenanceStore(Request $request)
@@ -935,6 +992,89 @@ class AssetTransactionController extends Controller
             ->with('success', $successMessage);
     }
 
+    public function maintenanceAssign(Request $request)
+    {
+        $request->validate([
+            'asset_transaction_id' => 'required|exists:asset_transactions,id',
+            'asset_id' => 'required|exists:assets,id',
+            'assigned_to_employee_id' => 'required|exists:employees,id',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $user = auth()->user();
+        if (!$user || !$user->employee_id) {
+            return redirect()->back()->with('error', 'You must be linked to an employee (asset manager) to assign maintenance.');
+        }
+
+        $transaction = AssetTransaction::findOrFail($request->asset_transaction_id);
+        if ($transaction->transaction_type !== 'system_maintenance') {
+            return redirect()->back()->with('error', 'Invalid maintenance transaction.');
+        }
+
+        $asset = Asset::findOrFail($request->asset_id);
+        if ($asset->status !== 'under_maintenance') {
+            return redirect()->back()->with('error', 'Asset is not under maintenance.');
+        }
+
+        $assignedTo = Employee::findOrFail($request->assigned_to_employee_id);
+        if ($assignedTo->id === $user->employee_id) {
+            return redirect()->back()->with('error', 'You cannot assign maintenance to yourself.');
+        }
+
+        $existing = MaintenanceAssignment::where('asset_transaction_id', $transaction->id)
+            ->where('status', 'pending')
+            ->first();
+        if ($existing) {
+            return redirect()->back()->with('error', 'This maintenance already has a pending assignment.');
+        }
+
+        MaintenanceAssignment::create([
+            'asset_transaction_id' => $transaction->id,
+            'asset_id' => $asset->id,
+            'assigned_by_employee_id' => $user->employee_id,
+            'assigned_to_employee_id' => $assignedTo->id,
+            'status' => 'pending',
+            'notes' => $request->notes,
+        ]);
+
+        return redirect()->route('asset-transactions.maintenance')
+            ->with('success', 'Maintenance assigned to ' . ($assignedTo->name ?? $assignedTo->entity_name ?? 'N/A') . '. They must approve before they can process it.');
+    }
+
+    public function maintenanceApprove($id)
+    {
+        $assignment = MaintenanceAssignment::with(['asset', 'assignedBy'])->findOrFail($id);
+        $user = auth()->user();
+        if (!$user || $user->employee_id != $assignment->assigned_to_employee_id) {
+            return redirect()->back()->with('error', 'You are not authorized to approve this assignment.');
+        }
+        if ($assignment->status !== 'pending') {
+            return redirect()->back()->with('error', 'This assignment has already been processed.');
+        }
+
+        $assignment->update(['status' => 'approved', 'approved_at' => now()]);
+
+        return redirect()->route('asset-transactions.maintenance')
+            ->with('success', 'Assignment approved! You can now process this asset in the "Reassign from Maintenance" tab.');
+    }
+
+    public function maintenanceReject($id)
+    {
+        $assignment = MaintenanceAssignment::findOrFail($id);
+        $user = auth()->user();
+        if (!$user || $user->employee_id != $assignment->assigned_to_employee_id) {
+            return redirect()->back()->with('error', 'You are not authorized to reject this assignment.');
+        }
+        if ($assignment->status !== 'pending') {
+            return redirect()->back()->with('error', 'This assignment has already been processed.');
+        }
+
+        $assignment->update(['status' => 'rejected', 'rejected_at' => now()]);
+
+        return redirect()->route('asset-transactions.maintenance')
+            ->with('success', 'Assignment rejected.');
+    }
+
     public function edit($id)
     {
         $transaction = AssetTransaction::with(['asset.assetCategory', 'employee'])->findOrFail($id);
@@ -943,8 +1083,23 @@ class AssetTransactionController extends Controller
         $employees = Employee::all();
         $locations = Location::all();
         $projects = \App\Models\Project::all();
+        $entities = Entity::with('assetManager')->orderBy('name')->get()->map(function ($e) {
+            $am = $e->assetManager;
+            $e->asset_manager_name = $am ? ($am->name ?? $am->entity_name ?? 'N/A') : null;
+            $e->asset_manager_employee_id = $am?->employee_id ?? null;
+            return $e;
+        });
+        $entitiesData = $entities->map(function ($e) {
+            return [
+                'id' => $e->id,
+                'name' => strtolower($e->name ?? ''),
+                'display_name' => ucwords($e->name ?? ''),
+                'asset_manager_name' => $e->asset_manager_name ?? null,
+                'asset_manager_employee_id' => $e->asset_manager_employee_id ?? null,
+            ];
+        })->values()->toArray();
 
-        return view('asset_transactions.create', compact('transaction', 'categories', 'assets', 'employees', 'locations', 'projects'));
+        return view('asset_transactions.create', compact('transaction', 'categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'));
     }
 
     public function getAssetsByCategory($categoryId)
@@ -964,6 +1119,37 @@ class AssetTransactionController extends Controller
                     'status' => $displayStatus, // Display status (available instead of returned)
                     'original_status' => $originalStatus, // Original status for logic
                     'category_name' => $asset->assetCategory->category_name ?? 'N/A'
+                ];
+            });
+
+        return response()->json($assets);
+    }
+
+    public function getLocations(Request $request)
+    {
+        $query = Location::query();
+        if ($request->filled('entity')) {
+            $query->whereRaw('LOWER(location_entity) = ?', [strtolower(trim($request->entity))]);
+        }
+        $locations = $query->orderBy('location_name')->get(['id', 'location_id', 'location_name', 'location_entity', 'location_country']);
+        return response()->json($locations);
+    }
+
+    public function getMaintenanceAssetsByCategory($categoryId)
+    {
+        $assets = Asset::with('assetCategory')
+            ->where('asset_category_id', $categoryId)
+            ->where('status', 'under_maintenance')
+            ->get()
+            ->map(function ($asset) {
+                $latest = $asset->latestTransaction;
+                $txnId = $latest && $latest->transaction_type === 'system_maintenance' ? $latest->id : null;
+                return [
+                    'id' => $asset->id,
+                    'asset_id' => $asset->asset_id,
+                    'serial_number' => $asset->serial_number,
+                    'transaction_id' => $txnId,
+                    'category_name' => $asset->assetCategory->category_name ?? 'N/A',
                 ];
             });
 
@@ -1353,7 +1539,7 @@ private function sendAssetEmail($transaction)
 
     public function getAssetDetails($assetId)
     {
-        $asset = Asset::with(['assetCategory', 'latestTransaction.employee'])->findOrFail($assetId);
+        $asset = Asset::with(['assetCategory', 'latestTransaction.employee', 'latestTransaction.location'])->findOrFail($assetId);
         
         $latestTransaction = $asset->latestTransaction;
         $status = $asset->status ?? 'available';
@@ -1372,17 +1558,65 @@ private function sendAssetEmail($transaction)
             'current_employee_name' => null,
             'current_project_name' => null,
             'current_location_id' => null,
+            'location_name' => null,
+            'location_entity' => null,
+            'location_country' => null,
+            'entity_id' => null,
             'available_transactions' => []
         ];
+
+        // Helper: resolve entity and asset manager from location (primary) or employee (fallback)
+        // Location entity is linked with location name - use it as source of truth
+        $resolveEntityAndAssetManager = function ($transaction) {
+            $entityName = null;
+            $location = null;
+            if ($transaction && $transaction->location_id) {
+                $location = $transaction->relationLoaded('location') ? $transaction->location : Location::find($transaction->location_id);
+                if ($location && !empty($location->location_entity)) {
+                    $entityName = trim($location->location_entity);
+                }
+            }
+            if (!$entityName && $transaction && $transaction->employee_id) {
+                $entityName = $transaction->employee?->entity_name ?? null;
+            }
+            if (!$entityName) {
+                return [null, null, null, null, null, null];
+            }
+            $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower(trim($entityName))])->with('assetManager')->first();
+            if (!$entity) {
+                return [ucwords($entityName), null, null, null, null, null];
+            }
+            $am = $entity->assetManager;
+            return [
+                ucwords($entity->name),
+                $entity->id,
+                $am?->id,
+                $am ? ($am->name ?? $am->entity_name ?? 'N/A') : null,
+                $am?->employee_id ?? null,
+                $location
+            ];
+        };
 
         // Get current assignment details
         if ($latestTransaction) {
             $data['current_employee_id'] = $latestTransaction->employee_id;
-            $data['current_employee_name'] = $latestTransaction->employee->name ?? null;
-            $data['current_employee_email'] = $latestTransaction->employee->email ?? null;
-            $data['current_employee_entity'] = $latestTransaction->employee->entity_name ?? null;
+            $data['current_employee_name'] = $latestTransaction->employee?->name ?? null;
+            $data['current_employee_email'] = $latestTransaction->employee?->email ?? null;
+            $data['current_employee_entity'] = $latestTransaction->employee?->entity_name ?? null;
             $data['current_project_name'] = $latestTransaction->project_name;
             $data['current_location_id'] = $latestTransaction->location_id;
+
+            list($entityDisplay, $entityId, $amId, $amName, $amEmpId, $location) = $resolveEntityAndAssetManager($latestTransaction);
+            $data['asset_manager_id'] = $amId;
+            $data['asset_manager_name'] = $amName;
+            $data['asset_manager_employee_id'] = $amEmpId ?? null;
+            $data['asset_manager_entity'] = $entityDisplay;
+            $data['entity_id'] = $entityId;
+            if ($location) {
+                $data['location_name'] = $location->location_name ?? null;
+                $data['location_entity'] = $location->location_entity ?? null;
+                $data['location_country'] = $location->location_country ?? null;
+            }
         }
 
         // Determine available transaction types based on original status
@@ -1395,8 +1629,8 @@ private function sendAssetEmail($transaction)
         } elseif ($status === 'under_maintenance') {
             // When under maintenance: can only assign (return from maintenance to same employee)
             $data['available_transactions'] = ['assign'];
-            // For maintenance, we need to find the employee before maintenance
-            $beforeMaintenance = AssetTransaction::with('employee')
+            // For maintenance, we need to find the employee and location before maintenance
+            $beforeMaintenance = AssetTransaction::with(['employee', 'location'])
                 ->where('asset_id', $asset->id)
                 ->where('transaction_type', 'assign')
                 ->where('id', '<', $latestTransaction->id)
@@ -1404,9 +1638,22 @@ private function sendAssetEmail($transaction)
                 ->first();
             if ($beforeMaintenance) {
                 $data['current_employee_id'] = $beforeMaintenance->employee_id;
-                $data['current_employee_name'] = $beforeMaintenance->employee->name ?? null;
-                $data['current_employee_email'] = $beforeMaintenance->employee->email ?? null;
-                $data['current_employee_entity'] = $beforeMaintenance->employee->entity_name ?? null;
+                $data['current_employee_name'] = $beforeMaintenance->employee?->name ?? null;
+                $data['current_employee_email'] = $beforeMaintenance->employee?->email ?? null;
+                $data['current_employee_entity'] = $beforeMaintenance->employee?->entity_name ?? null;
+                $data['current_location_id'] = $beforeMaintenance->location_id;
+                // Use location entity (linked with location) for asset manager
+                list($entityDisplay, $entityId, $amId, $amName, $amEmpId, $location) = $resolveEntityAndAssetManager($beforeMaintenance);
+                $data['asset_manager_id'] = $amId;
+                $data['asset_manager_name'] = $amName;
+                $data['asset_manager_employee_id'] = $amEmpId ?? null;
+                $data['asset_manager_entity'] = $entityDisplay;
+                $data['entity_id'] = $entityId;
+                if ($location) {
+                    $data['location_name'] = $location->location_name ?? null;
+                    $data['location_entity'] = $location->location_entity ?? null;
+                    $data['location_country'] = $location->location_country ?? null;
+                }
             }
         }
 

@@ -32,7 +32,7 @@ class User extends Authenticatable implements CanResetPassword
      */
     public function getManagedEntityNames(): ?array
     {
-        if ($this->role === 'admin' || !$this->employee_id) {
+        if ($this->role === 'admin' || $this->role === 'asset_manager' || !$this->employee_id) {
             return null;
         }
         $names = \App\Models\Entity::where('asset_manager_id', $this->employee_id)->pluck('name')->toArray();

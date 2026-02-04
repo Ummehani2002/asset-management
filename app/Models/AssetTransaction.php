@@ -43,4 +43,9 @@ class AssetTransaction extends Model
     {
         return $this->belongsTo(Location::class, 'location_id', 'id');
     }
+
+    public function maintenanceAssignments()
+    {
+        return $this->hasMany(MaintenanceAssignment::class);
+    }
 }

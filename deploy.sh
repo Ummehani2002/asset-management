@@ -30,6 +30,10 @@ fi
 echo "🗄️  Running database migrations..."
 php artisan migrate --force
 
+# Seed entities (safe - won't create duplicates)
+echo "🏢 Seeding entities..."
+php artisan db:seed --class=EntitySeeder --force
+
 # Create storage link
 echo "📁 Creating storage symlink..."
 php artisan storage:link
