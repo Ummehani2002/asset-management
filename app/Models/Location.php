@@ -11,7 +11,7 @@ class Location extends Model
     protected $fillable = [
         'location_id',
         'location_name',
-        'location_category',
+        'location_country',
         'location_entity',
         'address',
         'notes'

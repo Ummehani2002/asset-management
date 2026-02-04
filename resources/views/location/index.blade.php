@@ -34,8 +34,8 @@
                     <input type="text" name="location_id" class="form-control" value="{{ old('location_id') }}" required>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Location Category</label>
-                    <input type="text" name="location_category" class="form-control" value="{{ old('location_category') }}">
+                    <label class="form-label">Location Country</label>
+                    <input type="text" name="location_country" class="form-control" value="{{ old('location_country') }}">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Location Name</label>

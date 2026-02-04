@@ -132,7 +132,7 @@ private function exportExcel($assets, $employeeName)
         // Headers
         fputcsv($file, [
             '#', 'Asset ID', 'Category', 'Brand', 'Serial Number', 
-            'PO Number', 'Location', 'Issue Date', 'Status'
+            'PO Number', 'Location Name', 'Issue Date', 'Status'
         ]);
 
         // Data

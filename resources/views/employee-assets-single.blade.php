@@ -19,7 +19,7 @@
                 <th>Brand</th>
                 <th>Serial Number</th>
                 <th>PO Number</th>
-                <th>Location</th>
+                <th>Location Name</th>
                 <th>Issue Date</th>
                 <th>Status</th>
             </tr>

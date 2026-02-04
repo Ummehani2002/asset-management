@@ -29,8 +29,8 @@
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Location Category</label>
-                    <input type="text" name="location_category" value="{{ old('location_category', $location->location_category) }}" class="form-control">
+                    <label class="form-label">Location Country</label>
+                    <input type="text" name="location_country" value="{{ old('location_country', $location->location_country) }}" class="form-control">
                 </div>
 
                 <div class="col-md-6 mb-3">

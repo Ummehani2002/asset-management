@@ -69,7 +69,7 @@ class LocationController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('location_id', 'like', "%{$search}%")
                       ->orWhere('location_name', 'like', "%{$search}%")
-                      ->orWhere('location_category', 'like', "%{$search}%");
+                      ->orWhere('location_country', 'like', "%{$search}%");
                 });
             }
 
@@ -98,14 +98,14 @@ class LocationController extends Controller
         $request->validate([
             'location_id' => 'required|unique:locations,location_id',
             'location_name' => 'required|string',
-            'location_category' => 'nullable|string',
+            'location_country' => 'nullable|string',
             'location_entity' => 'required|string',
         ]);
 
         $locationData = [
             'location_id' => $request->location_id,
             'location_name' => $request->location_name,
-            'location_category' => $request->location_category,
+            'location_country' => $request->location_country,
             'location_entity' => $request->location_entity,
         ];
         
@@ -151,13 +151,13 @@ public function update(Request $request, $id)
 {
     $request->validate([
         'location_name'     => 'required|string|max:255',
-        'location_category' => 'nullable|string|max:255',
+        'location_country' => 'nullable|string|max:255',
         'location_entity'   => 'required|string|max:255',
     ]);
 
     $location = Location::findOrFail($id);
     $location->location_name = $request->input('location_name');
-    $location->location_category = $request->input('location_category');
+    $location->location_country = $request->input('location_country');
     $location->location_entity = $request->input('location_entity');
     $location->save();
 
@@ -203,7 +203,7 @@ public function autocomplete(Request $request)
         })
         ->orderBy('location_name', 'asc')
         ->take(15)
-        ->get(['id', 'location_id', 'location_name', 'location_category']);
+        ->get(['id', 'location_id', 'location_name', 'location_country']);
 
     // Sort results: names starting with query first
     $locations = $locations->sortBy(function($location) use ($query) {
@@ -357,7 +357,7 @@ public function autocomplete(Request $request)
             $query->where(function ($q) use ($search) {
                 $q->where('location_id', 'like', "%{$search}%")
                   ->orWhere('location_name', 'like', "%{$search}%")
-                  ->orWhere('location_category', 'like', "%{$search}%");
+                  ->orWhere('location_country', 'like', "%{$search}%");
             });
         }
         $locations = $query->orderBy('location_id')->get();
@@ -389,7 +389,7 @@ public function autocomplete(Request $request)
             
             // Headers
             fputcsv($file, [
-                '#', 'Location ID', 'Category', 'Location Name', 'Entity'
+                '#', 'Location ID', 'Country', 'Location Name', 'Entity'
             ]);
 
             // Data
@@ -397,7 +397,7 @@ public function autocomplete(Request $request)
                 fputcsv($file, [
                     $index + 1,
                     $location->location_id ?? 'N/A',
-                    $location->location_category ?? 'N/A',
+                    $location->location_country ?? 'N/A',
                     $location->location_name ?? 'N/A',
                     $location->location_entity ?? 'N/A',
                 ]);

@@ -79,7 +79,7 @@
                             <tr>
                                 <th>#</th>
                                 <th>Location ID</th>
-                                <th>Category</th>
+                                <th>Country</th>
                                 <th>Location Name</th>
                                 <th>Entity</th>
                                 <th>Actions</th>
@@ -91,7 +91,7 @@
                                     <tr>
                                         <td>{{ $loop->iteration }}</td>
                                         <td>{{ $loc->location_id ?? 'N/A' }}</td>
-                                        <td>{{ $loc->location_category ?? 'N/A' }}</td>
+                                        <td>{{ $loc->location_country ?? 'N/A' }}</td>
                                         <td>{{ $loc->location_name ?? 'N/A' }}</td>
                                         <td>{{ $loc->location_entity ?? 'N/A' }}</td>
                                         <td>
@@ -141,7 +141,7 @@
         if (!items || items.length === 0) { dropdown.innerHTML = '<div class="list-group-item text-muted">No locations found</div>'; }
         else {
             dropdown.innerHTML = items.map(function(loc) {
-                var label = (loc.location_id || '') + ' — ' + (loc.location_name || '') + (loc.location_category ? ' (' + loc.location_category + ')' : '');
+                var label = (loc.location_id || '') + ' — ' + (loc.location_name || '') + (loc.location_country ? ' (' + loc.location_country + ')' : '');
                 var val = loc.location_id || loc.location_name || '';
                 return '<a href="#" class="list-group-item list-group-item-action loc-sugg" data-value="' + (val + '').replace(/"/g, '&quot;') + '">' + label + '</a>';
             }).join('');

@@ -149,7 +149,7 @@ $(document).ready(function(){
                                        style="cursor: pointer; border-left: 3px solid #1F2A44;">
                                         <div class="fw-semibold">${highlight}</div>
                                         ${locationId ? '<small class="text-muted">ID: ' + locationId + '</small>' : ''}
-                                        ${loc.location_category ? '<small class="text-muted ms-2">• ' + loc.location_category + '</small>' : ''}
+                                        ${loc.location_country ? '<small class="text-muted ms-2">• ' + loc.location_country + '</small>' : ''}
                                     </a>
                                 `);
                             });
