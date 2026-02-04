@@ -42,7 +42,11 @@
                 @else
                     <div class="mb-3">
                         <label class="fw-bold">{{ $feature->feature_name }}</label>
-                        <input type="text" name="features_{{ $feature->id }}" class="form-control" value="{{ $val ?? '' }}" placeholder="{{ $feature->feature_name }}">
+                        @php
+                            $isModelNumber = strtolower($feature->feature_name ?? '') === 'model number';
+                        @endphp
+                        <input type="text" name="features_{{ $feature->id }}" class="form-control" value="{{ $isModelNumber ? ($model->model_number ?? '') : ($val ?? '') }}" placeholder="{{ $feature->feature_name }}"
+                               {{ $isModelNumber ? 'readonly' : '' }}>
                     </div>
                 @endif
             @endforeach
