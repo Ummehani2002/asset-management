@@ -3,8 +3,11 @@
 @section('content')
 <div class="container-fluid master-page">
     <!-- Page Header -->
-    <div class="page-header">
+    <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h2 class="mb-0"><i class="bi bi-person-badge me-2"></i>Employee Master</h2>
+        <a href="{{ route('employees.import.form') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-upload me-1"></i>Import from Excel/CSV
+        </a>
     </div>
 
     {{-- Success/Error Messages --}}
