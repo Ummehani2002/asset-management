@@ -58,7 +58,7 @@ Route::get('/brands', [BrandController::class, 'index'])->name('brands.index');
 Route::post('/brands/store', [AssetCategoryController::class, 'storeBrand'])->name('brands.store');
 Route::post('/brand-models', [AssetCategoryController::class, 'storeModel'])->name('brand-models.store');
 Route::get('/brand-models/{id}/edit-features', [AssetCategoryController::class, 'editModelFeatures'])->name('brand-models.edit-features');
-Route::post('/brand-models/{id}/update-feature-values', [AssetCategoryController::class, 'updateModelFeatureValues'])->name('brand-models.update-feature-values');
+Route::match(['put', 'post'], '/brand-models/{id}/update-feature-values', [AssetCategoryController::class, 'updateModelFeatureValues'])->name('brand-models.update-feature-values');
 Route::delete('/brand-models/{id}', [AssetCategoryController::class, 'destroyModel'])->name('brand-models.destroy');
 Route::get('/brands/{id}/edit', [BrandController::class, 'edit'])->name('brands.edit');
 Route::put('/brands/{id}', [BrandController::class, 'update'])->name('brands.update');

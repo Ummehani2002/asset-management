@@ -22,7 +22,6 @@
         <p class="text-muted small mb-3">Fill in every field you want to auto-fill in Asset Master. Leave blank if not needed.</p>
         <form action="{{ route('brand-models.update-feature-values', $model->id) }}" method="POST" autocomplete="off">
             @csrf
-            @method('PUT')
             @foreach($features as $feature)
                 @php
                     $fv = $valuesByFeature->get($feature->id);
