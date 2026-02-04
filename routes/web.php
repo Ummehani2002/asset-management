@@ -56,13 +56,13 @@ Route::get('/categories', [AssetCategoryController::class, 'index'])->name('cate
 use App\Http\Controllers\BrandController;
 Route::get('/brands', [BrandController::class, 'index'])->name('brands.index');
 Route::post('/brands/store', [AssetCategoryController::class, 'storeBrand'])->name('brands.store');
+Route::post('/brand-models', [AssetCategoryController::class, 'storeModel'])->name('brand-models.store');
+Route::get('/brand-models/{id}/edit-features', [AssetCategoryController::class, 'editModelFeatures'])->name('brand-models.edit-features');
+Route::post('/brand-models/{id}/update-feature-values', [AssetCategoryController::class, 'updateModelFeatureValues'])->name('brand-models.update-feature-values');
+Route::delete('/brand-models/{id}', [AssetCategoryController::class, 'destroyModel'])->name('brand-models.destroy');
 Route::get('/brands/{id}/edit', [BrandController::class, 'edit'])->name('brands.edit');
 Route::put('/brands/{id}', [BrandController::class, 'update'])->name('brands.update');
 Route::delete('/brands/{id}', [BrandController::class, 'destroy'])->name('brands.destroy');
-Route::post('/brand-models', [AssetCategoryController::class, 'storeModel'])->name('brand-models.store');
-Route::get('/brand-models/{id}/edit-features', [AssetCategoryController::class, 'editModelFeatures'])->name('brand-models.edit-features');
-Route::put('/brand-models/{id}/feature-values', [AssetCategoryController::class, 'updateModelFeatureValues'])->name('brand-models.update-feature-values');
-Route::delete('/brand-models/{id}', [AssetCategoryController::class, 'destroyModel'])->name('brand-models.destroy');
 
 
 use App\Http\Controllers\EmployeeController;
@@ -86,14 +86,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/brands/by-category/{categoryId}', [BrandController::class, 'getByCategory']);
     Route::get('/assets/category/{id}', [AssetController::class, 'assetsByCategory'])->name('assets.byCategory');
     Route::get('/api/assets/by-category/{id}', [AssetController::class, 'getAssetsByCategoryApi'])->name('api.assets.byCategory');
-    Route::get('/api/assets/search-serial', [AssetController::class, 'searchBySerialNumber'])->name('api.assets.searchSerial');
+    Route::get('/api/assets/serial-numbers', [AssetController::class, 'getSerialNumbersApi'])->name('api.assets.serialNumbers');
+    Route::get('/api/assets/filter', [AssetController::class, 'filterAssetsApi'])->name('api.assets.filter');
     Route::get('/assets/category/{id}/export', [AssetController::class, 'exportByCategory'])->name('assets.byCategory.export');
+    Route::get('/assets/filter/export', [AssetController::class, 'exportFiltered'])->name('assets.filter.export');
     Route::get('/category-features/{category}', [CategoryFeatureController::class, 'getByCategory']);
     Route::get('/features/by-brand/{brandId}', [CategoryFeatureController::class, 'getByBrand']);
     Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeaturesByBrand']);
-    Route::get('/models-by-brand/{brandId}', [AssetController::class, 'getModelsByBrand'])->name('models.by-brand');
-    Route::get('/models-by-category/{categoryId}', [AssetController::class, 'getModelsByCategory'])->name('models.by-category');
-    Route::get('/model-feature-values/{modelId}', [AssetController::class, 'getModelFeatureValues'])->name('model.feature-values');
 });
 Route::post('/features/store', [AssetCategoryController::class, 'storeFeature'])->name('features.store');
 Route::get('/features/{id}/edit', [CategoryFeatureController::class, 'edit'])->name('features.edit');
@@ -111,18 +110,6 @@ Route::put('/employee-master/{employee}', [EmployeeController::class, 'update'])
 
 
 use App\Http\Controllers\LocationController;
-use App\Http\Controllers\EntityController;
-use App\Http\Controllers\AssetManagerController;
-Route::get('/entity-master', [EntityController::class, 'index'])->name('entity-master.index');
-Route::post('/entity-master', [EntityController::class, 'store'])->name('entity-master.store');
-Route::get('/entity-master/{id}/edit', [EntityController::class, 'edit'])->name('entity-master.edit');
-Route::put('/entity-master/{id}', [EntityController::class, 'update'])->name('entity-master.update');
-Route::delete('/entity-master/{id}', [EntityController::class, 'destroy'])->name('entity-master.destroy');
-
-Route::get('/asset-manager', [AssetManagerController::class, 'index'])->name('asset-manager.index');
-Route::get('/asset-manager/{id}/edit', [AssetManagerController::class, 'edit'])->name('asset-manager.edit');
-Route::put('/asset-manager/{id}', [AssetManagerController::class, 'update'])->name('asset-manager.update');
-
 Route::get('/location-master', [LocationController::class, 'index'])->name('location-master.index');
 Route::get('/location-master/search', [LocationController::class, 'search'])->name('location-master.search');
 Route::get('/location-master/export', [LocationController::class, 'export'])->name('location-master.export');
@@ -155,7 +142,6 @@ use App\Http\Controllers\AssetTransactionController;
 
 
 // Asset Transactions
-Route::get('/asset-transactions-search-suggestions', [AssetTransactionController::class, 'searchSuggestions'])->name('asset-transactions.searchSuggestions');
 Route::prefix('asset-transactions')->group(function () {
     Route::get('/', [AssetTransactionController::class, 'index'])->name('asset-transactions.index');
     Route::get('/view', [AssetTransactionController::class, 'view'])->name('asset-transactions.view');
@@ -195,6 +181,18 @@ Route::get('/categories/{id}/export', [AssetCategoryController::class, 'export']
 Route::put('/categories/{id}', [AssetCategoryController::class, 'update'])->name('categories.update');
 Route::delete('/categories/{id}', [AssetCategoryController::class, 'destroy'])->name('categories.destroy');
 // Test routes removed - closures cannot be cached. Move to controllers if needed.
+use App\Http\Controllers\EntityController;
+Route::get('/entity-master', [EntityController::class, 'index'])->name('entity-master.index');
+Route::post('/entity-master', [EntityController::class, 'store'])->name('entity-master.store');
+Route::get('/entity-master/{id}/edit', [EntityController::class, 'edit'])->name('entity-master.edit');
+Route::put('/entity-master/{id}', [EntityController::class, 'update'])->name('entity-master.update');
+Route::delete('/entity-master/{id}', [EntityController::class, 'destroy'])->name('entity-master.destroy');
+
+use App\Http\Controllers\AssetManagerController;
+Route::get('/asset-manager', [AssetManagerController::class, 'index'])->name('asset-manager.index');
+Route::get('/asset-manager/{id}/edit', [AssetManagerController::class, 'edit'])->name('asset-manager.edit');
+Route::put('/asset-manager/{id}', [AssetManagerController::class, 'update'])->name('asset-manager.update');
+
 use App\Http\Controllers\EntityBudgetController;
 Route::get('/entity-budget/create', [EntityBudgetController::class, 'create'])->name('entity_budget.create');
 Route::get('/entity-budget/export', [EntityBudgetController::class, 'export'])->name('entity_budget.export');
@@ -235,24 +233,20 @@ Route::middleware(['auth'])->group(function () {
 
 
 use App\Http\Controllers\ProjectController;
-// Project Master - All authenticated users (fixes production when routes are behind auth)
-Route::middleware(['auth'])->group(function () {
-    Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
-    Route::get('/projects-autocomplete', [ProjectController::class, 'autocomplete'])->name('projects.autocomplete');
-    Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
-    Route::get('/projects/export', [ProjectController::class, 'export'])->name('projects.export');
-    Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
-    Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
-    Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
-    Route::put('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
-    Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
-});
+Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+Route::get('/projects/autocomplete', [ProjectController::class, 'autocomplete'])->name('projects.autocomplete');
+Route::get('/projects/create', [ProjectController::class, 'create'])->name('projects.create');
+Route::get('/projects/export', [ProjectController::class, 'export'])->name('projects.export');
+Route::post('/projects', [ProjectController::class, 'store'])->name('projects.store');
+Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
+Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
+Route::put('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
+Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
 
 
 use App\Http\Controllers\InternetServiceController;
 // Internet Services - All authenticated users
 Route::middleware(['auth'])->group(function () {
-    Route::get('internet-services-search-suggestions', [InternetServiceController::class, 'searchSuggestions'])->name('internet-services.searchSuggestions');
     Route::get('internet-services', [InternetServiceController::class, 'index'])->name('internet-services.index');
     Route::get('internet-services/create', [InternetServiceController::class, 'create'])->name('internet-services.create');
     Route::get('internet-services/export', [InternetServiceController::class, 'export'])->name('internet-services.export');
@@ -268,24 +262,6 @@ Route::middleware(['auth'])->group(function () {
 
 
 
-use App\Http\Controllers\SimcardTransactionController;
-
-// SIM Transactions
-Route::prefix('simcards')->group(function () {
-    // Show single form for assign/return
-    Route::get('/create', [SimcardTransactionController::class, 'create'])->name('simcards.create');
-
-    // Store assign or return transaction
-    Route::post('/', [SimcardTransactionController::class, 'store'])->name('simcards.store');
-
-    // SIM details (for return, optional AJAX)
-    Route::get('/details/{simcardNumber}', [SimcardTransactionController::class, 'getSimDetails'])->name('simcards.details');
-
-    // View all transactions
-    Route::get('/', [SimcardTransactionController::class, 'index'])->name('simcards.index');
-});
-
-
 use App\Http\Controllers\PreventiveMaintenanceController;
 
 Route::get('/preventive-maintenance/create', [PreventiveMaintenanceController::class, 'create'])->name('preventive-maintenance.create');
@@ -294,7 +270,6 @@ Route::get('/preventive-maintenance', [PreventiveMaintenanceController::class, '
 Route::get('/asset/{id}/details', [PreventiveMaintenanceController::class, 'getAssetDetails'])->name('asset.details');
 
 use App\Http\Controllers\ReportController;
-Route::get('/reports/simcard', [ReportController::class, 'simcard'])->name('reports.simcard');
 Route::get('/reports/internet', [ReportController::class, 'internet'])->name('reports.internet');
 Route::get('/reports/asset-summary', [ReportController::class, 'assetSummary'])->name('reports.asset-summary');
 

@@ -34,7 +34,7 @@
             <td><strong>Account Number</strong></td>
             <td>{{ $internetService->account_number ?? 'N/A' }}</td>
         </tr>
-        @if($internetService->service_type == 'simcard')
+        @if($internetService->service_type == 'datacard')
         <tr>
             <td><strong>PR Number</strong></td>
             <td>{{ $internetService->pr_number ?? 'N/A' }}</td>

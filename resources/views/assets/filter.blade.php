@@ -4,8 +4,8 @@
 <div class="container-fluid master-page">
     <!-- Page Header -->
     <div class="page-header">
-        <h2><i class="bi bi-funnel me-2"></i>Filter Assets by Category</h2>
-        <p>View and filter assets by category</p>
+        <h2><i class="bi bi-funnel me-2"></i>Filter Assets</h2>
+        <p>Search assets by category and/or serial number</p>
     </div>
 
     @if(session('success'))
@@ -22,42 +22,34 @@
         </div>
     @endif
 
-    {{-- Search by Serial Number --}}
-    <div class="master-form-card mb-4">
-        <h5 class="mb-3"><i class="bi bi-search me-2"></i>Search by Serial Number</h5>
-        <div class="row">
-            <div class="col-md-6 position-relative">
-                <label for="serial_search" class="form-label">Type serial number (initial characters)</label>
-                <input type="text" id="serial_search" class="form-control" placeholder="e.g. LPT, 55, PRT..." autocomplete="off">
-                <div id="serial_dropdown" class="list-group position-absolute w-100 mt-1 border rounded shadow-sm" style="z-index: 1050; max-height: 280px; overflow-y: auto; display: none;"></div>
-                <small class="text-muted">Start typing to see matching assets; select one to view details.</small>
-            </div>
-        </div>
-    </div>
-
-    {{-- Asset Details (shown when an asset is selected from serial search) --}}
-    <div id="asset-details-section" class="master-form-card mb-4" style="display: none;">
-        <h5 class="mb-3"><i class="bi bi-box-seam me-2"></i>Asset Details</h5>
-        <div id="asset-details-content" class="card-body"></div>
-        <div class="mt-2">
-            <a href="#" id="asset-details-history-link" class="btn btn-sm btn-outline-info" style="display: none;"><i class="bi bi-clock-history me-1"></i>View History</a>
-        </div>
-    </div>
-
     {{-- Filter Section --}}
     <div class="master-form-card mb-4">
-        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Filter Assets by Category</h5>
-        <div class="row">
-            <div class="col-md-6">
-                <label for="filter_category" class="form-label">Select Category</label>
+        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Filter Assets</h5>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="filter_category" class="form-label">Asset Category</label>
                 <select id="filter_category" class="form-control">
-                    <option value="">-- Select Category to View Assets --</option>
+                    <option value="">-- All Categories --</option>
                     @foreach($categories as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->category_name }}</option>
                     @endforeach
                 </select>
             </div>
+            <div class="col-md-4 position-relative">
+                <label for="filter_serial" class="form-label">Serial Number</label>
+                <input type="text" id="filter_serial" class="form-control" placeholder="Type to search serial numbers..." autocomplete="off">
+                <div id="serial_suggestions" class="list-group position-absolute w-100 mt-1" style="z-index: 1000; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 6px;"></div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="button" id="btnSearch" class="btn btn-primary me-2">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+                <button type="button" id="btnClear" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>Clear
+                </button>
+            </div>
         </div>
+        <small class="text-muted d-block mt-2">Type in serial number to see matching options. Use category, serial number, or both to filter.</small>
     </div>
 
     {{-- Assets Table (shown only when category is selected) --}}
@@ -87,6 +79,8 @@
                                 <th>Warranty Start</th>
                                 <th>Expiry Date</th>
                                 <th>PO Number</th>
+                                <th>Vendor Name</th>
+                                <th>Value</th>
                                 <th>Serial Number</th>
                                 <th>Features</th>
                                 <th>Invoice</th>
@@ -95,7 +89,7 @@
                         </thead>
                         <tbody id="assetsTableBody">
                             <tr>
-                                <td colspan="11" class="text-center text-muted py-4">Select a category to view assets.</td>
+                                <td colspan="13" class="text-center text-muted py-4">Select a category or type a serial number, then click Search.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -107,129 +101,66 @@
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // Store current category ID for download
-    let currentCategoryId = null;
+    // Store current filter params for download
+    let currentFilterParams = { category_id: null, serial_number: null };
+    let serialSearchTimeout;
 
-    // Serial number search with dropdown
-    (function() {
-        var input = document.getElementById('serial_search');
-        var dropdown = document.getElementById('serial_dropdown');
-        var detailsSection = document.getElementById('asset-details-section');
-        var detailsContent = document.getElementById('asset-details-content');
-        var historyLink = document.getElementById('asset-details-history-link');
-        var debounce = null;
-        var searchUrl = '{{ url("api/assets/search-serial") }}';
-        var detailsUrlBase = '{{ url("get-asset-full-details") }}';
-        var historyUrlBase = '{{ url("asset-history") }}';
-
-        function hideDropdown() { if (dropdown) dropdown.style.display = 'none'; }
-
-        function showDropdown(items) {
-            if (!dropdown) return;
-            dropdown.innerHTML = '';
-            if (!items || items.length === 0) {
-                dropdown.innerHTML = '<div class="list-group-item text-muted text-center small">No assets found</div>';
-            } else {
-                items.forEach(function(item) {
-                    var a = document.createElement('a');
-                    a.href = '#';
-                    a.className = 'list-group-item list-group-item-action';
-                    a.textContent = (item.serial_number || '') + ' — ' + (item.asset_id || '') + ' (' + (item.category_name || '') + ')';
-                    a.dataset.id = item.id;
-                    a.dataset.serial = item.serial_number || '';
-                    a.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        if (input) input.value = item.serial_number || item.asset_id || '';
-                        hideDropdown();
-                        loadAssetDetails(item.id);
+    // Serial number autocomplete - type to get matching options
+    $('#filter_serial').on('input', function() {
+        const q = $(this).val().trim();
+        clearTimeout(serialSearchTimeout);
+        if (q.length < 1) {
+            $('#serial_suggestions').hide().empty();
+            return;
+        }
+        serialSearchTimeout = setTimeout(function() {
+            const categoryId = $('#filter_category').val();
+            const params = new URLSearchParams({ q: q });
+            if (categoryId) params.append('category_id', categoryId);
+            $.get('/api/assets/serial-numbers?' + params.toString(), function(serials) {
+                const $list = $('#serial_suggestions');
+                $list.empty();
+                if (serials && serials.length > 0) {
+                    serials.forEach(function(s) {
+                        const escaped = $('<div>').text(s).html();
+                        $list.append(`<a href="#" class="list-group-item list-group-item-action serial-item">${escaped}</a>`);
                     });
-                    dropdown.appendChild(a);
-                });
-            }
-            dropdown.style.display = 'block';
-        }
-
-        function loadAssetDetails(assetId) {
-            if (!assetId) return;
-            detailsContent.innerHTML = '<p class="text-muted mb-0">Loading...</p>';
-            detailsSection.style.display = 'block';
-            $.get(detailsUrlBase + '/' + assetId, function(data) {
-                var a = data.asset || {};
-                var catName = (a.asset_category && a.asset_category.category_name) || (a.assetCategory && a.assetCategory.category_name) || 'N/A';
-                var brandName = (a.brand && a.brand.name) || 'N/A';
-                var html = '<div class="row">' +
-                    '<div class="col-md-4"><strong>Asset ID</strong><br>' + (a.asset_id || 'N/A') + '</div>' +
-                    '<div class="col-md-4"><strong>Serial Number</strong><br>' + (a.serial_number || 'N/A') + '</div>' +
-                    '<div class="col-md-4"><strong>Category</strong><br>' + catName + '</div>' +
-                    '</div><div class="row mt-2">' +
-                    '<div class="col-md-4"><strong>Brand</strong><br>' + brandName + '</div>' +
-                    '<div class="col-md-4"><strong>Status</strong><br>' + (a.status || 'N/A') + '</div>' +
-                    '<div class="col-md-4"><strong>Purchase Date</strong><br>' + (a.purchase_date || 'N/A') + '</div>' +
-                    '</div><div class="row mt-2">' +
-                    '<div class="col-md-4"><strong>Warranty Start</strong><br>' + (a.warranty_start || 'N/A') + '</div>' +
-                    '<div class="col-md-4"><strong>Expiry Date</strong><br>' + (a.expiry_date || 'N/A') + '</div>' +
-                    '<div class="col-md-4"><strong>PO Number</strong><br>' + (a.po_number || 'N/A') + '</div>' +
-                    '</div>';
-                if (a.invoice_path) {
-                    html += '<div class="row mt-2"><div class="col-12"><strong>Invoice</strong><br><a href="/storage/' + a.invoice_path + '" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-pdf"></i> View</a></div></div>';
+                    $list.show();
+                } else {
+                    $list.hide();
                 }
-                if (data.employee && data.employee.name) {
-                    html += '<div class="row mt-2"><div class="col-12"><strong>Assigned To</strong><br>' + data.employee.name + '</div></div>';
-                }
-                if (data.project && data.project.project_name) {
-                    html += '<div class="row mt-2"><div class="col-12"><strong>Project</strong><br>' + data.project.project_name + '</div></div>';
-                }
-                detailsContent.innerHTML = html;
-                if (historyLink) {
-                    historyLink.href = historyUrlBase + '/' + assetId;
-                    historyLink.style.display = 'inline-block';
-                }
-            }).fail(function() {
-                detailsContent.innerHTML = '<p class="text-danger mb-0">Failed to load asset details.</p>';
-                if (historyLink) historyLink.style.display = 'none';
             });
-        }
+        }, 250);
+    });
 
-        if (input) {
-            input.addEventListener('input', function() {
-                clearTimeout(debounce);
-                var q = (input.value || '').trim();
-                if (q.length < 1) {
-                    hideDropdown();
-                    detailsSection.style.display = 'none';
-                    return;
-                }
-                debounce = setTimeout(function() {
-                    $.get(searchUrl + '?q=' + encodeURIComponent(q), function(items) {
-                        showDropdown(items);
-                    }).fail(function() { showDropdown([]); });
-                }, 200);
-            });
-            input.addEventListener('blur', function() { setTimeout(hideDropdown, 200); });
-        }
-        document.addEventListener('click', function(e) {
-            if (dropdown && e.target !== input && !dropdown.contains(e.target)) hideDropdown();
-        });
-    })();
-</script>
-<script>
+    $(document).on('click', '.serial-item', function(e) {
+        e.preventDefault();
+        $('#filter_serial').val($(this).text());
+        $('#serial_suggestions').hide().empty();
+    });
 
-    // When filter category changes → load assets
-    $('#filter_category').on('change', function () {
-        const categoryId = $(this).val();
-        currentCategoryId = categoryId;
-
-        if (categoryId) {
-            loadAssetsByCategory(categoryId);
-        } else {
-            $('#assets-section').hide();
-            $('#downloadDropdown').hide();
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#filter_serial, #serial_suggestions').length) {
+            $('#serial_suggestions').hide();
         }
     });
 
-    // Function to load assets by category
-    function loadAssetsByCategory(categoryId) {
-        $.get(`/api/assets/by-category/${categoryId}`, function(assets) {
+    function loadFilteredAssets() {
+        const categoryId = $('#filter_category').val();
+        const serialNumber = $('#filter_serial').val().trim();
+
+        if (!categoryId && !serialNumber) {
+            $('#assets-section').hide();
+            $('#downloadDropdown').hide();
+            return;
+        }
+
+        currentFilterParams = { category_id: categoryId || null, serial_number: serialNumber || null };
+        const params = new URLSearchParams();
+        if (categoryId) params.append('category_id', categoryId);
+        if (serialNumber) params.append('serial_number', serialNumber);
+
+        $.get(`/api/assets/filter?${params.toString()}`, function(assets) {
             let tableBody = $('#assetsTableBody');
             tableBody.empty();
 
@@ -272,6 +203,8 @@
                             <td>${asset.warranty_start || 'N/A'}</td>
                             <td>${asset.expiry_date || 'N/A'}</td>
                             <td>${asset.po_number || 'N/A'}</td>
+                            <td>${asset.vendor_name || '-'}</td>
+                            <td>${asset.value || '-'}</td>
                             <td>${asset.serial_number || 'N/A'}</td>
                             <td>${featuresHtml}</td>
                             <td>${invoiceHtml}</td>
@@ -282,7 +215,7 @@
                 $('#assets-section').show();
                 $('#downloadDropdown').show();
             } else {
-                tableBody.append('<tr><td colspan="11" class="text-center text-muted py-4">No assets found in this category.</td></tr>');
+                tableBody.append('<tr><td colspan="13" class="text-center text-muted py-4">No assets found in this category.</td></tr>');
                 $('#assets-section').show();
                 $('#downloadDropdown').hide();
             }
@@ -292,18 +225,53 @@
         });
     }
 
+    // Search on button click
+    $('#btnSearch').on('click', function() {
+        $('#serial_suggestions').hide();
+        loadFilteredAssets();
+    });
+
+    // Search on Enter
+    $('#filter_serial').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            $('#serial_suggestions').hide();
+            loadFilteredAssets();
+        }
+    });
+
+    // When category changes, search
+    $('#filter_category').on('change', function() {
+        loadFilteredAssets();
+    });
+
+    // Clear filters
+    $('#btnClear').on('click', function() {
+        $('#filter_category').val('');
+        $('#filter_serial').val('');
+        $('#serial_suggestions').hide().empty();
+        $('#assets-section').hide();
+        $('#downloadDropdown').hide();
+    });
+
     // Download handlers
     $('#downloadPdf').on('click', function(e){
         e.preventDefault();
-        if (currentCategoryId) {
-            window.location.href = `/assets/category/${currentCategoryId}/export?format=pdf`;
+        if (currentFilterParams.category_id || currentFilterParams.serial_number) {
+            const params = new URLSearchParams({ format: 'pdf' });
+            if (currentFilterParams.category_id) params.append('category_id', currentFilterParams.category_id);
+            if (currentFilterParams.serial_number) params.append('serial_number', currentFilterParams.serial_number);
+            window.location.href = `/assets/filter/export?${params.toString()}`;
         }
     });
 
     $('#downloadCsv').on('click', function(e){
         e.preventDefault();
-        if (currentCategoryId) {
-            window.location.href = `/assets/category/${currentCategoryId}/export?format=csv`;
+        if (currentFilterParams.category_id || currentFilterParams.serial_number) {
+            const params = new URLSearchParams({ format: 'csv' });
+            if (currentFilterParams.category_id) params.append('category_id', currentFilterParams.category_id);
+            if (currentFilterParams.serial_number) params.append('serial_number', currentFilterParams.serial_number);
+            window.location.href = `/assets/filter/export?${params.toString()}`;
         }
     });
 </script>

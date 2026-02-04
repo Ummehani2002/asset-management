@@ -87,6 +87,7 @@
                                     <th>#</th>
                                     <th>Employee ID</th>
                                     <th>Name</th>
+                                    <th>Status</th>
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Entity</th>
@@ -97,10 +98,17 @@
                             </thead>
                             <tbody id="employeeBody">
                                 @foreach($employees as $emp)
-                                    <tr>
+                                    <tr class="{{ $emp->is_active === false ? 'table-secondary' : '' }}">
                                         <td>{{ $loop->iteration }}</td>
                                         <td>{{ $emp->employee_id }}</td>
                                         <td>{{ $emp->name ?? 'N/A' }}</td>
+                                        <td>
+                                            @if($emp->is_active !== false)
+                                                <span class="badge bg-success">Active</span>
+                                            @else
+                                                <span class="badge bg-secondary">Non Active</span>
+                                            @endif
+                                        </td>
                                         <td>{{ $emp->email ?? 'N/A' }}</td>
                                         <td>{{ $emp->phone ?? 'N/A' }}</td>
                                         <td>{{ $emp->entity_name ?? 'N/A' }}</td>

@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 use App\Models\AssetCategory;
+use App\Models\Asset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
@@ -10,6 +11,14 @@ class DashboardController extends Controller
     public function index()
     {
         try {
+            $totalAssets = 0;
+            $availableAssets = 0;
+
+            if (Schema::hasTable('assets')) {
+                $totalAssets = Asset::count();
+                $availableAssets = Asset::whereIn('status', ['available', 'returned'])->count();
+            }
+
             // Check if required tables exist
             if (!Schema::hasTable('asset_categories')) {
                 Log::warning('asset_categories table does not exist');
@@ -17,32 +26,45 @@ class DashboardController extends Controller
             } else {
                 // Try to get category counts, but handle if assets table doesn't exist
                 try {
-        $categoryCounts = AssetCategory::withCount('assets')->get();
+                    $categoryCounts = AssetCategory::withCount([
+                        'assets',
+                        'assets as available_count' => function ($q) {
+                            $q->whereIn('status', ['available', 'returned']);
+                        }
+                    ])->get();
                 } catch (\Exception $e) {
                     Log::warning('Error loading asset categories: ' . $e->getMessage());
                     // Fallback: get categories without count
                     $categoryCounts = AssetCategory::all()->map(function ($category) {
                         $category->assets_count = 0;
+                        $category->available_count = 0;
                         return $category;
                     });
                 }
             }
 
-        return view('dashboard', compact('categoryCounts'));
+        return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets'));
         } catch (\Exception $e) {
             Log::error('Dashboard error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
             // Return empty dashboard instead of crashing
             $categoryCounts = collect([]);
-            return view('dashboard', compact('categoryCounts'))
+            $totalAssets = 0;
+            $availableAssets = 0;
+            return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets'))
                 ->with('warning', 'Some data could not be loaded. Please ensure migrations are run.');
         }
     }
 
     public function export(Request $request)
     {
-        $categoryCounts = AssetCategory::withCount('assets')->get();
+        $categoryCounts = AssetCategory::withCount([
+            'assets',
+            'assets as available_count' => function ($q) {
+                $q->whereIn('status', ['available', 'returned']);
+            }
+        ])->get();
         $format = $request->get('format', 'pdf');
 
         if ($format === 'csv') {
@@ -70,7 +92,7 @@ class DashboardController extends Controller
             $file = fopen('php://output', 'w');
             
             // Headers
-            fputcsv($file, ['#', 'Category Name', 'Total Assets']);
+            fputcsv($file, ['#', 'Category Name', 'Total Assets', 'Available']);
 
             // Data
             foreach ($categoryCounts as $index => $category) {
@@ -78,6 +100,7 @@ class DashboardController extends Controller
                     $index + 1,
                     $category->category_name,
                     $category->assets_count,
+                    $category->available_count ?? 0,
                 ]);
             }
 

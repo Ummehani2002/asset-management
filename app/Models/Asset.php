@@ -16,6 +16,8 @@ class Asset extends Model
         'warranty_start',
         'expiry_date',
         'po_number',
+        'vendor_name',
+        'value',
         'serial_number',
         'invoice_path',
         'status',

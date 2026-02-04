@@ -126,62 +126,6 @@ public function getFeaturesByBrand($brandId)
     return response()->json($features);
 }
 
-    /**
-     * Get models for a brand (for Asset create model dropdown).
-     */
-    public function getModelsByBrand($brandId)
-{
-    $models = \App\Models\BrandModel::where('brand_id', $brandId)->orderBy('model_number')->get(['id', 'model_number']);
-    return response()->json($models);
-}
-
-    /**
-     * Get all models for a category (all brands in that category). For Asset create: select category → model → brand and features autofill.
-     */
-    public function getModelsByCategory($categoryId)
-{
-    $brands = \App\Models\Brand::where('asset_category_id', $categoryId)->orderBy('name')->get(['id', 'name']);
-    $out = [];
-    foreach ($brands as $brand) {
-        $models = \App\Models\BrandModel::where('brand_id', $brand->id)->orderBy('model_number')->get(['id', 'model_number']);
-        foreach ($models as $m) {
-            $out[] = [
-                'id' => $m->id,
-                'model_number' => $m->model_number,
-                'brand_id' => $brand->id,
-                'brand_name' => $brand->name,
-            ];
-        }
-    }
-    return response()->json($out);
-}
-
-    /**
-     * Get feature values for a model (to auto-fill feature fields in Asset create).
-     */
-    public function getModelFeatureValues($modelId)
-{
-    $model = \App\Models\BrandModel::with(['featureValues.categoryFeature', 'brand.features'])->find($modelId);
-    if (!$model) {
-        return response()->json([]);
-    }
-    $out = [];
-    foreach ($model->featureValues as $fv) {
-        $f = $fv->categoryFeature;
-        if ($f->sub_fields && is_array($f->sub_fields) && count($f->sub_fields) > 0) {
-            $decoded = @json_decode($fv->feature_value, true);
-            if (is_array($decoded)) {
-                $out[$f->id] = $decoded;
-            } else {
-                $out[$f->id] = [];
-            }
-        } else {
-            $out[$f->id] = $fv->feature_value ?? '';
-        }
-    }
-    return response()->json($out);
-}
-
 /**
  * Get category prefix for asset ID generation
  */
@@ -190,81 +134,26 @@ private function getCategoryPrefix($categoryName)
     $categoryName = strtolower(trim($categoryName));
     
     $prefixMap = [
-        // Compute & infrastructure
-        'server' => 'SRV',
-        'desktop' => 'DTP',
         'laptop' => 'LPT',
-        'workstation' => 'WKS',
-        'tablet' => 'TAB',
-        'tablet / ipad' => 'TAB',
-        'mobile phone' => 'MOB',
-        // Network
-        'router' => 'RTR',
-        'firewall' => 'FWL',
-        'managed switch' => 'SWM',
-        'unmanaged switch' => 'SWU',
-        'poe switch' => 'SWP',
-        'access point' => 'APN',
-        'range extender' => 'EXT',
-        '4g/5g router' => 'R4G',
-        'load balancer' => 'LDB',
-        // Storage
-        'nas storage' => 'NAS',
-        'san storage' => 'SAN',
-        'external hard disk' => 'EHD',
-        'internal hdd/ssd' => 'HDD',
-        'backup device / tape' => 'BKP',
-        'backup device' => 'BKP',
-        // Print & scan
-        'printer' => 'PRN',
-        'plotter' => 'PLT',
-        'scanner' => 'SCN',
-        'all-in-one printer' => 'MFP',
-        'mfp' => 'MFP',
-        // Power & rack
-        'ups' => 'UPS',
-        'pdu' => 'PDU',
-        'server rack' => 'RCK',
-        'rack accessories' => 'RAC',
-        // Telecom
-        'pabx' => 'PBX',
-        'telephone' => 'TEL',
-        'video conferencing' => 'VCS',
-        // AV & display
-        'interactive panel / smart tv' => 'IPT',
-        'interactive panel' => 'IPT',
-        'smart tv' => 'IPT',
-        'cctv camera' => 'CCTV',
-        'nvr / dvr' => 'NVR',
-        'nvr' => 'NVR',
-        'dvr' => 'NVR',
-        'projector' => 'PRJ',
-        'monitor' => 'MON',
-        // Peripherals
-        'keyboard' => 'KBD',
+        'monitor' => 'MNT',
+        'printer' => 'PRT',
+        'desktop' => 'DST',
+        'keyboard' => 'KYB',
         'mouse' => 'MSE',
-        'docking station' => 'DCK',
-        'webcam' => 'WBC',
-        'headset' => 'HDS',
-        'headphone' => 'HDS',
-        // Virtual & software
-        'virtual machine' => 'VM',
-        'license' => 'LIC',
-        'cloud subscription' => 'CLD',
-        'ssl certificate' => 'SSL',
-        'domain' => 'DOM',
-        'public ip' => 'PIP',
-        // Other hardware
-        'kvm switch' => 'KVM',
-        'kvm' => 'KVM',
-        'network cable' => 'CAB',
-        'sfp module' => 'SFP',
-        'dr site' => 'DRS',
-        // Legacy/alternate names
-        'camera' => 'CCTV',
+        'scanner' => 'SCN',
+        'projector' => 'PRJ',
+        'tablet' => 'TBL',
+        'phone' => 'PHN',
+        'server' => 'SVR',
+        'router' => 'RTR',
+        'switch' => 'SWT',
+        'access point' => 'AP',
+        'camera' => 'CAM',
         'speaker' => 'SPK',
+        'headphone' => 'HDP',
+        'ups' => 'UPS',
         'hard drive' => 'HDD',
-        'ssd' => 'HDD',
+        'ssd' => 'SSD',
     ];
     
     // Check exact match first
@@ -354,25 +243,54 @@ public function autocompleteSerialNumber(Request $request)
     return view('assets.by_category', compact('category', 'assets'));
 }
 
-public function searchBySerialNumber(Request $request)
+public function getSerialNumbersApi(Request $request)
 {
-    $q = trim($request->get('q', ''));
-    if (strlen($q) < 1) {
-        return response()->json([]);
+    $query = Asset::select('serial_number')->distinct()->whereNotNull('serial_number')->where('serial_number', '!=', '');
+    if ($request->filled('category_id')) {
+        $query->where('asset_category_id', $request->category_id);
     }
-    $assets = Asset::with(['assetCategory', 'brand'])
-        ->where('serial_number', 'LIKE', $q . '%')
-        ->orderBy('serial_number')
-        ->limit(15)
-        ->get()
-        ->map(function ($asset) {
-            return [
-                'id' => $asset->id,
-                'asset_id' => $asset->asset_id ?? 'N/A',
-                'serial_number' => $asset->serial_number ?? 'N/A',
-                'category_name' => $asset->assetCategory->category_name ?? 'N/A',
-            ];
-        });
+    if ($request->filled('q')) {
+        $search = $request->q;
+        $query->where('serial_number', 'LIKE', '%' . $search . '%');
+    }
+    $serials = $query->orderBy('serial_number')->limit(50)->pluck('serial_number');
+    return response()->json($serials);
+}
+
+public function filterAssetsApi(Request $request)
+{
+    $query = Asset::with(['category', 'brand', 'featureValues.feature']);
+
+    if ($request->filled('category_id')) {
+        $query->where('asset_category_id', $request->category_id);
+    }
+    if ($request->filled('serial_number')) {
+        $query->where('serial_number', 'LIKE', '%' . $request->serial_number . '%');
+    }
+
+    $assets = $query->get()->map(function($asset) {
+        $features = [];
+        foreach ($asset->featureValues as $fv) {
+            $featureName = $fv->feature->feature_name ?? 'N/A';
+            $featureValue = $fv->feature_value ?? 'N/A';
+            $features[] = $featureName . ': ' . $featureValue;
+        }
+        return [
+            'id' => $asset->id,
+            'asset_id' => $asset->asset_id ?? 'N/A',
+            'brand_name' => $asset->brand->name ?? 'N/A',
+            'purchase_date' => $asset->purchase_date ?? 'N/A',
+            'warranty_start' => $asset->warranty_start ?? 'N/A',
+            'expiry_date' => $asset->expiry_date ?? 'N/A',
+            'po_number' => $asset->po_number ?? 'N/A',
+            'vendor_name' => $asset->vendor_name ?? '-',
+            'value' => $asset->value ? number_format($asset->value, 2) : '-',
+            'serial_number' => $asset->serial_number ?? 'N/A',
+            'features' => $features,
+            'invoice_path' => $asset->invoice_path ?? null,
+        ];
+    });
+
     return response()->json($assets);
 }
 
@@ -398,6 +316,8 @@ public function getAssetsByCategoryApi($id)
                         'warranty_start' => $asset->warranty_start ?? 'N/A',
                         'expiry_date' => $asset->expiry_date ?? 'N/A',
                         'po_number' => $asset->po_number ?? 'N/A',
+                        'vendor_name' => $asset->vendor_name ?? '-',
+                        'value' => $asset->value ? number_format($asset->value, 2) : '-',
                         'serial_number' => $asset->serial_number ?? 'N/A',
                         'features' => $features,
                         'invoice_path' => $asset->invoice_path ?? null,
@@ -416,6 +336,29 @@ public function exportByCategory($id, Request $request)
 
     $format = $request->get('format', 'pdf');
 
+    if ($format === 'excel' || $format === 'csv') {
+        return $this->exportCategoryExcel($assets, $category);
+    } else {
+        return $this->exportCategoryPdf($assets, $category);
+    }
+}
+
+public function exportFiltered(Request $request)
+{
+    $query = Asset::with('category', 'brand');
+    if ($request->filled('category_id')) {
+        $query->where('asset_category_id', $request->category_id);
+    }
+    if ($request->filled('serial_number')) {
+        $query->where('serial_number', 'LIKE', '%' . $request->serial_number . '%');
+    }
+    $assets = $query->get();
+
+    $category = $request->filled('category_id')
+        ? AssetCategory::find($request->category_id)
+        : (object)['category_name' => 'Filtered'];
+
+    $format = $request->get('format', 'pdf');
     if ($format === 'excel' || $format === 'csv') {
         return $this->exportCategoryExcel($assets, $category);
     } else {
@@ -443,7 +386,7 @@ private function exportCategoryExcel($assets, $category)
         // Headers
         fputcsv($file, [
             '#', 'Asset ID', 'Brand', 'Purchase Date', 'Warranty Start', 
-            'Expiry Date', 'PO Number', 'Serial Number'
+            'Expiry Date', 'PO Number', 'Vendor Name', 'Value', 'Serial Number'
         ]);
 
         // Data
@@ -456,6 +399,8 @@ private function exportCategoryExcel($assets, $category)
                 $asset->warranty_start ?? 'N/A',
                 $asset->expiry_date ?? 'N/A',
                 $asset->po_number ?? 'N/A',
+                $asset->vendor_name ?? '-',
+                $asset->value ? number_format($asset->value, 2) : '-',
                 $asset->serial_number ?? 'N/A',
             ]);
         }
@@ -541,6 +486,8 @@ public function store(Request $request)
             'warranty_years' => 'nullable|integer|min:1',
             'expiry_date' => 'nullable|date',
             'po_number' => 'nullable|string',
+            'vendor_name' => 'nullable|string|max:255',
+            'value' => 'nullable|numeric|min:0',
             'serial_number' => 'required|string|max:100',
             'invoice' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'features' => 'nullable|array',
@@ -578,6 +525,8 @@ public function store(Request $request)
             'warranty_years' => $request->warranty_years,
             'expiry_date' => $request->expiry_date,
             'po_number' => $request->po_number,
+            'vendor_name' => $request->vendor_name,
+            'value' => $request->value,
             'serial_number' => $request->serial_number,
             'status' => 'available', // Set default status
         ];
@@ -747,7 +696,7 @@ public function getAssetDetails($assetId)
 }
 public function getFullDetails($id)
 {
-    $asset = Asset::with('assetCategory', 'brand', 'employee', 'project')->find($id);
+    $asset = Asset::with('assetCategory', 'employee', 'project')->find($id);
     return response()->json([
         'asset' => $asset,
         'invoice' => $asset->invoice_path, // assuming saved in DB
@@ -792,13 +741,28 @@ public function getAssetsByEmployee($id)
     // Format the response
     $assets = $employeeAssets->map(function ($asset) {
         $latestTxn = $asset->latestTransaction;
+        // Get location: prefer latest assign txn, fallback to any recent assign txn with location
+        $locationName = '-';
+        if ($latestTxn && $latestTxn->location) {
+            $locationName = $latestTxn->location->location_name;
+        } else {
+            $txnWithLocation = \App\Models\AssetTransaction::where('asset_id', $asset->id)
+                ->where('transaction_type', 'assign')
+                ->whereNotNull('location_id')
+                ->with('location')
+                ->latest()
+                ->first();
+            if ($txnWithLocation && $txnWithLocation->location) {
+                $locationName = $txnWithLocation->location->location_name;
+            }
+        }
         return [
             'asset_id' => $asset->asset_id ?? '-',
             'category' => $asset->category ? $asset->category->category_name : '-',
             'brand' => $asset->brand ? $asset->brand->name : '-',
             'serial_number' => $asset->serial_number ?? '-',
             'po_number' => $asset->po_number ?? '-',
-            'location' => $latestTxn && $latestTxn->location ? $latestTxn->location->location_name : '-',
+            'location' => $locationName,
             'issue_date' => $latestTxn ? ($latestTxn->issue_date ?? '-') : '-',
             'status' => ucfirst($asset->status ?? 'N/A'),
         ];

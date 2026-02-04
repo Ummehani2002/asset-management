@@ -91,8 +91,16 @@
             <label>PO Number</label>
             <input type="text" name="po_number" class="form-control">
         </div>
-     
 
+        <div class="mb-3">
+            <label>Vendor Name</label>
+            <input type="text" name="vendor_name" class="form-control" placeholder="Enter vendor name">
+        </div>
+
+        <div class="mb-3">
+            <label>Value</label>
+            <input type="number" name="value" class="form-control" step="0.01" min="0" placeholder="Enter value">
+        </div>
 
         <div class="mb-3">
             <label>Upload Invoice</label>

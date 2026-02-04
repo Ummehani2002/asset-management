@@ -81,8 +81,7 @@ TRUNCATE TABLE category_features;
 TRUNCATE TABLE category_feature_values;
 TRUNCATE TABLE maintenance_budgets;
 TRUNCATE TABLE maintenance_expenses;
-TRUNCATE TABLE simcards;
-TRUNCATE TABLE simcard_transactions;
+TRUNCATE TABLE datacard_transactions;
 TRUNCATE TABLE preventive_maintenances;
 
 SET FOREIGN_KEY_CHECKS=1;

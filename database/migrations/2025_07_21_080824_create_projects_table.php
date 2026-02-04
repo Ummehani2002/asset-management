@@ -28,20 +28,20 @@ return new class extends Migration
     public function down(): void
     {
         // Drop foreign key constraints from dependent tables first
-        // Check if simcard_transactions table exists and has foreign key
-        if (Schema::hasTable('simcard_transactions')) {
+        // Check if datacard_transactions table exists and has foreign key
+        if (Schema::hasTable('datacard_transactions')) {
             try {
                 $foreignKeys = \DB::select("
                     SELECT CONSTRAINT_NAME 
                     FROM information_schema.KEY_COLUMN_USAGE 
                     WHERE TABLE_SCHEMA = DATABASE() 
-                    AND TABLE_NAME = 'simcard_transactions' 
+                    AND TABLE_NAME = 'datacard_transactions' 
                     AND REFERENCED_TABLE_NAME = 'projects'
                 ");
                 
                 foreach ($foreignKeys as $fk) {
                     try {
-                        \DB::statement("ALTER TABLE simcard_transactions DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
+                        \DB::statement("ALTER TABLE datacard_transactions DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
                     } catch (\Exception $e) {
                         // Foreign key might not exist, continue
                     }

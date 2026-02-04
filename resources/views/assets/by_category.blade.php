@@ -47,6 +47,8 @@
                                 <th>Warranty Start</th>
                                 <th>Expiry Date</th>
                                 <th>PO Number</th>
+                                <th>Vendor Name</th>
+                                <th>Value</th>
                                 <th>Serial Number</th>
                             </tr>
                         </thead>
@@ -60,6 +62,8 @@
                                     <td>{{ $asset->warranty_start ?? 'N/A' }}</td>
                                     <td>{{ $asset->expiry_date ?? 'N/A' }}</td>
                                     <td>{{ $asset->po_number ?? 'N/A' }}</td>
+                                    <td>{{ $asset->vendor_name ?? '-' }}</td>
+                                    <td>{{ $asset->value ? number_format($asset->value, 2) : '-' }}</td>
                                     <td>{{ $asset->serial_number ?? 'N/A' }}</td>
                                 </tr>
                             @endforeach

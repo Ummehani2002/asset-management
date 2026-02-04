@@ -63,7 +63,7 @@
         <div class="mb-3">
             <label class="form-label">Service Type</label>
             <select name="service_type" id="service_type" class="form-control">
-                <option value="simcard" {{ $internetService->service_type == 'simcard' ? 'selected' : '' }}>SIM Card</option>
+                <option value="datacard" {{ $internetService->service_type == 'datacard' ? 'selected' : '' }}>Data Card</option>
                 <option value="fixed"   {{ $internetService->service_type == 'fixed' ? 'selected' : '' }}>Fixed Internet</option>
                 <option value="service" {{ $internetService->service_type == 'service' ? 'selected' : '' }}>Other Service</option>
             </select>
@@ -71,8 +71,8 @@
 
         <input type="hidden" name="transaction_type" value="assign">
 
-        {{-- PR Number and PO Number (only for SIM Card) --}}
-        <div id="simcardFields" style="display: {{ $internetService->service_type == 'simcard' ? 'block' : 'none' }};">
+        {{-- PR Number and PO Number (only for Data Card) --}}
+        <div id="datacardFields" style="display: {{ $internetService->service_type == 'datacard' ? 'block' : 'none' }};">
             <div class="mb-3">
                 <label class="form-label">PR Number</label>
                 <input type="text" name="pr_number" class="form-control"
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const endDateInput = document.getElementById('service_end_date');
     const costInput = document.getElementById('cost');
     const serviceTypeSelect = document.getElementById('service_type');
-    const simcardFields = document.getElementById('simcardFields');
+    const datacardFields = document.getElementById('datacardFields');
     
     // Service selector - load service details when selected
     if (serviceSelector) {
@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     if (serviceTypeSelect) {
                         serviceTypeSelect.value = data.service_type || '';
-                        toggleSimcardFields(); // Update SIM card fields visibility
+                        toggleDatacardFields(); // Update data card fields visibility
                     }
                     if (document.querySelector(`input[name="pr_number"]`)) {
                         document.querySelector(`input[name="pr_number"]`).value = data.pr_number || '';
@@ -296,19 +296,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Show/hide PR and PO fields based on service type
-    function toggleSimcardFields() {
-        if (serviceTypeSelect.value === 'simcard') {
-            simcardFields.style.display = 'block';
+    function toggleDatacardFields() {
+        if (serviceTypeSelect.value === 'datacard') {
+            datacardFields.style.display = 'block';
         } else {
-            simcardFields.style.display = 'none';
+            datacardFields.style.display = 'none';
         }
     }
 
     // Initial check
-    toggleSimcardFields();
+    toggleDatacardFields();
 
     // Listen for service type changes
-    serviceTypeSelect.addEventListener('change', toggleSimcardFields);
+    serviceTypeSelect.addEventListener('change', toggleDatacardFields);
 
     const costInfo = document.getElementById('cost_info');
     

@@ -56,6 +56,8 @@
                                 <th>Warranty Start</th>
                                 <th>Expiry Date</th>
                                 <th>PO Number</th>
+                                <th>Vendor Name</th>
+                                <th>Value</th>
                                 <th>Serial Number</th>
                                 <th>Features</th>
                                 <th>Invoice</th>
@@ -77,6 +79,8 @@
                                     <td>{{ $asset->warranty_start ?? 'N/A' }}</td>
                                     <td>{{ $asset->expiry_date ?? 'N/A' }}</td>
                                     <td>{{ $asset->po_number ?? 'N/A' }}</td>
+                                    <td>{{ $asset->vendor_name ?? '-' }}</td>
+                                    <td>{{ $asset->value ? number_format($asset->value, 2) : '-' }}</td>
                                     <td>{{ $asset->serial_number ?? 'N/A' }}</td>
                                     <td>
                                         @if($asset->featureValues->count() > 0)
@@ -101,7 +105,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="11" class="text-center text-muted py-4">No assets found.</td>
+                                    <td colspan="13" class="text-center text-muted py-4">No assets found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

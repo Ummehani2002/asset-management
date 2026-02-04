@@ -175,6 +175,12 @@ public function edit($id)
 
     public function update(Request $request, $id)
 {
+    $employee = Employee::findOrFail($id);
+
+    if ($employee->is_active === false) {
+        return redirect()->route('employees.index')->with('error', 'Cannot update inactive employee. Employee details are locked after returning all assets.');
+    }
+
     $request->validate([
         'email'           => 'nullable|email|max:100',
         'phone'           => 'nullable|string|max:20',
@@ -183,7 +189,6 @@ public function edit($id)
         'designation'     => 'nullable|string|max:100',
     ]);
 
-    $employee = Employee::findOrFail($id);
     $employee->email = $request->input('email');
     $employee->phone = $request->input('phone');
     $employee->entity_name = $request->input('entity_name');

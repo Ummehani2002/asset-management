@@ -127,7 +127,7 @@
 
         {{-- Location (for Laptop only) --}}
         <div class="mb-3" id="location_section" style="display:none;">
-            <label for="location_id">Location</label>
+            <label for="location_id">Location <span class="text-danger" id="location_required">*</span></label>
             <select name="location_id" id="location_id" class="form-control">
                 <option value="">Select Location</option>
                 @foreach($locations as $loc)
@@ -152,9 +152,9 @@
             
             <div class="mb-3 mt-3">
                 <label for="assign_image" class="form-label">
-                    <i class="bi bi-camera me-2"></i>Upload Asset Image <small class="text-muted">(optional)</small>
+                    <i class="bi bi-camera me-2"></i>Upload Asset Image <span class="text-danger">*</span>
                 </label>
-                <input type="file" name="assign_image" id="assign_image" class="form-control" accept="image/*">
+                <input type="file" name="assign_image" id="assign_image" class="form-control" accept="image/*" required>
                 <small class="text-muted">Upload an image of the asset during assignment (Max: 5MB, Formats: JPG, PNG, GIF)</small>
                 @if(isset($transaction) && $transaction->assign_image)
                     <div class="mt-2">
@@ -346,12 +346,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (txType === 'assign') {
             assignFields.style.display = 'block';
-            // Show appropriate fields based on category
-            updateEmployeeSectionVisibility();
             // Ensure location is shown for laptop
             if (currentCategory.toLowerCase() === 'laptop') {
                 locationSection.style.display = 'block';
+                document.getElementById('location_id').required = true;
+                if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
             }
+            // Show appropriate fields based on category
+            updateEmployeeSectionVisibility();
         } else if (txType === 'return') {
             returnFields.style.display = 'block';
             // Hide employee dropdown for return transactions
@@ -445,6 +447,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // For Laptop: Show employee and location
             if (txType === 'assign') {
                 locationSection.style.display = 'block';
+                document.getElementById('location_id').required = true;
+                if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
                 
                 // Auto-fill employee if available and assigning
                 if (data.current_employee_id && txType === 'assign') {
@@ -461,6 +465,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (categoryLower === 'printer') {
             // For Printer: Show project name
             locationSection.style.display = 'none';
+            document.getElementById('location_id').required = false;
+            if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
             
             // Auto-fill project if available
             if (data.current_project_name && txType === 'assign') {
@@ -471,6 +477,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // For other categories
             locationSection.style.display = 'none';
+            document.getElementById('location_id').required = false;
+            if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
         }
         
         // Update visibility based on transaction type and category
@@ -536,8 +544,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (document.getElementById('project_name')) {
                     document.getElementById('project_name').required = false;
                 }
-                // Show location for laptop
+                // Show location for laptop (required)
                 locationSection.style.display = 'block';
+                document.getElementById('location_id').required = true;
+                if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
             } else if (categoryLower === 'printer') {
                 employeeSection.style.display = 'none';
                 if (projectSection) projectSection.style.display = 'block';
@@ -552,6 +562,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('employee_required').style.display = 'none';
                 }
                 locationSection.style.display = 'none';
+                document.getElementById('location_id').required = false;
+                if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
             }
         }
     }
@@ -577,6 +589,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideAssignmentFields() {
         employeeSection.style.display = 'none';
         locationSection.style.display = 'none';
+        document.getElementById('location_id').required = false;
+        if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
         if (transactionTypeInfoWrapper) transactionTypeInfoWrapper.style.display = 'none';
         assignFields.style.display = 'none';
         returnFields.style.display = 'none';
@@ -658,9 +672,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const assignImage = document.getElementById('assign_image');
             
             if (txType === 'assign') {
-                // For assign, make sure assign date is required; image is optional
+                // For assign, make sure assign fields are required
                 if (issueDate) issueDate.required = true;
-                if (assignImage) assignImage.required = false;
+                if (assignImage) assignImage.required = true;
                 // Remove required from return fields
                 if (returnDate) returnDate.required = false;
             } else if (txType === 'return') {

@@ -56,21 +56,47 @@ public function showAssets($id)
 
 public function export($id, Request $request)
 {
-    $employee = Employee::with(['assetTransactions.asset.category', 'assetTransactions.asset.brand', 'assetTransactions.location'])
-        ->findOrFail($id);
+    $employee = Employee::findOrFail($id);
 
-    $assets = $employee->assetTransactions->map(function ($txn) {
+    // Use same logic as AssetController::getAssetsByEmployee - only currently assigned assets
+    $assignedAssets = Asset::where('status', 'assigned')
+        ->with(['category', 'brand', 'latestTransaction.location'])
+        ->get()
+        ->filter(function ($asset) use ($id) {
+            $latestTxn = $asset->latestTransaction;
+            return $latestTxn
+                && $latestTxn->transaction_type === 'assign'
+                && $latestTxn->employee_id == $id;
+        });
+
+    $assets = $assignedAssets->map(function ($asset) {
+        $latestTxn = $asset->latestTransaction;
+        // Get location: prefer latest assign txn, fallback to any recent assign txn with location
+        $locationName = '-';
+        if ($latestTxn && $latestTxn->location) {
+            $locationName = $latestTxn->location->location_name;
+        } else {
+            $txnWithLocation = AssetTransaction::where('asset_id', $asset->id)
+                ->where('transaction_type', 'assign')
+                ->whereNotNull('location_id')
+                ->with('location')
+                ->latest()
+                ->first();
+            if ($txnWithLocation && $txnWithLocation->location) {
+                $locationName = $txnWithLocation->location->location_name;
+            }
+        }
         return [
-            'asset_id' => $txn->asset->asset_id ?? '-',
-            'category' => $txn->asset->category->category_name ?? '-',
-            'brand' => $txn->asset->brand->name ?? '-',
-            'serial_number' => $txn->asset->serial_number ?? '-',
-            'po_number' => $txn->asset->po_number ?? '-',
-            'location' => $txn->location->location_name ?? '-',
-            'issue_date' => $txn->issue_date ?? '-',
-            'status' => ucfirst($txn->transaction_type ?? 'N/A'),
+            'asset_id' => $asset->asset_id ?? '-',
+            'category' => $asset->category ? $asset->category->category_name : '-',
+            'brand' => $asset->brand ? $asset->brand->name : '-',
+            'serial_number' => $asset->serial_number ?? '-',
+            'po_number' => $asset->po_number ?? '-',
+            'location' => $locationName,
+            'issue_date' => $latestTxn ? ($latestTxn->issue_date ?? '-') : '-',
+            'status' => ucfirst($asset->status ?? 'N/A'),
         ];
-    });
+    })->values();
 
     $format = $request->get('format', 'pdf');
     $employeeName = $employee->name ?? $employee->entity_name ?? 'Employee';

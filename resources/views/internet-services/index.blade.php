@@ -43,17 +43,13 @@
             <div class="row">
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Search</label>
-                    <div class="position-relative" id="isSearchWrap">
-                        <input type="text" name="search" id="isSearchInput" class="form-control" placeholder="Type project, account number..." value="{{ request('search') }}" autocomplete="off">
-                        <div id="isSearchDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
-                    </div>
-                    <small class="text-muted">Start typing to see suggestions.</small>
+                    <input type="text" name="search" class="form-control" placeholder="Search by project, account number..." value="{{ request('search') }}">
                 </div>
                 <div class="col-md-2 mb-3">
                     <label class="form-label">Service Type</label>
                     <select name="service_type" class="form-control">
                         <option value="">All Types</option>
-                        <option value="simcard" {{ request('service_type') == 'simcard' ? 'selected' : '' }}>SIM Card</option>
+                        <option value="datacard" {{ request('service_type') == 'datacard' ? 'selected' : '' }}>Data Card</option>
                         <option value="fixed" {{ request('service_type') == 'fixed' ? 'selected' : '' }}>Fixed Service</option>
                         <option value="service" {{ request('service_type') == 'service' ? 'selected' : '' }}>Out Sourced</option>
                     </select>
@@ -157,6 +153,10 @@
                                                 <i class="bi bi-arrow-return-left"></i> Return
                                             </a>
                                         @endif
+                                        <a href="{{ route('internet-services.download-form', $service->id) }}" 
+                                           class="btn btn-sm btn-outline-primary" title="Download Form (PDF)" target="_blank">
+                                            <i class="bi bi-download"></i>
+                                        </a>
                                         <a href="{{ route('internet-services.edit', $service->id) }}" 
                                            class="btn btn-sm btn-warning" title="Edit">
                                             <i class="bi bi-pencil"></i>
@@ -194,40 +194,4 @@
         
     @endif
 </div>
-<script>
-(function() {
-    var input = document.getElementById('isSearchInput');
-    var dropdown = document.getElementById('isSearchDropdown');
-    var wrap = document.getElementById('isSearchWrap');
-    var form = document.getElementById('searchForm');
-    var debounceTimer = null;
-    if (!input || !dropdown) return;
-    function hide() { dropdown.style.display = 'none'; dropdown.innerHTML = ''; }
-    function show(items) {
-        if (!items || items.length === 0) { dropdown.innerHTML = '<div class="list-group-item text-muted">No suggestions</div>'; }
-        else {
-            dropdown.innerHTML = items.map(function(item) {
-                var val = (item.value || '').replace(/"/g, '&quot;');
-                return '<a href="#" class="list-group-item list-group-item-action is-sugg" data-value="' + val + '">' + (item.label || item.value) + '</a>';
-            }).join('');
-        }
-        dropdown.style.display = 'block';
-    }
-    input.addEventListener('input', function() {
-        var q = (input.value || '').trim();
-        clearTimeout(debounceTimer);
-        if (q.length < 1) { hide(); return; }
-        debounceTimer = setTimeout(function() {
-            fetch('{{ route("internet-services.searchSuggestions") }}?query=' + encodeURIComponent(q))
-                .then(function(r) { return r.json(); }).then(show).catch(hide);
-        }, 200);
-    });
-    dropdown.addEventListener('click', function(e) {
-        var el = e.target.closest('.is-sugg');
-        if (el) { e.preventDefault(); input.value = el.getAttribute('data-value'); hide(); form.submit(); }
-    });
-    document.addEventListener('click', function(e) { if (wrap && !wrap.contains(e.target)) hide(); });
-    input.addEventListener('keydown', function(e) { if (e.key === 'Escape') hide(); });
-})();
-</script>
 @endsection

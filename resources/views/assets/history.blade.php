@@ -10,7 +10,7 @@
                     <h2 class="h4 mb-1">
                         <i class="bi bi-clock-history me-2"></i>Asset History
                     </h2>
-                    <p class="mb-0 opacity-90">Assignments, returns, and maintenance for this asset</p>
+                    <p class="mb-0 opacity-90">Assign/Return and System Maintenance history for this asset</p>
                 </div>
                 <a href="{{ route('assets.index') }}" class="btn btn-outline-light btn-sm">
                     <i class="bi bi-arrow-left me-1"></i>Back to Assets
@@ -25,28 +25,43 @@
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-3">
+                <div class="col-md-3 col-6 mb-2">
                     <strong>Asset ID</strong><br>
                     <span class="text-primary">{{ $asset->asset_id ?? 'N/A' }}</span>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3 col-6 mb-2">
                     <strong>Serial Number</strong><br>
                     {{ $asset->serial_number ?? 'N/A' }}
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3 col-6 mb-2">
                     <strong>Category</strong><br>
                     {{ optional($asset->category)->category_name ?? 'N/A' }}
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3 col-6 mb-2">
                     <strong>Brand</strong><br>
                     {{ optional($asset->brand)->name ?? 'N/A' }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-6 mb-2">
+                    <strong>Entity</strong><br>
+                    @php
+                        $latestAssign = $assignReturnHistory->where('transaction_type', 'assign')->last();
+                        $currentEntity = $latestAssign ? ($latestAssign->entity_name ?? '-') : '-';
+                    @endphp
+                    {{ $currentEntity }}
+                </div>
+                <div class="col-md-3 col-6 mb-2">
+                    <strong>Asset Manager</strong><br>
+                    @php
+                        $currentAssetManager = $latestAssign ? ($latestAssign->asset_manager_name ?? '-') : '-';
+                    @endphp
+                    {{ $currentAssetManager }}
+                </div>
+                <div class="col-md-3 col-6 mb-2">
                     <strong>Current Status</strong><br>
                     @php
-                        $status = $asset->status ?? 'available';
-                        $statusLabel = $status === 'assigned' ? 'Assigned' : ($status === 'under_maintenance' ? 'Under Maintenance' : 'Available / Returned');
-                        $statusClass = $status === 'assigned' ? 'info' : ($status === 'under_maintenance' ? 'warning' : 'success');
+                        $latest = $assignReturnHistory->last();
+                        $statusLabel = $latest ? ($latest->transaction_type === 'return' ? 'Returned / Available' : 'Assigned') : ($asset->status ? ucfirst(str_replace('_', ' ', $asset->status)) : 'No transactions yet');
+                        $statusClass = $latest && $latest->transaction_type === 'return' ? 'success' : 'info';
                     @endphp
                     <span class="badge bg-{{ $statusClass }}">{{ $statusLabel }}</span>
                 </div>
@@ -54,105 +69,92 @@
         </div>
     </div>
 
-    {{-- Timeline: Assign → Return / Maintenance → Assign → … --}}
-    <div class="card">
+    {{-- Assign & Return - Tabular form --}}
+    <div class="card mb-4">
         <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="bi bi-arrow-down-up me-2"></i>Transaction Timeline</h5>
+            <h5 class="mb-0"><i class="bi bi-arrow-down-up me-2"></i>Assign & Return History</h5>
         </div>
-        <div class="card-body">
-            @if($history->isEmpty())
-                <p class="text-center text-muted py-4 mb-0">No transaction history found for this asset.</p>
+        <div class="card-body p-0">
+            @if($assignReturnHistory->isEmpty())
+                <p class="text-center text-muted py-4 mb-0">No assign or return history for this asset.</p>
             @else
-                <div class="timeline-flow">
-                    @foreach($history as $index => $txn)
-                        @php
-                            $step = $index + 1;
-                            $type = $txn->transaction_type ?? '';
-                            $isAssign = $type === 'assign';
-                            $isReturn = $type === 'return';
-                            $isMaintenance = $type === 'system_maintenance';
-                            $eventDate = $txn->return_date ?? $txn->issue_date ?? $txn->receive_date ?? $txn->created_at;
-                            $dateFormatted = $eventDate ? (is_object($eventDate) ? $eventDate->format('d-m-Y') : \Carbon\Carbon::parse($eventDate)->format('d-m-Y')) : 'N/A';
-                            $badgeClass = $isAssign ? 'bg-primary' : ($isMaintenance ? 'bg-warning text-dark' : 'bg-secondary');
-                            $borderClass = $isAssign ? 'border-primary' : ($isMaintenance ? 'border-warning' : 'border-secondary');
-                        @endphp
-                        <div class="d-flex align-items-start mb-4 {{ $loop->last ? '' : 'pb-3' }}">
-                            <div class="flex-shrink-0 me-3">
-                                <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold {{ $badgeClass }} text-white" style="width: 36px; height: 36px; font-size: 14px;">
-                                    {{ $step }}
-                                </span>
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="card border {{ $borderClass }}" style="border-left-width: 4px !important;">
-                                    <div class="card-body py-3">
-                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                            <span class="badge {{ $badgeClass }}">
-                                                @if($isAssign)
-                                                    Assigned
-                                                @elseif($isMaintenance)
-                                                    Maintenance
-                                                @else
-                                                    Returned
-                                                @endif
-                                            </span>
-                                            <span class="text-muted small">{{ $dateFormatted }}</span>
-                                        </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Type</th>
+                                <th>Date</th>
+                                <th>Employee</th>
+                                <th>Entity</th>
+                                <th>Asset Manager</th>
+                                <th>Project</th>
+                                <th>Location</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($assignReturnHistory as $index => $txn)
+                                @php
+                                    $isAssign = ($txn->transaction_type ?? '') === 'assign';
+                                    $eventDate = $txn->return_date ?? $txn->issue_date;
+                                    $dateFormatted = $eventDate ? (is_object($eventDate) ? $eventDate->format('d-m-Y') : \Carbon\Carbon::parse($eventDate)->format('d-m-Y')) : 'N/A';
+                                @endphp
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td><span class="badge {{ $isAssign ? 'bg-primary' : 'bg-secondary' }}">{{ $isAssign ? 'Assigned' : 'Returned' }}</span></td>
+                                    <td>{{ $dateFormatted }}</td>
+                                    <td>{{ $txn->employee->name ?? $txn->assigned_to ?? '-' }}</td>
+                                    <td>{{ $txn->entity_name ?? '-' }}</td>
+                                    <td>{{ $txn->asset_manager_name ?? '-' }}</td>
+                                    <td>{{ $txn->project_name ?? '-' }}</td>
+                                    <td>{{ $txn->location->location_name ?? '-' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+    </div>
 
-                                        @if($isAssign)
-                                            <p class="mb-1">
-                                                <strong>Issued to:</strong>
-                                                {{ $txn->employee->name ?? $txn->employee->entity_name ?? $txn->assigned_to ?? 'N/A' }}
-                                                @if($txn->employee && ($txn->employee->employee_id ?? null))
-                                                    <span class="text-muted small">(ID: {{ $txn->employee->employee_id }})</span>
-                                                @endif
-                                            </p>
-                                            <p class="mb-1 small">
-                                                <strong>Issue date:</strong> {{ $txn->issue_date ? \Carbon\Carbon::parse($txn->issue_date)->format('d-m-Y') : 'N/A' }}
-                                            </p>
-                                            @if($txn->project_name)
-                                                <p class="mb-1 small"><strong>Project:</strong> {{ $txn->project_name }}</p>
-                                            @endif
-                                            @if($txn->location)
-                                                <p class="mb-0 small"><strong>Location:</strong> {{ $txn->location->location_name ?? 'N/A' }}</p>
-                                            @endif
-
-                                        @elseif($isReturn)
-                                            <p class="mb-1">
-                                                <strong>Returned on:</strong> {{ $txn->return_date ? \Carbon\Carbon::parse($txn->return_date)->format('d-m-Y') : 'N/A' }}
-                                            </p>
-                                            @if($txn->employee)
-                                                <p class="mb-0 small text-muted">Returned from: {{ $txn->employee->name ?? $txn->employee->entity_name ?? 'N/A' }}</p>
-                                            @endif
-
-                                        @elseif($isMaintenance)
-                                            <p class="mb-1">
-                                                <strong>Sent for maintenance:</strong> {{ $txn->receive_date ? \Carbon\Carbon::parse($txn->receive_date)->format('d-m-Y') : 'N/A' }}
-                                            </p>
-                                            @if($txn->employee)
-                                                <p class="mb-1 small text-muted">Previously assigned to: {{ $txn->employee->name ?? $txn->employee->entity_name ?? 'N/A' }}</p>
-                                            @endif
-                                            @if(!empty($txn->repair_type))
-                                                <p class="mb-1 small"><strong>Repair type:</strong> {{ $txn->repair_type }}</p>
-                                            @endif
-                                            @if(!empty($txn->maintenance_notes))
-                                                <p class="mb-1 small"><strong>Notes:</strong> {{ $txn->maintenance_notes }}</p>
-                                            @endif
-                                            @if(!empty($txn->delivery_date))
-                                                <p class="mb-0 small"><strong>Returned from maintenance:</strong> {{ \Carbon\Carbon::parse($txn->delivery_date)->format('d-m-Y') }}</p>
-                                            @else
-                                                <p class="mb-0 small text-muted">(Not yet returned from maintenance)</p>
-                                            @endif
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                            @if(!$loop->last)
-                                <div class="flex-shrink-0 mx-2 d-none d-md-block" style="width: 24px; align-self: stretch;">
-                                    <div class="bg-light rounded d-block mx-auto" style="width: 2px; height: 100%; min-height: 24px;"></div>
-                                </div>
-                            @endif
-                        </div>
-                    @endforeach
+    {{-- System Maintenance - Tabular form with remarks --}}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="bi bi-wrench me-2"></i>System Maintenance History</h5>
+        </div>
+        <div class="card-body p-0">
+            @if($maintenanceHistory->isEmpty())
+                <p class="text-center text-muted py-4 mb-0">No maintenance history for this asset.</p>
+            @else
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Receive Date</th>
+                                <th>Delivery Date</th>
+                                <th>Repair Type</th>
+                                <th>Remarks</th>
+                                <th>Maintenance Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($maintenanceHistory as $index => $txn)
+                                @php
+                                    $receiveFormatted = $txn->receive_date ? (is_object($txn->receive_date) ? $txn->receive_date->format('d-m-Y') : \Carbon\Carbon::parse($txn->receive_date)->format('d-m-Y')) : '-';
+                                    $deliveryFormatted = $txn->delivery_date ? (is_object($txn->delivery_date) ? $txn->delivery_date->format('d-m-Y') : \Carbon\Carbon::parse($txn->delivery_date)->format('d-m-Y')) : '-';
+                                @endphp
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td>{{ $receiveFormatted }}</td>
+                                    <td>{{ $deliveryFormatted }}</td>
+                                    <td>{{ $txn->repair_type ?? '-' }}</td>
+                                    <td>{{ $txn->remarks ?? '-' }}</td>
+                                    <td>{{ $txn->maintenance_notes ?? '-' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
             @endif
         </div>

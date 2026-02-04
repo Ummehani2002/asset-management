@@ -18,68 +18,6 @@ use Illuminate\Support\Collection;
 
 class AssetTransactionController extends Controller
 {
-    /** Apply scope so asset managers only see their entity's transactions. No-op for admins. */
-    private function scopeByAssetManagerEntities($query): void
-    {
-        if (!auth()->check()) {
-            return;
-        }
-        $entityNames = auth()->user()->getManagedEntityNames();
-        if ($entityNames !== null) {
-            $query->whereHas('employee', function ($q) use ($entityNames) {
-                $q->whereIn('entity_name', $entityNames);
-            });
-        }
-    }
-
-    public function searchSuggestions(Request $request)
-    {
-        $query = trim($request->get('query', ''));
-        if (strlen($query) < 1) {
-            return response()->json([]);
-        }
-        $suggestions = collect([]);
-        $q = $query;
-        if (Schema::hasTable('assets')) {
-            Asset::where('serial_number', 'like', "%{$q}%")
-                ->orWhere('asset_id', 'like', "%{$q}%")
-                ->take(5)
-                ->get(['serial_number', 'asset_id'])
-                ->each(function ($a) use (&$suggestions) {
-                    $val = $a->serial_number ?? $a->asset_id;
-                    if ($val && !$suggestions->contains('value', $val)) {
-                        $suggestions->push(['value' => $val, 'label' => ($val) . ' (Asset)']);
-                    }
-                });
-        }
-        if (Schema::hasTable('employees')) {
-            Employee::where('name', 'like', "%{$q}%")
-                ->orWhere('entity_name', 'like', "%{$q}%")
-                ->orWhere('employee_id', 'like', "%{$q}%")
-                ->take(5)
-                ->get(['name', 'entity_name', 'employee_id'])
-                ->each(function ($e) use (&$suggestions) {
-                    $val = $e->name ?? $e->entity_name ?? $e->employee_id;
-                    if ($val && !$suggestions->contains('value', $val)) {
-                        $suggestions->push(['value' => $val, 'label' => $val . ' (Employee)']);
-                    }
-                });
-        }
-        if (Schema::hasTable('projects')) {
-            Project::where('project_name', 'like', "%{$q}%")
-                ->orWhere('project_id', 'like', "%{$q}%")
-                ->take(5)
-                ->get(['project_name', 'project_id'])
-                ->each(function ($p) use (&$suggestions) {
-                    $val = $p->project_name ?? $p->project_id;
-                    if ($val && !$suggestions->contains('value', $val)) {
-                        $suggestions->push(['value' => $val, 'label' => $val . ' (Project)']);
-                    }
-                });
-        }
-        return response()->json($suggestions->take(15)->values()->toArray());
-    }
-
     public function index(Request $request)
     {
         try {
@@ -242,12 +180,9 @@ class AssetTransactionController extends Controller
             });
         }
 
-        $this->scopeByAssetManagerEntities($query);
-
         $transactions = $query->orderByDesc('created_at')->paginate(25);
-        $managedEntityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
 
-        return view('asset_transactions.index', compact('transactions', 'managedEntityNames'));
+        return view('asset_transactions.index', compact('transactions'));
         } catch (\Exception $e) {
             Log::error('AssetTransaction index error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -385,8 +320,6 @@ class AssetTransactionController extends Controller
                     break;
             }
         }
-
-        $this->scopeByAssetManagerEntities($query);
 
         $transactions = $query->orderByDesc('created_at')->paginate(25);
         $currentFilter = $request->get('filter', '');
@@ -530,8 +463,6 @@ class AssetTransactionController extends Controller
             }
         }
 
-        $this->scopeByAssetManagerEntities($query);
-
         $transactions = $query->orderByDesc('created_at')->get();
         $format = $request->get('format', 'pdf');
         $assetStatus = $downloadAll ? 'all' : ($request->get('asset_status', 'all'));
@@ -656,15 +587,10 @@ class AssetTransactionController extends Controller
                 }
             }
             
-            // Get employees (restrict to managed entities when user is an asset manager)
+            // Get employees
             if ($hasEmployees) {
                 try {
-                    $entityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
-                    $employeeQuery = Employee::orderBy('name')->orderBy('entity_name');
-                    if ($entityNames !== null) {
-                        $employeeQuery->whereIn('entity_name', $entityNames);
-                    }
-                    $employees = $employeeQuery->get();
+                    $employees = Employee::all();
                     if (!$employees instanceof \Illuminate\Support\Collection) {
                         $employees = collect($employees);
                     }
@@ -743,23 +669,12 @@ class AssetTransactionController extends Controller
 
         $asset = Asset::with('assetCategory')->findOrFail($request->asset_id);
         $latest = $asset->latestTransaction;
-
+        
         // Validate that asset is assigned
         if ($asset->status !== 'assigned') {
             throw ValidationException::withMessages([
                 'asset_id' => 'Only assigned assets can be sent for maintenance. Current status: ' . ucfirst($asset->status ?? 'unknown'),
             ]);
-        }
-
-        // Asset manager: only allow maintenance for assets assigned to employees in their managed entities
-        $entityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
-        if ($entityNames !== null && $latest && $latest->employee_id) {
-            $employee = Employee::find($latest->employee_id);
-            if (!$employee || !in_array($employee->entity_name ?? '', $entityNames)) {
-                throw ValidationException::withMessages([
-                    'asset_id' => 'You can only send for maintenance assets assigned to employees in your managed entity/entities.',
-                ]);
-            }
         }
 
         // Get employee from latest assignment
@@ -819,7 +734,7 @@ class AssetTransactionController extends Controller
 
         $asset = Asset::with('assetCategory')->findOrFail($request->asset_id);
         $latest = $asset->latestTransaction;
-
+        
         // Validate that asset is under maintenance
         if ($asset->status !== 'under_maintenance') {
             throw ValidationException::withMessages([
@@ -833,8 +748,8 @@ class AssetTransactionController extends Controller
         $projectName = null;
         $locationId = null;
         
-        // Only need previous assignment for 'reassign' and 'maintenance' actions
-        if (in_array($request->action_type, ['reassign', 'maintenance'])) {
+        // Need previous assignment for 'reassign', 'maintenance', and 'return' (return: to mark employee inactive)
+        if (in_array($request->action_type, ['reassign', 'maintenance', 'return'])) {
             // Use the same logic as getAssetDetails method for consistency
             // Strategy 1: Find assignment before maintenance (exact same query as getAssetDetails)
             $beforeMaintenance = AssetTransaction::with('employee')
@@ -884,17 +799,6 @@ class AssetTransactionController extends Controller
                         }
                     }
                 }
-            }
-        }
-
-        // Asset manager: only allow actions on assets belonging to their managed entities
-        $entityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
-        if ($entityNames !== null && $employeeId) {
-            $employee = Employee::find($employeeId);
-            if (!$employee || !in_array($employee->entity_name ?? '', $entityNames)) {
-                throw ValidationException::withMessages([
-                    'asset_id' => 'You can only process assets for employees in your managed entity/entities.',
-                ]);
             }
         }
 
@@ -1007,6 +911,19 @@ class AssetTransactionController extends Controller
 
             $asset->update(['status' => 'available']);
             $successMessage = 'Asset returned successfully! Asset is now available.';
+
+            // Mark employee inactive if they have no other assigned assets
+            if ($employeeId) {
+                $employee = Employee::find($employeeId);
+                if ($employee) {
+                    $assignedCount = Asset::whereHas('latestTransaction', function ($q) use ($employeeId) {
+                        $q->where('employee_id', $employeeId)->where('transaction_type', 'assign');
+                    })->count();
+                    if ($assignedCount === 0) {
+                        $employee->update(['is_active' => false]);
+                    }
+                }
+            }
         }
 
         // Send email to employee (only for reassign and if employee exists)
@@ -1115,18 +1032,15 @@ class AssetTransactionController extends Controller
         $rules['employee_id'] = 'required|exists:employees,id';
     }
 
-    $request->validate($rules);
-
-    // Asset manager: only allow assign/return for employees in their managed entities
-    $entityNames = auth()->check() ? auth()->user()->getManagedEntityNames() : null;
-    if ($entityNames !== null && $request->employee_id) {
-        $employee = Employee::find($request->employee_id);
-        if (!$employee || !in_array($employee->entity_name ?? '', $entityNames)) {
-            throw ValidationException::withMessages([
-                'employee_id' => 'You can only assign or return assets for employees in your managed entity/entities.',
-            ]);
+    // Require location when assigning a laptop
+    if ($request->transaction_type === 'assign' && $request->asset_id) {
+        $assignAsset = Asset::with('assetCategory')->find($request->asset_id);
+        if ($assignAsset && $assignAsset->assetCategory && strtolower($assignAsset->assetCategory->category_name) === 'laptop') {
+            $rules['location_id'] = 'required|exists:locations,id';
         }
     }
+
+    $request->validate($rules);
 
     $asset   = Asset::with('assetCategory')->findOrFail($request->asset_id);
     $latest  = $asset->latestTransaction;
@@ -1176,6 +1090,24 @@ class AssetTransactionController extends Controller
         ]);
         
         \Log::info('Asset status updated to: ' . $status);
+
+        // 🔹 Update employee active status: mark inactive when returning last asset, active when assigning
+        $employeeId = $transactionData['employee_id'] ?? null;
+        if ($employeeId) {
+            $employee = Employee::find($employeeId);
+            if ($employee) {
+                if ($request->transaction_type === 'assign') {
+                    $employee->update(['is_active' => true]);
+                } elseif ($request->transaction_type === 'return') {
+                    $assignedCount = Asset::whereHas('latestTransaction', function ($q) use ($employeeId) {
+                        $q->where('employee_id', $employeeId)->where('transaction_type', 'assign');
+                    })->count();
+                    if ($assignedCount === 0) {
+                        $employee->update(['is_active' => false]);
+                    }
+                }
+            }
+        }
 
         // 🔹 Send email
         try {
@@ -1292,7 +1224,8 @@ class AssetTransactionController extends Controller
         return [
             'assigned_to_type' => 'employee',
             'employee_id' => $request->employee_id,
-            'project_name' => null,
+            'project_name' => $request->project_name ?: null,
+            'location_id' => $request->location_id ?: null,
         ];
     }
 

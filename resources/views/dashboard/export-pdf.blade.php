@@ -17,6 +17,7 @@
     <p>Generated on: {{ date('Y-m-d H:i:s') }}</p>
     <p><strong>Total Categories:</strong> {{ $categoryCounts->count() }}</p>
     <p><strong>Total Assets:</strong> {{ $categoryCounts->sum('assets_count') }}</p>
+    <p><strong>Available Assets:</strong> {{ $categoryCounts->sum('available_count') }}</p>
     
     <table>
         <thead>
@@ -24,6 +25,7 @@
                 <th>#</th>
                 <th>Category Name</th>
                 <th class="text-center">Total Assets</th>
+                <th class="text-center">Available</th>
             </tr>
         </thead>
         <tbody>
@@ -32,6 +34,7 @@
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $category->category_name }}</td>
                     <td class="text-center">{{ $category->assets_count }}</td>
+                    <td class="text-center">{{ $category->available_count ?? 0 }}</td>
                 </tr>
             @endforeach
         </tbody>

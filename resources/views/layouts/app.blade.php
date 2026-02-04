@@ -62,12 +62,12 @@
             font-size: 13px;
         }
 
-        /* Sidebar */
+        /* Sidebar - Golden and Blue only */
         .sidebar {
             width: 260px;
             background-color: var(--primary);
             padding-top: 20px;
-            color: #fff;
+            color: var(--secondary);
             position: fixed;
             top: 0;
             left: 0;
@@ -77,13 +77,13 @@
             z-index: 1000;
         }
 
-        /* Custom scrollbar for sidebar */
+        /* Custom scrollbar - golden */
         .sidebar::-webkit-scrollbar {
             width: 6px;
         }
 
         .sidebar::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(31, 42, 68, 0.5);
         }
 
         .sidebar::-webkit-scrollbar-thumb {
@@ -92,7 +92,7 @@
         }
 
         .sidebar::-webkit-scrollbar-thumb:hover {
-            background: rgba(198, 168, 125, 0.7);
+            background: rgba(198, 168, 125, 0.8);
         }
 
         .sidebar h4 {
@@ -101,9 +101,10 @@
             letter-spacing: 0.5px;
         }
 
+        /* Default: golden (all same) */
         .sidebar a,
         .sidebar button {
-            color: #EAECEF;
+            color: var(--secondary);
             text-decoration: none;
             display: block;
             padding: 10px 20px;
@@ -115,24 +116,61 @@
             font-size: 13px;
         }
 
+        /* Hover: white highlight */
         .sidebar a:hover,
         .sidebar button:hover {
-            background-color: var(--hover);
-            color: var(--secondary);
+            background-color: transparent;
+            color: #ffffff !important;
+            font-weight: 600;
         }
 
-        .collapse a {
+        .sidebar .collapse a {
             padding-left: 40px;
             font-size: 12px;
-            background-color: rgba(52, 152, 219, 0.15);
-            border-left: 3px solid #3498db;
-            color: #85c1e9;
+            background-color: transparent;
+            border-left: 3px solid rgba(198, 168, 125, 0.4);
+            color: var(--secondary) !important;
         }
 
-        .collapse a:hover {
-            background-color: rgba(52, 152, 219, 0.25);
-            color: #ffffff;
-            border-left-color: #5dade2;
+        .sidebar .collapse a:hover {
+            background-color: transparent;
+            color: #ffffff !important;
+            font-weight: 600;
+            border-left-color: #ffffff;
+        }
+
+        /* Sidebar: all items same - golden */
+        .sidebar .btn-outline-primary,
+        .sidebar .btn-outline-light,
+        .sidebar a,
+        .sidebar button {
+            border-color: rgba(198, 168, 125, 0.5) !important;
+            color: var(--secondary) !important;
+        }
+
+        .sidebar .btn-outline-primary:hover,
+        .sidebar .btn-outline-light:hover,
+        .sidebar a:hover,
+        .sidebar button:hover {
+            border-color: #ffffff !important;
+            color: #ffffff !important;
+            font-weight: 600;
+        }
+
+        .sidebar .btn-outline-danger:hover {
+            border-color: #ffffff !important;
+            color: #ffffff !important;
+        }
+
+        /* Logout: same golden as rest */
+        .sidebar .btn-outline-danger {
+            border-color: rgba(198, 168, 125, 0.5) !important;
+            color: var(--secondary) !important;
+        }
+
+        .sidebar .btn-outline-danger:hover {
+            border-color: var(--secondary) !important;
+            color: var(--secondary) !important;
         }
 
         /* Content */
@@ -692,7 +730,7 @@
 <div class="sidebar">
     {{-- Logo Section --}}
     <div class="text-center mb-4 pb-3" style="border-bottom: 1px solid rgba(198, 168, 125, 0.3); padding: 15px 10px;">
-        <div style="background: white; border-radius: 10px; padding: 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);">
+        <div style="background: #D4E4F7; border: 1px solid rgba(198, 168, 125, 0.5); border-radius: 10px; padding: 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);">
             <img src="{{ asset('images/logo.png') }}" alt="Tanseeq Logo" 
                  style="max-width: 100px; width: 100%; height: auto; display: block; margin-left: auto; margin-right: auto;"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -704,7 +742,7 @@
         </div>
  
     </div>
-    <h4 class="text-center mb-3" style="font-size: 16px; color: rgba(255,255,255,0.9);">Menu</h4>
+    <h4 class="text-center mb-3" style="font-size: 16px; color: var(--secondary);">Menu</h4>
    <a href="{{ route('dashboard') }}" class="btn btn-outline-primary mb-2">
     <i class="bi bi-speedometer2"></i> Dashboard
 </a>
@@ -850,8 +888,6 @@ data-bs-toggle="collapse"
 <a href="{{ route('internet-services.index') }}" class="btn btn-outline-primary mb-2">
     <i class="bi bi-wifi"></i> Internet Services
 </a>
-
-
 
 
 

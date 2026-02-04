@@ -12,27 +12,6 @@ use Illuminate\Support\Collection;
 
 class InternetServiceController extends Controller
 {
-    public function searchSuggestions(Request $request)
-    {
-        $query = trim($request->get('query', ''));
-        if (strlen($query) < 1 || !Schema::hasTable('internet_services')) {
-            return response()->json([]);
-        }
-        $services = InternetService::where('project_name', 'like', "%{$query}%")
-            ->orWhere('account_number', 'like', "%{$query}%")
-            ->orWhere('entity', 'like', "%{$query}%")
-            ->orWhere('person_in_charge', 'like', "%{$query}%")
-            ->orderBy('project_name')
-            ->take(15)
-            ->get(['id', 'project_name', 'account_number', 'entity', 'person_in_charge']);
-        $suggestions = $services->map(function ($s) {
-            $label = ($s->project_name ?? '') . ($s->account_number ? ' (' . $s->account_number . ')' : '');
-            $value = $s->project_name ?? $s->account_number ?? '';
-            return ['value' => $value, 'label' => $label ?: $value];
-        })->unique('value')->values()->toArray();
-        return response()->json($suggestions);
-    }
-
     // Display all internet services with search/filter
     public function index(Request $request)
     {
@@ -137,7 +116,7 @@ class InternetServiceController extends Controller
 
             $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
-            'service_type' => 'required|in:simcard,fixed,service',
+            'service_type' => 'required|in:datacard,fixed,service',
             'transaction_type' => 'nullable|in:assign,return',
             'account_number' => 'nullable|string|max:100',
             'service_start_date' => 'required|date',
@@ -279,7 +258,7 @@ class InternetServiceController extends Controller
         $validated = $request->validate([
             'entity' => 'required|string|max:255',
             'project_id' => 'required|exists:projects,id',
-            'service_type' => 'required|in:simcard,fixed,service',
+            'service_type' => 'required|in:datacard,fixed,service',
             'transaction_type' => 'nullable|in:assign,return',
             'account_number' => 'nullable|string|max:100',
             'service_start_date' => 'required|date',

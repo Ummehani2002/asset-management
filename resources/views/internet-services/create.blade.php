@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container">
-    <h3>Add Internet Service</h3>
+    <h3> Internet Service</h3>
 
     @if(session('success'))
         <div class="alert alert-success">
@@ -48,7 +48,7 @@
         <div class="mb-3">
             <label class="form-label">Service Type</label>
             <select name="service_type" id="service_type" class="form-control" required>
-                <option value="simcard">SIM Card</option>
+                <option value="datacard">Data Card</option>
                 <option value="fixed">Fixed Service</option>
                 <option value="service">Out Sourced</option>
             </select>
@@ -56,8 +56,8 @@
 
         <input type="hidden" name="transaction_type" value="assign">
 
-        {{-- PR Number and PO Number (only for SIM Card) --}}
-        <div id="simcardFields" style="display: none;">
+        {{-- PR Number and PO Number (only for Data Card) --}}
+        <div id="datacardFields" style="display: none;">
             <div class="mb-3">
                 <label class="form-label">PR Number</label>
                 <input type="text" name="pr_number" class="form-control" placeholder="Enter PR number">
@@ -158,19 +158,19 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const serviceTypeSelect = document.getElementById('service_type');
-    const simcardFields = document.getElementById('simcardFields');
+    const datacardFields = document.getElementById('datacardFields');
 
     // Show/hide PR and PO fields based on service type
-    function toggleSimcardFields() {
-        if (serviceTypeSelect.value === 'simcard') {
-            simcardFields.style.display = 'block';
+    function toggleDatacardFields() {
+        if (serviceTypeSelect.value === 'datacard') {
+            datacardFields.style.display = 'block';
         } else {
-            simcardFields.style.display = 'none';
+            datacardFields.style.display = 'none';
         }
     }
 
-    toggleSimcardFields();
-    serviceTypeSelect.addEventListener('change', toggleSimcardFields);
+    toggleDatacardFields();
+    serviceTypeSelect.addEventListener('change', toggleDatacardFields);
     
     // Auto-fill PM contact number
     const pmSelect = document.getElementById('project_manager_id');
