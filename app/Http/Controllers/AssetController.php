@@ -127,6 +127,56 @@ public function getFeaturesByBrand($brandId)
 }
 
 /**
+ * Get models by category (for asset create form)
+ */
+public function getModelsByCategory($categoryId)
+{
+    try {
+        $models = \App\Models\BrandModel::with('brand')
+            ->whereHas('brand', function ($q) use ($categoryId) {
+                $q->where('asset_category_id', $categoryId);
+            })
+            ->get()
+            ->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'brand_id' => $m->brand_id,
+                    'brand_name' => $m->brand->name ?? '',
+                    'model_number' => $m->model_number ?? '',
+                ];
+            });
+        return response()->json($models);
+    } catch (\Exception $e) {
+        Log::error('getModelsByCategory error: ' . $e->getMessage());
+        return response()->json([]);
+    }
+}
+
+/**
+ * Get feature values for a model (for asset create form autofill)
+ */
+public function getModelFeatureValues($modelId)
+{
+    try {
+        $values = \App\Models\ModelFeatureValue::where('brand_model_id', $modelId)->get();
+        $result = [];
+        foreach ($values as $fv) {
+            $val = $fv->feature_value;
+            $decoded = @json_decode($val, true);
+            if (is_array($decoded)) {
+                $result[$fv->category_feature_id] = $decoded;
+            } else {
+                $result[$fv->category_feature_id] = $val;
+            }
+        }
+        return response()->json($result);
+    } catch (\Exception $e) {
+        Log::error('getModelFeatureValues error: ' . $e->getMessage());
+        return response()->json([]);
+    }
+}
+
+/**
  * Get category prefix for asset ID generation
  */
 private function getCategoryPrefix($categoryName)
@@ -184,20 +234,21 @@ public function getNextAssetId($categoryId)
         }
         
         $prefix = $this->getCategoryPrefix($category->category_name);
+        $prefixLen = strlen($prefix);
         
-        // Get the last asset with this prefix
-        $lastAsset = Asset::where('asset_id', 'like', $prefix . '%')
-            ->orderByRaw('CAST(SUBSTRING(asset_id, ' . (strlen($prefix) + 1) . ') AS UNSIGNED) DESC')
-            ->first();
+        // Get all assets with this prefix - use portable approach for production compatibility
+        $assets = Asset::where('asset_id', 'like', $prefix . '%')->get();
         
-        if ($lastAsset) {
-            // Extract the number part
-            $numberPart = preg_replace('/[^0-9]/', '', substr($lastAsset->asset_id, strlen($prefix)));
-            $nextNumber = intval($numberPart) + 1;
-        } else {
-            $nextNumber = 1;
+        $maxNumber = 0;
+        foreach ($assets as $asset) {
+            $numPart = preg_replace('/[^0-9]/', '', substr($asset->asset_id, $prefixLen));
+            $num = intval($numPart);
+            if ($num > $maxNumber) {
+                $maxNumber = $num;
+            }
         }
         
+        $nextNumber = $maxNumber + 1;
         $nextAssetId = $prefix . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
         
         return response()->json(['asset_id' => $nextAssetId]);

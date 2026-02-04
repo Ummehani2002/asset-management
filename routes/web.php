@@ -71,11 +71,13 @@ use App\Http\Controllers\AssetController;
 Route::middleware(['auth'])->group(function () {
     Route::get('/employees/autocomplete', [EmployeeController::class, 'autocomplete'])->name('employees.autocomplete');
     Route::get('/employees/{id}/assets', [AssetController::class, 'getAssetsByEmployee'])->name('employees.assets');
-    Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeatures']);
+    Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeaturesByBrand']);
     Route::get('/assets/next-id/{categoryId}', [AssetController::class, 'getNextAssetId'])->name('assets.nextId');
     Route::get('/assets/autocomplete-serial', [AssetController::class, 'autocompleteSerialNumber'])->name('assets.autocompleteSerial');
+    Route::get('/models-by-category/{categoryId}', [AssetController::class, 'getModelsByCategory'])->name('assets.modelsByCategory');
+    Route::get('/model-feature-values/{modelId}', [AssetController::class, 'getModelFeatureValues'])->name('assets.modelFeatureValues');
 });
-Route::get('/assets/create', [AssetController::class, 'create'])->name('assets.create');
+Route::get('/assets/create', [AssetController::class, 'create'])->middleware('auth')->name('assets.create');
 Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
 Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
 

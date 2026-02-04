@@ -146,18 +146,18 @@ document.addEventListener('DOMContentLoaded', function() {
         $('input[name="asset_id"]').val('');
 
         if (categoryId) {
-            $.get(`/assets/next-id/${categoryId}`, function (response) {
+            $.get(`{{ url('assets/next-id') }}/${categoryId}`, function (response) {
                 if (response.asset_id) $('input[name="asset_id"]').val(response.asset_id);
-            }).fail(function() { console.error('Error generating asset ID'); });
+            }).fail(function(xhr) { console.error('Error generating asset ID', xhr.status, xhr.responseText); });
 
             // Load all models for this category (Brand - Model number)
-            $.get(`/models-by-category/${categoryId}`, function (models) {
+            $.get(`{{ url('models-by-category') }}/${categoryId}`, function (models) {
                 models.forEach(function (m) {
                     $('#brand_model').append($('<option></option>').attr('value', m.id).attr('data-brand-id', m.brand_id).text((m.brand_name || '') + ' - ' + (m.model_number || '')));
                 });
-            });
+            }).fail(function(xhr) { console.error('Error loading models', xhr.status, xhr.responseText); });
             // Load brands for this category (so we can set brand when model is selected)
-            $.get(`/brands/by-category/${categoryId}`, function (brands) {
+            $.get(`{{ url('brands/by-category') }}/${categoryId}`, function (brands) {
                 $('#brand').html('<option value="">-- Select Model first --</option>');
                 brands.forEach(function (b) {
                     $('#brand').append($('<option></option>').attr('value', b.id).text(b.name));
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#brand').val(brandId);
 
         // Load features for this brand (renders the inputs)
-        $.get(`/features/by-brand/${brandId}`, function (features) {
+        $.get(`{{ url('features/by-brand') }}/${brandId}`, function (features) {
             let html = '';
             features.forEach(function (feature) {
                 if (feature.sub_fields && Array.isArray(feature.sub_fields) && feature.sub_fields.length > 0) {
@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function() {
             $('#feature-fields').html(html);
 
             // Now fill with model's saved feature values and make fields read-only
-            $.get(`/model-feature-values/${modelId}`, function (values) {
+            $.get(`{{ url('model-feature-values') }}/${modelId}`, function (values) {
                 if (!values || typeof values !== 'object') { settingBrandFromModel = false; return; }
                 $.each(values, function (featureId, val) {
                     if (typeof val === 'string') {
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (brandId) $('#brand_model').val(''); // clear model when brand changed manually
         $('#feature-fields').html('');
         if (!brandId) return;
-        $.get(`/features/by-brand/${brandId}`, function (features) {
+        $.get(`{{ url('features/by-brand') }}/${brandId}`, function (features) {
             let html = '';
             features.forEach(function (feature) {
                 if (feature.sub_fields && Array.isArray(feature.sub_fields) && feature.sub_fields.length > 0) {
