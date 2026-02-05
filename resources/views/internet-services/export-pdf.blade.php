@@ -22,6 +22,7 @@
                 <th>Project</th>
                 <th>Entity</th>
                 <th>Service Type</th>
+                <th>Bandwidth</th>
                 <th>Transaction Type</th>
                 <th>Account Number</th>
                 <th>Start Date</th>
@@ -39,6 +40,7 @@
                     <td>{{ $service->project_name ?? 'N/A' }}</td>
                     <td>{{ $service->entity ?? 'N/A' }}</td>
                     <td>{{ ucfirst($service->service_type ?? 'N/A') }}</td>
+                    <td>{{ $service->bandwidth ?? 'N/A' }}</td>
                     <td>{{ ucfirst($service->transaction_type ?? 'N/A') }}</td>
                     <td>{{ $service->account_number ?? 'N/A' }}</td>
                     <td>{{ $service->service_start_date ? $service->service_start_date->format('Y-m-d') : 'N/A' }}</td>

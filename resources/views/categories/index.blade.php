@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
     <h2>Asset Categories</h2>
-    <a href="{{ route('categories.create') }}" class="btn btn-primary mb-3">Add Category</a>
+    <a href="{{ route('categories.create') }}" class="btn btn-primary mb-3">New Category</a>
 
     <table class="table table-bordered">
         <thead>

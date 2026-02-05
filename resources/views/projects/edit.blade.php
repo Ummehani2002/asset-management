@@ -44,7 +44,7 @@
 
         <div class="mb-3">
             <label class="form-label">Project Manager</label>
-            <select name="project_manager" class="form-control">
+            <select name="project_manager" class="form-control searchable-select" data-placeholder="Type to search...">
                 <option value="">-- Select Manager --</option>
                 @foreach($projectManagers ?? [] as $e)
                     <option value="{{ $e->name ?? $e->entity_name }}" 
@@ -57,7 +57,7 @@
 
         <div class="mb-3">
             <label class="form-label">PC Secretary</label>
-            <select name="pc_secretary" class="form-control">
+            <select name="pc_secretary" class="form-control searchable-select" data-placeholder="Type to search...">
                 <option value="">-- Select PC Secretary --</option>
                 @foreach($pcSecretaries ?? [] as $e)
                     <option value="{{ $e->name ?? $e->entity_name }}" 

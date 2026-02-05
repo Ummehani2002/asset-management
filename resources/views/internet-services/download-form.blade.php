@@ -27,6 +27,10 @@
             <td>{{ ucfirst($internetService->service_type ?? 'N/A') }}</td>
         </tr>
         <tr>
+            <td><strong>Bandwidth</strong></td>
+            <td>{{ $internetService->bandwidth ?? 'N/A' }}</td>
+        </tr>
+        <tr>
             <td><strong>Transaction Type</strong></td>
             <td>{{ ucfirst($internetService->transaction_type ?? 'N/A') }}</td>
         </tr>

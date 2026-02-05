@@ -3,7 +3,7 @@
 
 @section('content')
 <div class="container">
-    <h3>Add Project</h3>
+    <h3>New  Project</h3>
 
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
@@ -40,12 +40,12 @@
                     <option value="{{ $ent }}" @if(old('entity') == $ent) selected @endif>{{ ucwords($ent) }}</option>
                 @endforeach
             </select>
-            <small class="text-muted">Entities are managed in Entity Master.</small>
+     
         </div>
 
         <div class="mb-3">
             <label class="form-label">Project Manager</label>
-            <select name="project_manager" class="form-control">
+            <select name="project_manager" class="form-control searchable-select" data-placeholder="Type to search...">
                 <option value="">-- Select Manager --</option>
                 @foreach($projectManagers ?? [] as $e)
                     <option value="{{ $e->name ?? $e->entity_name }}" @if(old('project_manager') == ($e->name ?? $e->entity_name)) selected @endif>
@@ -53,12 +53,12 @@
                     </option>
                 @endforeach
             </select>
-            <small class="text-muted">Only employees with designation "Project Manager" are listed.</small>
+        
         </div>
 
         <div class="mb-3">
             <label class="form-label">PC Secretary</label>
-            <select name="pc_secretary" class="form-control">
+            <select name="pc_secretary" class="form-control searchable-select" data-placeholder="Type to search...">
                 <option value="">-- Select PC Secretary --</option>
                 @foreach($pcSecretaries ?? [] as $e)
                     <option value="{{ $e->name ?? $e->entity_name }}" @if(old('pc_secretary') == ($e->name ?? $e->entity_name)) selected @endif>
@@ -66,7 +66,7 @@
                     </option>
                 @endforeach
             </select>
-            <small class="text-muted">Only employees with designation "PC Secretary" (or Secretary) are listed.</small>
+       
         </div>
 
         <button type="submit" class="btn btn-primary">Save Project</button>

@@ -698,18 +698,41 @@ class AssetTransactionController extends Controller
             return $am;
         });
         $pendingApprovals = collect([]);
+        $allPendingAssignments = collect([]);
         if (auth()->user()?->employee_id) {
-            $pendingApprovals = MaintenanceAssignment::with(['asset.assetCategory', 'assetTransaction.employee', 'assignedBy'])
+            $pendingApprovals = MaintenanceAssignment::with(['asset.assetCategory', 'assetTransaction.employee', 'assetTransaction.location', 'assignedBy', 'assignedTo'])
                 ->where('assigned_to_employee_id', auth()->user()->employee_id)
                 ->where('status', 'pending')
                 ->orderByDesc('created_at')
                 ->get();
-            $pendingApprovals->each(function ($pa) {
-                $pa->asset_entity = $pa->assetTransaction?->employee?->entity_name ? ucwords($pa->assetTransaction->employee->entity_name) : '-';
-                $pa->assigned_by_entities = Entity::where('asset_manager_id', $pa->assigned_by_employee_id)->pluck('name')->map(fn($n) => ucwords($n))->join(', ') ?: '-';
-            });
         }
-        return view('asset_transactions.maintenance', compact('categories', 'entities', 'assetManagers', 'pendingApprovals'));
+        // All pending assignments - visible to everyone for transparency
+        $allPendingAssignments = MaintenanceAssignment::with(['asset.assetCategory', 'assetTransaction.employee', 'assetTransaction.location', 'assignedBy', 'assignedTo'])
+            ->where('status', 'pending')
+            ->orderByDesc('created_at')
+            ->get();
+        $enrichAssignment = function ($pa) {
+            $txn = $pa->assetTransaction;
+            $entityName = null;
+            if ($txn && $txn->location_id) {
+                $loc = $txn->relationLoaded('location') ? $txn->location : Location::find($txn->location_id);
+                if ($loc && !empty($loc->location_entity)) {
+                    $entityName = ucwords(trim($loc->location_entity));
+                }
+            }
+            if (!$entityName && $txn && $txn->employee_id) {
+                $entityName = $txn->employee?->entity_name ? ucwords($txn->employee->entity_name) : null;
+            }
+            $pa->asset_entity = $entityName ?? '-';
+            $pa->assigned_by_entities = Entity::where('asset_manager_id', $pa->assigned_by_employee_id)->pluck('name')->map(fn($n) => ucwords($n))->join(', ') ?: '-';
+            $pa->assigned_to_name = $pa->assignedTo?->name ?? $pa->assignedTo?->entity_name ?? 'N/A';
+        };
+        $pendingApprovals->each($enrichAssignment);
+        $allPendingAssignments->each($enrichAssignment);
+        // Only asset managers (assigned in Entity Master) can delegate to another AM when busy
+        $currentUserIsAssetManager = auth()->user()?->employee_id && $assetManagers->contains('id', auth()->user()->employee_id);
+        $canDelegateToOthers = $currentUserIsAssetManager && $assetManagers->where('id', '!=', auth()->user()->employee_id)->isNotEmpty();
+        return view('asset_transactions.maintenance', compact('categories', 'entities', 'assetManagers', 'pendingApprovals', 'allPendingAssignments', 'canDelegateToOthers'));
     }
 
     public function maintenanceStore(Request $request)
@@ -1565,24 +1588,39 @@ private function sendAssetEmail($transaction)
             'available_transactions' => []
         ];
 
-        // Helper: resolve entity and asset manager from location (primary) or employee (fallback)
-        // Location entity is linked with location name - use it as source of truth
-        $resolveEntityAndAssetManager = function ($transaction) {
+        // Helper: resolve entity and asset manager from the ASSIGNMENT's location (same as Assign form)
+        // For Return/Maintenance: use location from assign transaction, or from asset when transaction has no location_id
+        $resolveEntityAndAssetManager = function ($transaction, $asset = null) {
             $entityName = null;
             $location = null;
             if ($transaction && $transaction->location_id) {
                 $location = $transaction->relationLoaded('location') ? $transaction->location : Location::find($transaction->location_id);
-                if ($location && !empty($location->location_entity)) {
+                if ($location && !empty(trim($location->location_entity ?? ''))) {
                     $entityName = trim($location->location_entity);
                 }
             }
+            // Fallback: transaction has no location_id - try asset's location (e.g. from backfill or old assigns)
+            if (!$location && $asset && !empty($asset->location_id)) {
+                $location = Location::where('location_id', $asset->location_id)->first();
+                if ($location && !empty(trim($location->location_entity ?? ''))) {
+                    $entityName = trim($location->location_entity);
+                }
+            }
+            // Only fall back to employee when we have NO location (e.g. printer, old data)
             if (!$entityName && $transaction && $transaction->employee_id) {
                 $entityName = $transaction->employee?->entity_name ?? null;
             }
             if (!$entityName) {
                 return [null, null, null, null, null, null];
             }
-            $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower(trim($entityName))])->with('assetManager')->first();
+            $search = strtolower(trim($entityName));
+            $entity = Entity::whereRaw('LOWER(name) = ?', [$search])->with('assetManager')->first();
+            if (!$entity) {
+                $entity = Entity::whereRaw('LOWER(name) LIKE ?', [$search . '%'])->with('assetManager')->orderBy('name')->first();
+            }
+            if (!$entity) {
+                $entity = Entity::whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])->with('assetManager')->orderBy('name')->first();
+            }
             if (!$entity) {
                 return [ucwords($entityName), null, null, null, null, null];
             }
@@ -1606,7 +1644,7 @@ private function sendAssetEmail($transaction)
             $data['current_project_name'] = $latestTransaction->project_name;
             $data['current_location_id'] = $latestTransaction->location_id;
 
-            list($entityDisplay, $entityId, $amId, $amName, $amEmpId, $location) = $resolveEntityAndAssetManager($latestTransaction);
+            list($entityDisplay, $entityId, $amId, $amName, $amEmpId, $location) = $resolveEntityAndAssetManager($latestTransaction, $asset);
             $data['asset_manager_id'] = $amId;
             $data['asset_manager_name'] = $amName;
             $data['asset_manager_employee_id'] = $amEmpId ?? null;
@@ -1643,7 +1681,7 @@ private function sendAssetEmail($transaction)
                 $data['current_employee_entity'] = $beforeMaintenance->employee?->entity_name ?? null;
                 $data['current_location_id'] = $beforeMaintenance->location_id;
                 // Use location entity (linked with location) for asset manager
-                list($entityDisplay, $entityId, $amId, $amName, $amEmpId, $location) = $resolveEntityAndAssetManager($beforeMaintenance);
+                list($entityDisplay, $entityId, $amId, $amName, $amEmpId, $location) = $resolveEntityAndAssetManager($beforeMaintenance, $asset);
                 $data['asset_manager_id'] = $amId;
                 $data['asset_manager_name'] = $amName;
                 $data['asset_manager_employee_id'] = $amEmpId ?? null;

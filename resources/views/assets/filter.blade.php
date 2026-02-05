@@ -5,7 +5,7 @@
     <!-- Page Header -->
     <div class="page-header">
         <h2><i class="bi bi-funnel me-2"></i>Filter Assets</h2>
-        <p>Search assets by category and/or serial number</p>
+      
     </div>
 
     @if(session('success'))
@@ -49,7 +49,7 @@
                 </button>
             </div>
         </div>
-        <small class="text-muted d-block mt-2">Type in serial number to see matching options. Use category, serial number, or both to filter.</small>
+       
     </div>
 
     {{-- Assets Table (shown only when category is selected) --}}
@@ -85,11 +85,12 @@
                                 <th>Features</th>
                                 <th>Invoice</th>
                                 <th>History</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="assetsTableBody">
                             <tr>
-                                <td colspan="13" class="text-center text-muted py-4">Select a category or type a serial number, then click Search.</td>
+                                <td colspan="14" class="text-center text-muted py-4">Select a category or type a serial number, then click Search.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -194,6 +195,20 @@
                         </a>`;
                     }
 
+                    // Delete button
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    const deleteUrl = '{{ url("assets") }}/' + asset.id;
+                    let deleteHtml = '';
+                    if (asset.id) {
+                        deleteHtml = `<form action="${deleteUrl}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this asset? This will also delete all related transactions.');">
+                            <input type="hidden" name="_token" value="${csrfToken}">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>`;
+                    }
+
                     tableBody.append(`
                         <tr>
                             <td>${index + 1}</td>
@@ -209,13 +224,14 @@
                             <td>${featuresHtml}</td>
                             <td>${invoiceHtml}</td>
                             <td>${historyHtml}</td>
+                            <td>${deleteHtml}</td>
                         </tr>
                     `);
                 });
                 $('#assets-section').show();
                 $('#downloadDropdown').show();
             } else {
-                tableBody.append('<tr><td colspan="13" class="text-center text-muted py-4">No assets found in this category.</td></tr>');
+                tableBody.append('<tr><td colspan="14" class="text-center text-muted py-4">No assets found in this category.</td></tr>');
                 $('#assets-section').show();
                 $('#downloadDropdown').hide();
             }

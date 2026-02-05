@@ -86,6 +86,21 @@ public function filter()
     }
 }
 
+public function destroy(Asset $asset)
+{
+    try {
+        // Delete invoice file if exists
+        if ($asset->invoice_path && Storage::disk('public')->exists($asset->invoice_path)) {
+            Storage::disk('public')->delete($asset->invoice_path);
+        }
+        $asset->delete();
+        return redirect()->back()->with('success', 'Asset deleted successfully.');
+    } catch (\Exception $e) {
+        Log::error('Asset destroy error: ' . $e->getMessage());
+        return redirect()->back()->with('error', 'Failed to delete asset.');
+    }
+}
+
 public function create()
 {
     try {

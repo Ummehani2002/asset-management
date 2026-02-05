@@ -39,7 +39,7 @@
                 <option value="assign" @if(old('transaction_type', $transaction->transaction_type ?? '') == 'assign') selected @endif>Assign</option>
                 <option value="return" @if(old('transaction_type', $transaction->transaction_type ?? '') == 'return') selected @endif>Return</option>
             </select>
-            <small class="text-muted">Choose Assign to give the asset to an employee, or Return to take it back.</small>
+           
         </div>
 
         {{-- 2. Asset Category (after transaction type) --}}
@@ -54,7 +54,7 @@
                     </option>
                 @endforeach
             </select>
-            <small class="text-muted">Select the category of the asset from Asset Master.</small>
+         
         </div>
 
         {{-- 3. Asset (Serial Number) – dropdown from Asset Master of that category --}}
@@ -138,7 +138,7 @@
                     </option>
                 @endforeach
             </select>
-            <small class="text-muted">Select entity to filter locations, or select location to auto-fill entity below.</small>
+           
         </div>
 
         {{-- Location (for Laptop only) --}}
@@ -560,34 +560,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Hide employee dropdown for return transactions
             employeeSection.style.display = 'none';
             employeeAutoFillInfo.textContent = '';
+            // Update employee + entity/AM display (from asset's location)
+            updateEmployeeSectionVisibility();
             
-            // Show employee display section with auto-filled details
             const employeeIdField = document.getElementById('employee_id');
             const employeeReturnField = document.getElementById('employee_id_return');
             const assetId = document.getElementById('asset_id') ? document.getElementById('asset_id').value : '';
             
-            // Try to get employee_id from assetDetails first
-            let employeeId = null;
-            let employeeName = null;
-            let employeeEntity = null;
-            
-            if (assetDetails && assetDetails.current_employee_id) {
-                employeeId = assetDetails.current_employee_id;
-                employeeName = assetDetails.current_employee_name;
-                employeeEntity = assetDetails.current_employee_entity;
-            }
-            
-            // If we have employee_id, set it
-            if (employeeId) {
-                employeeDisplaySection.style.display = 'block';
-                document.getElementById('display_employee_name').textContent = employeeName || 'N/A';
-                document.getElementById('display_employee_id').textContent = employeeId || 'N/A';
-                document.getElementById('display_employee_entity').textContent = employeeEntity || 'N/A';
-                // Set both employee_id and employee_id_return (both are needed for return)
-                if (employeeIdField) employeeIdField.value = employeeId;
-                if (employeeReturnField) employeeReturnField.value = employeeId;
-                console.log('Set employee_id and employee_id_return in transaction type handler:', employeeId);
-            } else if (assetId) {
+            // If no assetDetails yet, fetch to get employee + entity/AM
+            if (!assetDetails && assetId) {
                 // Fetch employee_id from asset if not in assetDetails
                 console.log('Fetching employee_id from asset for return transaction...');
                 fetch(`/asset-transactions/get-asset-details/${assetId}`)
@@ -608,15 +589,26 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (employeeReturnField) employeeReturnField.value = '';
                             console.warn('No employee_id found in asset details');
                         }
+                        // Entity & Asset Manager (same card as Assign)
+                        if (data.asset_manager_entity || data.location_entity || data.asset_manager_name) {
+                            if (entityDisplaySection) entityDisplaySection.style.display = 'block';
+                            document.getElementById('display_entity_name').textContent = data.asset_manager_entity || data.location_entity || '-';
+                            document.getElementById('display_asset_manager').textContent = data.asset_manager_name 
+                                ? data.asset_manager_name + (data.asset_manager_employee_id ? ' (' + data.asset_manager_employee_id + ')' : '')
+                                : 'N/A';
+                        } else if (entityDisplaySection) entityDisplaySection.style.display = 'none';
+                        updateEmployeeSectionVisibility();
                     })
                     .catch(err => {
                         console.error('Error fetching asset details:', err);
                         employeeDisplaySection.style.display = 'none';
+                        if (entityDisplaySection) entityDisplaySection.style.display = 'none';
                         if (employeeIdField) employeeIdField.value = '';
                         if (employeeReturnField) employeeReturnField.value = '';
                     });
-            } else {
+            } else if (!assetId) {
                 employeeDisplaySection.style.display = 'none';
+                if (entityDisplaySection) entityDisplaySection.style.display = 'none';
                 if (employeeIdField) employeeIdField.value = '';
                 if (employeeReturnField) employeeReturnField.value = '';
             }
@@ -737,6 +729,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 employeeDisplaySection.style.display = 'none';
                 if (employeeIdField) employeeIdField.value = '';
                 if (employeeReturnField) employeeReturnField.value = '';
+            }
+            // Show Entity & Asset Manager (same card as Assign) - from asset's location
+            if (assetDetails && (assetDetails.asset_manager_entity || assetDetails.location_entity || assetDetails.asset_manager_name)) {
+                if (entityDisplaySection) entityDisplaySection.style.display = 'block';
+                document.getElementById('display_entity_name').textContent = assetDetails.asset_manager_entity || assetDetails.location_entity || '-';
+                document.getElementById('display_asset_manager').textContent = assetDetails.asset_manager_name 
+                    ? assetDetails.asset_manager_name + (assetDetails.asset_manager_employee_id ? ' (' + assetDetails.asset_manager_employee_id + ')' : '')
+                    : 'N/A';
+            } else if (entityDisplaySection) {
+                entityDisplaySection.style.display = 'none';
             }
         } else if (txType === 'assign') {
             // Hide employee display section for assign

@@ -32,29 +32,25 @@
         <div class="mb-3">
             <label>Role <span class="text-danger">*</span></label>
             <select name="role" class="form-control" required>
-                <option value="user" {{ old('role', $user->role ?? 'user') == 'user' ? 'selected' : '' }}>User</option>
+                @php $roleVal = in_array($user->role ?? '', ['user','asset_manager']) ? 'user' : ($user->role ?? 'user'); @endphp
+                <option value="user" {{ old('role', $roleVal) == 'user' ? 'selected' : '' }}>User</option>
                 <option value="admin" {{ old('role', $user->role ?? 'user') == 'admin' ? 'selected' : '' }}>Admin</option>
-                <option value="asset_manager" {{ old('role', $user->role ?? 'user') == 'asset_manager' ? 'selected' : '' }}>Asset Manager</option>
             </select>
-            <small class="text-muted">Admin: full access. Asset Manager: access to all masters + can assign/approve maintenance. User: limited access.</small>
+           
         </div>
 
-        <div class="mb-3">
-            <label>Link to Employee (for Asset Manager)</label>
-            <select name="employee_id" class="form-control">
-                <option value="">-- No employee link --</option>
-                @foreach($employees ?? [] as $emp)
-                    <option value="{{ $emp->id }}" {{ old('employee_id', $user->employee_id) == $emp->id ? 'selected' : '' }}>
-                        {{ $emp->name ?? $emp->entity_name ?? 'N/A' }} ({{ $emp->employee_id ?? '' }})
-                    </option>
-                @endforeach
-            </select>
-            <small class="text-muted">When this user is set as Asset Manager for an entity (in Asset Manager), they will only see and manage that entity's assets.</small>
-        </div>
+
 
         <button type="submit" class="btn btn-primary">Update User</button>
         <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
             <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
+    </form>
+    <form action="{{ route('users.destroy', $user->id) }}" method="POST" class="d-inline mt-2" onsubmit="return confirm('Are you sure you want to delete this user?');">
+        @csrf
+        @method('DELETE')
+        <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash me-1"></i>Delete User
         </button>
     </form>
 </div>

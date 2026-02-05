@@ -142,11 +142,7 @@
             </div>
         @endif
     @else
-        <div class="alert alert-info text-center">
-            <i class="bi bi-search display-4 d-block mb-3"></i>
-            <h4>Search for Employees</h4>
-            <p>Enter a search term above to find employees by name, ID, entity, or email.</p>
-        </div>
+      
     @endif
 </div>
 

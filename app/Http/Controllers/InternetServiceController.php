@@ -115,8 +115,10 @@ class InternetServiceController extends Controller
             }
 
             $validated = $request->validate([
+            'entity' => 'required|string|max:255',
             'project_id' => 'required|exists:projects,id',
             'service_type' => 'required|in:datacard,fixed,service',
+            'bandwidth' => 'nullable|string|max:100',
             'transaction_type' => 'nullable|in:assign,return',
             'account_number' => 'nullable|string|max:100',
             'service_start_date' => 'required|date',
@@ -232,8 +234,10 @@ class InternetServiceController extends Controller
         
         return response()->json([
             'id' => $service->id,
+            'entity' => $service->entity,
             'project_id' => $service->project_id,
             'service_type' => $service->service_type,
+            'bandwidth' => $service->bandwidth,
             'transaction_type' => $service->transaction_type,
             'pr_number' => $service->pr_number,
             'po_number' => $service->po_number,
@@ -243,8 +247,10 @@ class InternetServiceController extends Controller
             'service_end_date' => $service->service_end_date ? $service->service_end_date->format('Y-m-d') : null,
             'cost' => $service->cost,
             'person_in_charge_id' => $service->person_in_charge_id,
+            'project_manager_id' => $service->project_manager_id,
             'project_manager' => $service->project_manager,
             'pm_contact_number' => $service->pm_contact_number,
+            'document_controller_id' => $service->document_controller_id,
             'document_controller' => $service->document_controller,
             'document_controller_number' => $service->document_controller_number,
             'status' => $service->status,
@@ -259,6 +265,7 @@ class InternetServiceController extends Controller
             'entity' => 'required|string|max:255',
             'project_id' => 'required|exists:projects,id',
             'service_type' => 'required|in:datacard,fixed,service',
+            'bandwidth' => 'nullable|string|max:100',
             'transaction_type' => 'nullable|in:assign,return',
             'account_number' => 'nullable|string|max:100',
             'service_start_date' => 'required|date',
@@ -438,7 +445,7 @@ class InternetServiceController extends Controller
             
             // Headers
             fputcsv($file, [
-                '#', 'Project', 'Entity', 'Service Type', 'Transaction Type', 
+                '#', 'Project', 'Entity', 'Service Type', 'Bandwidth', 'Transaction Type', 
                 'Account Number', 'Start Date', 'End Date', 'Person in Charge', 
                 'PM Contact', 'Document Controller', 'Document Controller Number',
                 'MRC', 'Cost', 'PR Number', 'PO Number', 'Status'
@@ -451,6 +458,7 @@ class InternetServiceController extends Controller
                     $service->project_name ?? 'N/A',
                     $service->entity ?? 'N/A',
                     ucfirst($service->service_type ?? 'N/A'),
+                    $service->bandwidth ?? 'N/A',
                     ucfirst($service->transaction_type ?? 'N/A'),
                     $service->account_number ?? 'N/A',
                     $service->service_start_date ? $service->service_start_date->format('Y-m-d') : 'N/A',

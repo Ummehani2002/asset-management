@@ -33,13 +33,13 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Employee ID</label>
                     <input type="text" value="{{ $employee->employee_id }}" class="form-control bg-light" readonly disabled>
-                    <small class="text-muted">Employee ID cannot be changed.</small>
+               
                 </div>
 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Name</label>
                     <input type="text" value="{{ $employee->name ?? $employee->entity_name }}" class="form-control bg-light" readonly disabled>
-                    <small class="text-muted">Name cannot be changed.</small>
+                   
                 </div>
 
                 <div class="col-md-6 mb-3">
@@ -56,7 +56,7 @@
 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Entity Name</label>
-                    <select name="entity_name" class="form-control" {{ $employee->is_active === false ? 'disabled' : '' }}>
+                    <select name="entity_name" class="form-control searchable-select" data-placeholder="Type to search..." {{ $employee->is_active === false ? 'disabled' : '' }}>
                         <option value="">-- Select Entity --</option>
                         @foreach(\App\Helpers\EntityHelper::getEntities() as $ent)
                             <option value="{{ $ent }}" {{ old('entity_name', $employee->entity_name) == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>

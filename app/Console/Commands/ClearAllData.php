@@ -23,7 +23,7 @@ class ClearAllData extends Command
     protected $description = 'Clear all data from database tables (preserves table structure)';
 
     /**
-     * Tables to exclude from clearing (system tables)
+     * Tables to exclude from clearing (system tables + employees/entities)
      */
     protected $excludedTables = [
         'migrations',
@@ -34,6 +34,8 @@ class ClearAllData extends Command
         'jobs',
         'job_batches',
         'failed_jobs',
+        'employees',   // Preserve Excel-imported employees
+        'entities',    // Preserve entity list
     ];
 
     /**

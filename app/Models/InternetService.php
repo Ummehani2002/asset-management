@@ -14,6 +14,7 @@ class InternetService extends Model
         'project_name',
         'entity',
         'service_type',
+        'bandwidth',
         'transaction_type',
         'account_number',
         'service_start_date',

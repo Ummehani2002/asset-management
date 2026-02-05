@@ -251,7 +251,7 @@ class IssueNoteController extends Controller
             return response()->json(['error' => 'Employee not found'], 404);
         }
 
-        // Get location from employee's latest asset transaction
+        // Get location from employee's latest asset transaction (location name with entity)
         $latestTransaction = \App\Models\AssetTransaction::where('employee_id', $id)
             ->where('transaction_type', 'assign')
             ->whereNotNull('location_id')
@@ -259,9 +259,19 @@ class IssueNoteController extends Controller
             ->latest('issue_date')
             ->first();
         
-        $location = $latestTransaction && $latestTransaction->location 
-            ? $latestTransaction->location->location_name 
-            : 'N/A';
+        $location = 'N/A';
+        if ($latestTransaction && $latestTransaction->location) {
+            $loc = $latestTransaction->location;
+            $locName = trim($loc->location_name ?? '');
+            $locEntity = trim($loc->location_entity ?? '');
+            if ($locName && $locEntity) {
+                $location = $locName . ' (' . $locEntity . ')';
+            } elseif ($locName) {
+                $location = $locName;
+            } elseif ($locEntity) {
+                $location = $locEntity;
+            }
+        }
 
         return response()->json([
             'name' => $employee->name ?? $employee->entity_name,

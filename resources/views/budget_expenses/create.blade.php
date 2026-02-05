@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container">
-    <h2>Add Budget Expense</h2>
+    <h2>New Budget Expense</h2>
 
     <div id="flash-placeholder">
         @if(session('success'))

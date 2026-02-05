@@ -177,6 +177,7 @@ Route::get('/asset-transactions/get-latest-employee/{asset}', [AssetTransactionC
 // Asset filters - All users can filter/view
 Route::middleware(['auth'])->group(function () {
     Route::get('/assets/filter', [AssetController::class, 'filter'])->name('assets.filter');
+    Route::delete('/assets/{asset}', [AssetController::class, 'destroy'])->name('assets.destroy');
 });
 Route::get('/get-asset-full-details/{asset_id}', [AssetController::class, 'getFullDetails']);
 

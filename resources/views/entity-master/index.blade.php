@@ -29,13 +29,13 @@
 
     {{-- New Entity Form --}}
     <div class="master-form-card">
-        <h5 class="mb-3" style="color: var(--primary); font-weight: 600;">Add Entity Manually</h5>
+        <h5 class="mb-3" style="color: var(--primary); font-weight: 600;">New Entity</h5>
         <form method="POST" action="{{ route('entity-master.store') }}" autocomplete="off">
             @csrf
             <div class="row">
                 <div class="col-md-10 mb-3">
                     <label class="form-label">Entity Name <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" value="{{ old('name') }}" placeholder="e.g. Proscape, Water in Motion" required>
+                    <input type="text" name="name" class="form-control" value="{{ old('name') }}"  required>
                 </div>
                 <div class="col-md-2 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-success w-100">

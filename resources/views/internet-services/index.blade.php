@@ -12,7 +12,7 @@
                 <p>Manage internet service subscriptions and accounts</p>
             </div>
             <a href="{{ route('internet-services.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-2"></i>Add New Internet Service
+                <i class="bi bi-plus-circle me-2"></i> New Internet Service
             </a>
         </div>
     </div>
@@ -103,6 +103,7 @@
                                 <th>Project</th>
                                 <th>Entity</th>
                                 <th>Service Type</th>
+                                <th>Bandwidth</th>
                                 <th>Account No.</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
@@ -125,6 +126,7 @@
                                             {{ ucfirst($service->service_type ?? 'N/A') }}
                                         </span>
                                     </td>
+                                    <td>{{ $service->bandwidth ?? 'N/A' }}</td>
                                     <td>
                                         @if($service->account_number)
                                             <span class="text-danger fw-semibold">{{ $service->account_number }}</span>

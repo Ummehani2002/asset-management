@@ -69,6 +69,12 @@
             </select>
         </div>
 
+        {{-- Bandwidth --}}
+        <div class="mb-3">
+            <label class="form-label">Bandwidth</label>
+            <input type="text" name="bandwidth" class="form-control" value="{{ old('bandwidth', $internetService->bandwidth) }}" placeholder="e.g. 100 Mbps, 50 Mbps">
+        </div>
+
         <input type="hidden" name="transaction_type" value="assign">
 
         {{-- PR Number and PO Number (only for Data Card) --}}
@@ -126,7 +132,7 @@
         {{-- Person in Charge --}}
         <div class="mb-3">
             <label class="form-label">Person in Charge</label>
-            <select name="person_in_charge_id" class="form-control">
+            <select name="person_in_charge_id" class="form-control employee-select" data-placeholder="Type to search...">
                 @foreach ($employees as $emp)
                     <option value="{{ $emp->id }}" 
                         {{ $internetService->person_in_charge == $emp->name ? 'selected' : '' }}>
@@ -139,7 +145,7 @@
         {{-- Project Manager --}}
         <div class="mb-3">
             <label class="form-label">Project Manager</label>
-            <select name="project_manager_id" id="project_manager_id" class="form-control">
+            <select name="project_manager_id" id="project_manager_id" class="form-control employee-select" data-placeholder="Type to search...">
                 <option value="">-- Select Project Manager --</option>
                 @foreach ($employees as $emp)
                     <option value="{{ $emp->id }}" 
@@ -161,7 +167,7 @@
         {{-- Document Controller --}}
         <div class="mb-3">
             <label class="form-label">Document Controller</label>
-            <select name="document_controller_id" id="document_controller_id" class="form-control">
+            <select name="document_controller_id" id="document_controller_id" class="form-control employee-select" data-placeholder="Type to search...">
                 <option value="">-- Select Document Controller --</option>
                 @foreach ($employees as $emp)
                     <option value="{{ $emp->id }}" 
@@ -225,12 +231,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     // Fill all form fields
+                    if (document.querySelector(`select[name="entity"]`)) {
+                        document.querySelector(`select[name="entity"]`).value = data.entity || '';
+                    }
                     if (document.querySelector(`select[name="project_id"]`)) {
                         document.querySelector(`select[name="project_id"]`).value = data.project_id || '';
                     }
                     if (serviceTypeSelect) {
                         serviceTypeSelect.value = data.service_type || '';
                         toggleDatacardFields(); // Update data card fields visibility
+                    }
+                    if (document.querySelector(`input[name="bandwidth"]`)) {
+                        document.querySelector(`input[name="bandwidth"]`).value = data.bandwidth || '';
                     }
                     if (document.querySelector(`input[name="pr_number"]`)) {
                         document.querySelector(`input[name="pr_number"]`).value = data.pr_number || '';
@@ -267,14 +279,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (document.querySelector(`select[name="person_in_charge_id"]`)) {
                         document.querySelector(`select[name="person_in_charge_id"]`).value = data.person_in_charge_id || '';
                     }
-                    if (document.querySelector(`input[name="project_manager"]`)) {
-                        document.querySelector(`input[name="project_manager"]`).value = data.project_manager || '';
+                    if (document.querySelector(`select[name="project_manager_id"]`)) {
+                        document.querySelector(`select[name="project_manager_id"]`).value = data.project_manager_id || '';
                     }
                     if (document.querySelector(`input[name="pm_contact_number"]`)) {
                         document.querySelector(`input[name="pm_contact_number"]`).value = data.pm_contact_number || '';
                     }
-                    if (document.querySelector(`input[name="document_controller"]`)) {
-                        document.querySelector(`input[name="document_controller"]`).value = data.document_controller || '';
+                    if (document.querySelector(`select[name="document_controller_id"]`)) {
+                        document.querySelector(`select[name="document_controller_id"]`).value = data.document_controller_id || '';
                     }
                     if (document.querySelector(`input[name="document_controller_number"]`)) {
                         document.querySelector(`input[name="document_controller_number"]`).value = data.document_controller_number || '';
@@ -282,6 +294,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (document.querySelector(`select[name="status"]`)) {
                         document.querySelector(`select[name="status"]`).value = data.status || 'active';
                     }
+                    
+                    // Sync Tom Select instances after setting values
+                    document.querySelectorAll('.employee-select').forEach(function(el) {
+                        if (el.tomselect) el.tomselect.sync();
+                    });
                     
                     // Trigger cost calculation
                     calculateCost();

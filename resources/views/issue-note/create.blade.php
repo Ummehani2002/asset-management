@@ -31,7 +31,7 @@
         <div class="row">
             <div class="col-md-3">
                 <label>Employee Name</label>
-                <select name="employee_id" id="employee_id" class="form-control">
+                <select name="employee_id" id="employee_id" class="form-control employee-select" data-placeholder="Type to search...">
                     <option value="">-- Select Employee --</option>
                     @foreach ($employees as $emp)
                         <option value="{{ $emp->id }}">{{ $emp->name ?? $emp->entity_name }}</option>

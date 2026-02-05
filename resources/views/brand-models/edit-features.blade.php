@@ -13,13 +13,13 @@
         </div>
     @endif
 
-    <div class="alert alert-info mb-3">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Type all feature values for this model here.</strong> When you add a new asset and select this model in Asset Master, these values will automatically fill in (you can still change them per asset).
+ 
+
+       
     </div>
     <div class="master-form-card">
         <h5 class="mb-3">Feature values for model &ldquo;{{ $model->model_number }}&rdquo;</h5>
-        <p class="text-muted small mb-3">Fill in every field you want to auto-fill in Asset Master. Leave blank if not needed.</p>
+       
         <form action="{{ route('brand-models.update-feature-values', $model->id) }}" method="POST" autocomplete="off">
             @csrf
             @foreach($features as $feature)

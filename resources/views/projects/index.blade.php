@@ -49,7 +49,7 @@
                         <input type="text" name="search" id="searchProject" class="form-control" placeholder="Type project ID or name..." value="{{ request('search') }}" autocomplete="off">
                         <div id="projectDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
                     </div>
-                    <small class="text-muted">Start typing to see matching projects.</small>
+                 
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Entity</label>

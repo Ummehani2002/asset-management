@@ -26,7 +26,7 @@
 
         <div class="mb-3">
             <label for="employee_id" class="form-label">Employee <span class="text-danger">*</span></label>
-            <select name="employee_id" id="employee_id" class="form-control" required>
+            <select name="employee_id" id="employee_id" class="form-control employee-select" required data-placeholder="Type to search...">
                 <option value="">-- Select Employee --</option>
                 @foreach($employees as $emp)
                     <option value="{{ $emp->id }}">{{ $emp->name }} ({{ $emp->email }})</option>

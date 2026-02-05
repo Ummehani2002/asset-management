@@ -32,7 +32,7 @@
                             <option value="{{ $ent }}" {{ request('entity') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
                         @endforeach
                     </select>
-                    <small class="text-muted">Select an entity to see its locations.</small>
+                 
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Search (optional)</label>
@@ -40,7 +40,7 @@
                         <input type="text" name="search" id="locationSearchInput" class="form-control" placeholder="Type location ID, name, or category..." value="{{ request('search') }}" autocomplete="off">
                         <div id="locationSearchDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
                     </div>
-                    <small class="text-muted">Start typing to see matching locations.</small>
+                
                 </div>
                 <div class="col-md-4 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">
@@ -121,11 +121,7 @@
             </div>
         </div>
     @else
-        <div class="alert alert-info text-center">
-            <i class="bi bi-funnel display-4 d-block mb-3"></i>
-            <h4>Search Locations by Entity</h4>
-            <p>Select an entity above and click Search to view locations for that entity.</p>
-        </div>
+      
     @endif
 </div>
 <script>

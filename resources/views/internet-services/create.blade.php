@@ -54,6 +54,12 @@
             </select>
         </div>
 
+        {{-- Bandwidth --}}
+        <div class="mb-3">
+            <label class="form-label">Bandwidth</label>
+            <input type="text" name="bandwidth" class="form-control" placeholder="e.g. 100 Mbps, 50 Mbps">
+        </div>
+
         <input type="hidden" name="transaction_type" value="assign">
 
         {{-- PR Number and PO Number (only for Data Card) --}}
@@ -91,7 +97,7 @@
         {{-- Person in Charge (Employee) --}}
         <div class="mb-3">
             <label class="form-label">Person in Charge</label>
-            <select name="person_in_charge_id" class="form-control" required>
+            <select name="person_in_charge_id" class="form-control employee-select" required data-placeholder="Type to search...">
                 @foreach ($employees as $emp)
                     <option value="{{ $emp->id }}">
                         {{ $emp->name }} ({{ $emp->phone }})
@@ -103,7 +109,7 @@
         {{-- Project Manager --}}
         <div class="mb-3">
             <label class="form-label">Project Manager</label>
-            <select name="project_manager_id" id="project_manager_id" class="form-control">
+            <select name="project_manager_id" id="project_manager_id" class="form-control employee-select" data-placeholder="Type to search...">
                 <option value="">-- Select Project Manager --</option>
                 @foreach ($employees as $emp)
                     <option value="{{ $emp->id }}" data-phone="{{ $emp->phone }}">
@@ -122,7 +128,7 @@
         {{-- Document Controller --}}
         <div class="mb-3">
             <label class="form-label">Document Controller</label>
-            <select name="document_controller_id" id="document_controller_id" class="form-control">
+            <select name="document_controller_id" id="document_controller_id" class="form-control employee-select" data-placeholder="Type to search...">
                 <option value="">-- Select Document Controller --</option>
                 @foreach ($employees as $emp)
                     <option value="{{ $emp->id }}" data-phone="{{ $emp->phone }}">

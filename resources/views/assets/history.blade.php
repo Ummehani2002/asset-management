@@ -10,7 +10,7 @@
                     <h2 class="h4 mb-1">
                         <i class="bi bi-clock-history me-2"></i>Asset History
                     </h2>
-                    <p class="mb-0 opacity-90">Assign/Return and System Maintenance history for this asset</p>
+                   
                 </div>
                 <a href="{{ route('assets.index') }}" class="btn btn-outline-light btn-sm">
                     <i class="bi bi-arrow-left me-1"></i>Back to Assets

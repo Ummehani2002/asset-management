@@ -69,7 +69,7 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Designation</label>
                     <input type="text" name="designation" list="designation-list" class="form-control" autocomplete="off"
-                           value="{{ old('designation') }}" placeholder="Type or select (e.g. Project Manager, PC Secretary)">
+                           value="{{ old('designation') }}" placeholder="Type or select ">
                     <datalist id="designation-list">
                         <option value="Project Manager">
                         <option value="Person in Charge">

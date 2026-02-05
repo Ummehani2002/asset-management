@@ -27,7 +27,7 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Asset Manager (Employee)</label>
-                    <select name="asset_manager_id" class="form-control">
+                    <select name="asset_manager_id" class="form-control employee-select" data-placeholder="Type to search...">
                         <option value="">-- No asset manager --</option>
                         @foreach($employees as $emp)
                             <option value="{{ $emp->id }}" {{ old('asset_manager_id', $entity->asset_manager_id) == $emp->id ? 'selected' : '' }}>
@@ -35,7 +35,7 @@
                             </option>
                         @endforeach
                     </select>
-                    <small class="text-muted">Appoint one employee as asset manager for this entity.</small>
+                  
                 </div>
             </div>
             <div class="text-end mt-3">

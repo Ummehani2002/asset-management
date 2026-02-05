@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="autocomplete" content="off">
     <meta name="format-detection" content="telephone=no">
     <title>Asset Management System - Tanseeq Investment</title>
@@ -11,6 +12,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <!-- Flatpickr – calendar for date inputs -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Tom Select – searchable dropdowns for employee/entity selects -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
 
     <style>
         :root {
@@ -132,11 +135,29 @@
             color: var(--secondary) !important;
         }
 
-        .sidebar .collapse a:hover {
+        .sidebar .collapse a:hover,
+        .sidebar .sidebar-dropdown-menu a:hover {
             background-color: transparent;
             color: #ffffff !important;
             font-weight: 600;
             border-left-color: #ffffff;
+        }
+
+        /* Hover to show submenus */
+        .sidebar .sidebar-dropdown {
+            position: relative;
+        }
+        .sidebar .sidebar-dropdown-menu {
+            display: none !important;
+            overflow: hidden;
+        }
+        .sidebar .sidebar-dropdown:hover .sidebar-dropdown-menu {
+            display: block !important;
+        }
+        .sidebar .sidebar-dropdown-menu a {
+            padding-left: 40px;
+            font-size: 12px;
+            border-left: 3px solid rgba(198, 168, 125, 0.4);
         }
 
         /* Sidebar: all items same - golden */
@@ -730,7 +751,7 @@
 <div class="sidebar">
     {{-- Logo Section --}}
     <div class="text-center mb-4 pb-3" style="border-bottom: 1px solid rgba(198, 168, 125, 0.3); padding: 15px 10px;">
-        <div style="background: #D4E4F7; border: 1px solid rgba(198, 168, 125, 0.5); border-radius: 10px; padding: 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);">
+        <div style="background: white; border: 1px solid rgba(198, 168, 125, 0.5); border-radius: 10px; padding: 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);">
             <img src="{{ asset('images/logo.png') }}" alt="Tanseeq Logo" 
                  style="max-width: 100px; width: 100%; height: auto; display: block; margin-left: auto; margin-right: auto;"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -751,15 +772,11 @@
 </a>
 
     <!-- Employee Master -->
-   <button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
-        data-bs-target="#employeeMenu"
-        aria-expanded="false"
-        aria-controls="employeeMenu">
+<div class="sidebar-dropdown mb-2">
+   <button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-person-badge"></i> Employee Master ▾
 </button>
-
-<div class="collapse" id="employeeMenu">
+<div class="collapse sidebar-dropdown-menu" id="employeeMenu">
     <a href="{{ route('employees.index') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-person-plus"></i> New Employee
     </a>
@@ -772,17 +789,14 @@
         <i class="bi bi-box-seam"></i> Employee Asset Lookup
     </a>
 </div>
+</div>
 
   <!-- Project Master -->
-    <button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
-        data-bs-target="#projectMenu"
-        aria-expanded="false"
-        aria-controls="projectMenu">
+<div class="sidebar-dropdown mb-2">
+    <button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-kanban"></i> Project Master ▾
 </button>
-
-<div class="collapse" id="projectMenu">
+<div class="collapse sidebar-dropdown-menu" id="projectMenu">
     <a href="{{ route('projects.index') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-card-checklist"></i> Projects List
     </a>
@@ -791,16 +805,13 @@
         <i class="bi bi-plus-square"></i> Create Project
     </a>
 </div>
+</div>
 
- <button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
-        data-bs-target="#locationMenu"
-        aria-expanded="false"
-        aria-controls="locationMenu">
+ <div class="sidebar-dropdown mb-2">
+    <button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-geo-alt"></i> Location Master ▾
 </button>
-
-<div class="collapse" id="locationMenu">
+<div class="collapse sidebar-dropdown-menu" id="locationMenu">
     <a href="{{ route('location-master.index') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-geo"></i> New Location
     </a>
@@ -813,45 +824,38 @@
         <i class="bi bi-pc-display"></i> Location Asset Lookup
     </a>
 </div>
+</div>
 
     <!-- Entity Master -->
-<button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
-        data-bs-target="#entityMenu"
-        aria-expanded="false"
-        aria-controls="entityMenu">
+<div class="sidebar-dropdown mb-2">
+<button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-building"></i> Entity Master ▾
 </button>
-<div class="collapse" id="entityMenu">
+<div class="collapse sidebar-dropdown-menu" id="entityMenu">
     <a href="{{ route('entity-master.index') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-building-add"></i> Entity Master
     </a>
 </div>
+</div>
 
     <!-- Asset Manager -->
-<button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
-        data-bs-target="#assetManagerMenu"
-        aria-expanded="false"
-        aria-controls="assetManagerMenu">
+<div class="sidebar-dropdown mb-2">
+<button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-person-gear"></i> Asset Manager ▾
 </button>
-<div class="collapse" id="assetManagerMenu">
+<div class="collapse sidebar-dropdown-menu" id="assetManagerMenu">
     <a href="{{ route('asset-manager.index') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-person-plus"></i> Assign Asset Manager
     </a>
 </div>
+</div>
 
     <!-- Asset & Brand Management -->
-<button class="btn btn-outline-primary mb-2"
-data-bs-toggle="collapse"
-        data-bs-target="#assetBrandMenu"
-        aria-expanded="false"
-        aria-controls="assetBrandMenu">
+<div class="sidebar-dropdown mb-2">
+<button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-pc-display"></i> Asset & Brand  ▾
 </button>
-
-<div class="collapse" id="assetBrandMenu">
+<div class="collapse sidebar-dropdown-menu" id="assetBrandMenu">
     <a href="{{ route('categories.manage') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-tags"></i> Brand Management
     </a>
@@ -864,15 +868,13 @@ data-bs-toggle="collapse"
         <i class="bi bi-funnel"></i> Filter Assets by Category
     </a>
 </div>
+</div>
 
-<button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
-        data-bs-target="#assetTransactionMenu"
-        aria-expanded="false"
-        aria-controls="assetTransactionMenu">
+<div class="sidebar-dropdown mb-2">
+<button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-arrow-left-right"></i> Asset Transaction ▾
 </button>
-<div class="collapse" id="assetTransactionMenu">
+<div class="collapse sidebar-dropdown-menu" id="assetTransactionMenu">
     <a href="{{ route('asset-transactions.index') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-list-ul"></i> All Transactions
     </a>
@@ -882,6 +884,7 @@ data-bs-toggle="collapse"
     <a href="{{ route('asset-transactions.maintenance') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-tools"></i> System Maintenance
     </a>
+</div>
 </div>
 
 <!-- Internet Services -->
@@ -901,15 +904,11 @@ data-bs-toggle="collapse"
 </a>
 
 <!-- Budget Maintenance -->
-<button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
-        data-bs-target="#budgetMenu"
-        aria-expanded="false"
-        aria-controls="budgetMenu">
+<div class="sidebar-dropdown mb-2">
+<button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-wallet2"></i> Budget Maintenance ▾
 </button>
-
-<div class="collapse" id="budgetMenu">
+<div class="collapse sidebar-dropdown-menu" id="budgetMenu">
     <a href="{{ route('entity_budget.create') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-plus-circle"></i>  Entity Budget
     </a>
@@ -918,17 +917,14 @@ data-bs-toggle="collapse"
         <i class="bi bi-cash-coin"></i> Budget Expenses
     </a>
 </div>
+</div>
 
 <!-- IT Forms -->
-<button class="btn btn-outline-primary mb-2"
-        data-bs-toggle="collapse"
-        data-bs-target="#issueNoteMenu"
-        aria-expanded="false"
-        aria-controls="issueNoteMenu">
+<div class="sidebar-dropdown mb-2">
+<button class="btn btn-outline-primary w-100 text-start" type="button">
     <i class="bi bi-file-earmark-text"></i> IT Forms ▾
 </button>
-
-        <div class="collapse" id="issueNoteMenu">
+        <div class="collapse sidebar-dropdown-menu" id="issueNoteMenu">
             <a href="{{ route('issue-note.index') }}" class="btn btn-sm btn-outline-light mb-1">
                 <i class="bi bi-list-ul"></i> View All Notes
             </a>
@@ -942,6 +938,7 @@ data-bs-toggle="collapse"
     <a href="{{ route('preventive-maintenance.create') }}" class="btn btn-sm btn-outline-light mb-1">
         <i class="bi bi-tools"></i> Preventive Maintenance
     </a>
+</div>
 </div>
 
 {{-- Logout Button --}}
@@ -1002,6 +999,21 @@ data-bs-toggle="collapse"
 
     <!-- ✅ Bootstrap JS Bundle (needed for collapse dropdowns) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Tom Select – searchable dropdowns -->
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.employee-select, .searchable-select').forEach(function(el) {
+            if (el.tomselect) return;
+            new TomSelect(el, {
+                create: false,
+                sortField: { field: 'text', direction: 'asc' },
+                placeholder: el.getAttribute('data-placeholder') || 'Type to search...',
+                allowEmptyOption: true
+            });
+        });
+    });
+    </script>
     <!-- Auto-dismiss all success messages after 3 seconds -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -1021,6 +1033,7 @@ data-bs-toggle="collapse"
         function initDatePickers() {
             document.querySelectorAll('input[type="date"]').forEach(function(el) {
                 if (el._flatpickr) return;
+                if (el.id === 'expiry_date' || el.hasAttribute('data-no-flatpickr')) return;
                 var opts = {
                     dateFormat: 'Y-m-d',
                     altInput: true,
@@ -1122,6 +1135,8 @@ data-bs-toggle="collapse"
                 select.selectedIndex = 0;
                 // Trigger change event for selects that have change handlers
                 select.dispatchEvent(new Event('change'));
+                // Sync Tom Select if present
+                if (select.tomselect) select.tomselect.sync();
             });
 
             // Clear checkboxes

@@ -27,10 +27,53 @@
         </div>
     @endif
 
-    {{-- Pending Approvals (for assigned asset managers) --}}
+    {{-- All Pending Assignments - visible to everyone --}}
+    @if($allPendingAssignments->count() > 0)
+        <div class="card mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>All Pending Maintenance Assignments ({{ $allPendingAssignments->count() }})</h5>
+                <small class="text-muted">Visible to everyone - when an AM is busy, maintenance can be assigned to another AM who must approve</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light"><tr><th>Asset</th><th>Entity</th><th>Assigned By (AM)</th><th>Assigned To (AM)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            @foreach($allPendingAssignments as $pa)
+                                <tr>
+                                    <td>{{ $pa->asset->serial_number ?? 'N/A' }} ({{ $pa->asset->asset_id ?? '' }})</td>
+                                    <td>{{ $pa->asset_entity ?? '-' }}</td>
+                                    <td>{{ $pa->assignedBy->name ?? $pa->assignedBy->entity_name ?? 'N/A' }}<br><small class="text-muted">{{ $pa->assigned_by_entities ?? '-' }}</small></td>
+                                    <td>{{ $pa->assigned_to_name ?? 'N/A' }}</td>
+                                    <td>{{ $pa->created_at->format('d-M-Y') }}</td>
+                                    <td><span class="badge bg-warning">Pending Approval</span></td>
+                                    <td>
+                                        @if(auth()->user()?->employee_id == $pa->assigned_to_employee_id)
+                                            <form action="{{ route('asset-transactions.maintenance-approve', $pa->id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Approve</button>
+                                            </form>
+                                            <form action="{{ route('asset-transactions.maintenance-reject', $pa->id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject this assignment?');"><i class="bi bi-x"></i> Reject</button>
+                                            </form>
+                                        @else
+                                            <span class="text-muted small">Awaiting {{ $pa->assignedTo?->name ?? 'AM' }}'s approval</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Your Pending Approvals (quick access for assigned AM) --}}
     @if($pendingApprovals->count() > 0)
         <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
-            <h5 class="alert-heading"><i class="bi bi-bell me-2"></i>Pending Approvals ({{ $pendingApprovals->count() }})</h5>
+            <h5 class="alert-heading"><i class="bi bi-bell me-2"></i>Your Pending Approvals ({{ $pendingApprovals->count() }})</h5>
             <p class="mb-2">You have maintenance tasks assigned to you. Approve to process them.</p>
             <div class="table-responsive">
                 <table class="table table-sm table-bordered mb-0">
@@ -69,7 +112,7 @@
                 <i class="bi bi-arrow-down-circle me-2"></i>Send for Maintenance
             </button>
         </li>
-        @if(auth()->user()?->employee_id && ($assetManagers ?? collect())->isNotEmpty())
+        @if($canDelegateToOthers ?? false)
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="assign-tab" data-bs-toggle="tab" data-bs-target="#assign-maintenance" type="button" role="tab">
                 <i class="bi bi-person-plus me-2"></i>Assign to Asset Manager
@@ -89,29 +132,10 @@
             <form method="POST" action="{{ route('asset-transactions.maintenance-store') }}" enctype="multipart/form-data" id="maintenanceForm">
                 @csrf
 
-                {{-- Entity & Asset Manager --}}
-                <div class="master-form-card mb-4">
-                    <h5 class="mb-3"><i class="bi bi-building me-2"></i>Entity & Asset Manager</h5>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="send_entity_id">Entity</label>
-                            <select id="send_entity_id" class="form-control">
-                                <option value="">-- Select Entity (optional) --</option>
-                                @foreach($entities ?? [] as $ent)
-                                    <option value="{{ $ent->id }}" data-asset-manager="{{ $ent->asset_manager_name ?? '' }}" data-asset-manager-id="{{ $ent->asset_manager_employee_id ?? '' }}" data-entity-name="{{ ucwords($ent->name) }}">{{ ucwords($ent->name) }}</option>
-                                @endforeach
-                            </select>
-                            <small class="text-muted">Select entity to see asset manager. If busy, use "Assign to Asset Manager" tab.</small>
-                        </div>
-                        <div class="col-md-6 mb-3 d-flex align-items-end">
-                            <div id="send_asset_manager_display" class="text-muted small" style="min-height: 24px;">Select entity to see asset manager</div>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Asset Category --}}
+                {{-- Asset Selection - Entity & AM auto-fill from asset's location (Location Master) --}}
                 <div class="master-form-card mb-4">
                     <h5 class="mb-3"><i class="bi bi-tag me-2"></i>Select Asset</h5>
+                    <p class="text-muted small mb-3">Select category and serial number. Entity and Asset Manager will auto-fill from the asset's location.</p>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="asset_category_id">Asset Category <span class="text-danger">*</span></label>
@@ -128,9 +152,25 @@
                             <select name="asset_id" id="asset_id" class="form-control" required>
                                 <option value="">Select Category First</option>
                             </select>
-                            <small class="text-muted" id="asset_status_info"></small>
+                            <small class="text-muted d-block mt-1" id="asset_status_info"></small>
                             <small class="text-danger" id="asset_error_info"></small>
                         </div>
+                    </div>
+                    {{-- Entity & Asset Manager (same card as Asset Transaction - auto-filled from location) --}}
+                    <div id="send_entity_display_section" class="mt-3" style="display:none;">
+                        <div class="card bg-light p-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Entity:</strong><br>
+                                    <span id="send_entity_display">-</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Asset Manager:</strong><br>
+                                    <span id="send_asset_manager_display">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">Auto-filled from location for easy maintenance reference. If AM is busy, use "Assign to Asset Manager" tab.</small>
                     </div>
                 </div>
 
@@ -198,8 +238,8 @@
             </form>
         </div>
 
-        <!-- Assign to Asset Manager Tab -->
-        @if(auth()->user()?->employee_id && ($assetManagers ?? collect())->isNotEmpty())
+        <!-- Assign to Asset Manager Tab - only for asset managers (assigned in Entity Master) when busy -->
+        @if($canDelegateToOthers ?? false)
         <div class="tab-pane fade" id="assign-maintenance" role="tabpanel">
             <form method="POST" action="{{ route('asset-transactions.maintenance-assign') }}" id="assignForm">
                 @csrf
@@ -246,7 +286,7 @@
                     <div class="row" id="assign_manager_section" style="display:none;">
                         <div class="col-md-6 mb-3">
                             <label for="assigned_to_employee_id">Assign To Asset Manager <span class="text-danger">*</span></label>
-                            <select name="assigned_to_employee_id" id="assigned_to_employee_id" class="form-control" required>
+                            <select name="assigned_to_employee_id" id="assigned_to_employee_id" class="form-control employee-select" required data-placeholder="Type to search...">
                                 <option value="">Select Asset Manager</option>
                                 @foreach($assetManagers ?? [] as $am)
                                     @if($am->id != auth()->user()?->employee_id)
@@ -318,6 +358,22 @@
                             <small class="text-muted d-block mt-1" id="reassign_status_info"></small>
                             <small class="text-danger" id="reassign_error_info"></small>
                         </div>
+                    </div>
+                    {{-- Entity & Asset Manager card (same as Asset Transaction - auto-filled from location) --}}
+                    <div id="reassign_entity_display_section" class="mt-3" style="display:none;">
+                        <div class="card bg-light p-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Entity:</strong><br>
+                                    <span id="reassign_entity_display">-</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Asset Manager:</strong><br>
+                                    <span id="reassign_asset_manager_display">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">Auto-filled from location for easy maintenance reference.</small>
                     </div>
                 </div>
 
@@ -492,7 +548,6 @@ $(document).ready(function() {
             $(displayId).html('Select entity to see asset manager').removeClass('text-info').addClass('text-muted');
         }
     }
-    $('#send_entity_id').on('change', function() { updateAssetManagerDisplay('#send_entity_id', '#send_asset_manager_display'); });
     $('#assign_entity_id').on('change', function() { updateAssetManagerDisplay('#assign_entity_id', '#assign_entity_asset_manager_display'); });
     $('#reassign_entity_id').on('change', function() { updateAssetManagerDisplay('#reassign_entity_id', '#reassign_entity_asset_manager_display'); });
 
@@ -525,15 +580,14 @@ $(document).ready(function() {
         });
     });
 
-    // Handle asset selection - auto-fill entity & asset manager from location (linked with location entity)
+    // Handle asset selection - auto-fill entity & asset manager from location (Location Master)
     $('#asset_id').on('change', function() {
         const assetId = $(this).val();
         
         if (!assetId) {
             $('#maintenance_details_section').hide();
+            $('#send_entity_display_section').hide();
             $('#asset_error_info').text('');
-            $('#send_entity_id').val('');
-            updateAssetManagerDisplay('#send_entity_id', '#send_asset_manager_display');
             return;
         }
 
@@ -542,7 +596,7 @@ $(document).ready(function() {
             if (data.status !== 'assigned' && data.original_status !== 'assigned') {
                 $('#asset_error_info').text('This asset is not assigned. Only assigned assets can be sent for maintenance.');
                 $('#maintenance_details_section').hide();
-                $('#send_entity_id').val('');
+                $('#send_entity_display_section').hide();
                 return;
             }
 
@@ -550,14 +604,16 @@ $(document).ready(function() {
             currentEmployeeId = data.current_employee_id;
             currentEmployeeName = data.current_employee_name;
 
-            // Auto-fill entity from location (location entity linked with location name)
-            if (data.entity_id) {
-                $('#send_entity_id').val(data.entity_id);
-                updateAssetManagerDisplay('#send_entity_id', '#send_asset_manager_display');
-            } else {
-                $('#send_entity_id').val('');
-                updateAssetManagerDisplay('#send_entity_id', '#send_asset_manager_display');
+            // Auto-fill Entity & Asset Manager display from location (Location Master)
+            $('#send_entity_display').text(data.asset_manager_entity || data.location_entity || '-');
+            const amText = data.asset_manager_name 
+                ? data.asset_manager_name + (data.asset_manager_employee_id ? ' (' + data.asset_manager_employee_id + ')' : '')
+                : 'N/A';
+            $('#send_asset_manager_display').text(amText);
+            if (!data.asset_manager_name && (data.location_entity || data.asset_manager_entity)) {
+                $('#send_asset_manager_display').html(amText + ' <small class="text-warning">(Assign in <a href="{{ route("asset-manager.index") }}">Entity Master</a>)</small>');
             }
+            $('#send_entity_display_section').show();
             
             let infoHtml = '';
             if (data.current_employee_name) {
@@ -578,7 +634,7 @@ $(document).ready(function() {
         }).fail(function() {
             $('#asset_error_info').text('Error loading asset details.');
             $('#maintenance_details_section').hide();
-            $('#send_entity_id').val('');
+            $('#send_entity_display_section').hide();
         });
     });
 
@@ -684,6 +740,7 @@ $(document).ready(function() {
             $('#reassign_action_section').hide();
             $('#maintenance_action_section').hide();
             $('#return_action_section').hide();
+            $('#reassign_entity_display_section').hide();
             $('#reassign_error_info').text('');
             $('#reassign_entity_id').val('');
             updateAssetManagerDisplay('#reassign_entity_id', '#reassign_entity_asset_manager_display');
@@ -698,6 +755,7 @@ $(document).ready(function() {
                 $('#reassign_action_section').hide();
                 $('#maintenance_action_section').hide();
                 $('#return_action_section').hide();
+                $('#reassign_entity_display_section').hide();
                 return;
             }
 
@@ -711,6 +769,14 @@ $(document).ready(function() {
                 $('#reassign_entity_id').val('');
                 updateAssetManagerDisplay('#reassign_entity_id', '#reassign_entity_asset_manager_display');
             }
+            // Entity & Asset Manager card (same format as Asset Transaction)
+            $('#reassign_entity_display').text(data.asset_manager_entity || data.location_entity || '-');
+            $('#reassign_asset_manager_display').text(
+                data.asset_manager_name 
+                    ? data.asset_manager_name + (data.asset_manager_employee_id ? ' (' + data.asset_manager_employee_id + ')' : '')
+                    : 'N/A'
+            );
+            $('#reassign_entity_display_section').show();
             
             let reassignInfo = '';
             if (data.current_employee_name) {
@@ -734,6 +800,7 @@ $(document).ready(function() {
             $('#reassign_action_section').hide();
             $('#maintenance_action_section').hide();
             $('#return_action_section').hide();
+            $('#reassign_entity_display_section').hide();
             $('#reassign_entity_id').val('');
         });
     });

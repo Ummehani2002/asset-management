@@ -51,14 +51,14 @@
 </div>
 
 <div class="mb-3">
-    <label>Model <span class="text-muted">(select to autofill brand and all features)</span></label>
+    <label>Model <span class="text-muted"></span></label>
     <select name="brand_model_id" id="brand_model" class="form-control">
         <option value="">-- Select Model --</option>
     </select>
 </div>
 
 <div class="mb-3" id="brand-wrap">
-    <label>Brand <span class="text-muted small">(auto-set from model)</span></label>
+    <label>Brand <span class="text-muted small"></span></label>
     <select name="brand_id" id="brand" class="form-control" required>
         <option value="">-- Select Model first --</option>
     </select>
@@ -282,8 +282,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Calculate expiry date based on warranty_start + warranty_years
     function calculateExpiry() {
-        const startDate = $('#warranty_start').val();
-        const years = parseInt($('#warranty_years').val(), 10);
+        const startInput = document.getElementById('warranty_start');
+        const yearsInput = document.getElementById('warranty_years');
+        const expiryInput = document.getElementById('expiry_date');
+        if (!startInput || !yearsInput || !expiryInput) return;
+
+        const startDate = startInput.value;
+        const years = parseInt(yearsInput.value, 10);
 
         if (startDate && !isNaN(years) && years > 0) {
             const parts = startDate.split('-');
@@ -297,18 +302,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 const yyyy = date.getFullYear();
                 const mm = (date.getMonth() + 1).toString().padStart(2, '0');
                 const dd = date.getDate().toString().padStart(2, '0');
-
-                $('#expiry_date').val(yyyy + '-' + mm + '-' + dd);
+                const expiryVal = yyyy + '-' + mm + '-' + dd;
+                expiryInput.value = expiryVal;
             }
         } else {
-            $('#expiry_date').val('');
+            expiryInput.value = '';
         }
     }
 
     $('#warranty_start, #warranty_years').on('change keyup input', calculateExpiry);
 
+    // Hook into Flatpickr for warranty_start (Flatpickr may not fire native change in some cases)
+    function hookWarrantyFlatpickr() {
+        const el = document.getElementById('warranty_start');
+        if (el && el._flatpickr) {
+            var orig = el._flatpickr.config.onChange;
+            el._flatpickr.config.onChange = function(selDates, dateStr) {
+                if (typeof orig === 'function') orig(selDates, dateStr);
+                calculateExpiry();
+            };
+            return true;
+        }
+        return false;
+    }
     $(document).ready(function() {
         calculateExpiry();
+        setTimeout(function() { hookWarrantyFlatpickr(); }, 100);
     });
 
 </script>
