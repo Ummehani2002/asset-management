@@ -5,16 +5,8 @@
     $entities = $entities ?? collect([]);
 @endphp
 <div class="container-fluid master-page">
-    <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="page-header">
         <h2><i class="bi bi-building me-2"></i>Entity Master</h2>
-        <div class="d-flex gap-2">
-            <a href="{{ route('employees.import.form') }}" class="btn btn-primary">
-                <i class="bi bi-upload me-1"></i>Import Employees
-            </a>
-            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#entityImportModal">
-                <i class="bi bi-file-earmark-arrow-up me-1"></i>Import Entities
-            </button>
-        </div>
     </div>
 
     @if(session('success'))
@@ -41,56 +33,6 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
-
-    {{-- Entity Import Modal --}}
-    <div class="modal fade" id="entityImportModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up me-2"></i>Import Entities</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="text-muted small mb-3">Choose how to import entities:</p>
-
-                    {{-- Option 1: Sync from CSV --}}
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title"><i class="bi bi-file-earmark-spreadsheet text-primary me-2"></i>From CSV/Excel</h6>
-                            <p class="small text-muted mb-2">Upload a CSV with Entity, Entity Name, or Company column.</p>
-                            <form action="{{ route('entity-master.sync-from-csv') }}" method="POST" enctype="multipart/form-data">
-                                @csrf
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="replace_existing" value="1" id="replace_csv">
-                                    <label class="form-check-label" for="replace_csv">Replace existing entities</label>
-                                </div>
-                                <div class="input-group">
-                                    <input type="file" name="file" class="form-control form-control-sm" accept=".csv,.txt" required>
-                                    <button type="submit" class="btn btn-primary btn-sm">Import</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    {{-- Option 2: Sync from Employees --}}
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title"><i class="bi bi-people text-primary me-2"></i>From Existing Employees</h6>
-                            <p class="small text-muted mb-2">Extract entity names from employee records already in the system.</p>
-                            <form action="{{ route('entity-master.sync-from-employees') }}" method="POST">
-                                @csrf
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" name="replace_existing" value="1" id="replace_emp">
-                                    <label class="form-check-label" for="replace_emp">Replace existing entities</label>
-                                </div>
-                                <button type="submit" class="btn btn-outline-primary btn-sm">Sync from Employees</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     {{-- New Entity Form --}}
     <div class="master-form-card">
