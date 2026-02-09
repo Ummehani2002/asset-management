@@ -104,94 +104,141 @@
             letter-spacing: 0.5px;
         }
 
-        /* Default: golden (all same) */
-        .sidebar a,
-        .sidebar button {
+        /* Top-level nav items */
+        .sidebar .sidebar-nav-item,
+        .sidebar .sidebar-nav-item:hover {
             color: var(--secondary);
             text-decoration: none;
-            display: block;
-            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
             width: 100%;
             text-align: left;
             border: none;
             background: transparent;
-            transition: all 0.25s ease;
+            transition: all 0.2s ease;
             font-size: 13px;
+            border-radius: 0;
+            border-left: 3px solid transparent;
         }
 
-        /* Hover: white highlight */
-        .sidebar a:hover,
-        .sidebar button:hover {
-            background-color: transparent;
+        .sidebar .sidebar-nav-item:hover,
+        .sidebar .sidebar-dropdown-toggle:hover {
+            background: rgba(198, 168, 125, 0.12);
             color: #ffffff !important;
-            font-weight: 600;
         }
 
-        .sidebar .collapse a {
-            padding-left: 40px;
-            font-size: 12px;
-            background-color: transparent;
-            border-left: 3px solid rgba(198, 168, 125, 0.4);
-            color: var(--secondary) !important;
-        }
-
-        .sidebar .collapse a:hover,
-        .sidebar .sidebar-dropdown-menu a:hover {
-            background-color: transparent;
+        .sidebar .sidebar-nav-item.active,
+        .sidebar a.sidebar-nav-item.active {
+            background: rgba(198, 168, 125, 0.15);
             color: #ffffff !important;
-            font-weight: 600;
-            border-left-color: #ffffff;
+            border-left-color: var(--secondary);
         }
 
-        /* Hover to show submenus */
+        /* Dropdown parent (toggle) */
+        .sidebar .sidebar-dropdown-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 12px 20px;
+            color: var(--secondary);
+            background: transparent;
+            border: none;
+            text-align: left;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar .sidebar-dropdown-toggle .chevron {
+            transition: transform 0.2s ease;
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .sidebar .sidebar-dropdown:hover .sidebar-dropdown-toggle .chevron {
+            transform: rotate(180deg);
+        }
+
+        /* Submenu container - hover to expand */
         .sidebar .sidebar-dropdown {
             position: relative;
         }
+
         .sidebar .sidebar-dropdown-menu {
             display: none !important;
-            overflow: hidden;
+            background: rgba(0, 0, 0, 0.15);
+            margin: 0;
+            padding: 4px 0 4px 0;
+            list-style: none;
+            border-left: 3px solid rgba(198, 168, 125, 0.5);
+            margin-left: 20px;
         }
+
         .sidebar .sidebar-dropdown:hover .sidebar-dropdown-menu {
             display: block !important;
         }
+
+        /* Submenu links */
         .sidebar .sidebar-dropdown-menu a {
-            padding-left: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px 10px 20px;
             font-size: 12px;
-            border-left: 3px solid rgba(198, 168, 125, 0.4);
+            color: rgba(198, 168, 125, 0.95) !important;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none !important;
+            border-radius: 0;
+            margin: 0 8px 2px 8px;
+            border-radius: 6px;
         }
 
-        /* Sidebar: all items same - golden */
+        .sidebar .sidebar-dropdown-menu a:hover {
+            background: rgba(198, 168, 125, 0.2) !important;
+            color: #ffffff !important;
+        }
+
+        /* Plain links - same as nav items */
         .sidebar .btn-outline-primary,
         .sidebar .btn-outline-light,
-        .sidebar a,
-        .sidebar button {
-            border-color: rgba(198, 168, 125, 0.5) !important;
+        .sidebar a.btn-outline-primary,
+        .sidebar a.btn-outline-light {
+            border: none !important;
+            border-left: 3px solid transparent !important;
             color: var(--secondary) !important;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            text-align: left;
+            background: transparent;
         }
 
         .sidebar .btn-outline-primary:hover,
         .sidebar .btn-outline-light:hover,
-        .sidebar a:hover,
-        .sidebar button:hover {
-            border-color: #ffffff !important;
+        .sidebar a.btn-outline-primary:hover,
+        .sidebar a.btn-outline-light:hover {
+            background: rgba(198, 168, 125, 0.12) !important;
             color: #ffffff !important;
-            font-weight: 600;
         }
 
         .sidebar .btn-outline-danger:hover {
-            border-color: #ffffff !important;
-            color: #ffffff !important;
+            background: rgba(220, 53, 69, 0.2) !important;
+            color: #fff0f0 !important;
         }
 
-        /* Logout: same golden as rest */
         .sidebar .btn-outline-danger {
-            border-color: rgba(198, 168, 125, 0.5) !important;
-            color: var(--secondary) !important;
+            border: none !important;
+            color: #dc3545 !important;
         }
 
         .sidebar .btn-outline-danger:hover {
-            border-color: var(--secondary) !important;
-            color: var(--secondary) !important;
+            border: none !important;
         }
 
         /* Content */
@@ -764,131 +811,131 @@
  
     </div>
     <h4 class="text-center mb-3" style="font-size: 16px; color: var(--secondary);">Menu</h4>
-   <a href="{{ route('dashboard') }}" class="btn btn-outline-primary mb-2">
+   <a href="{{ route('dashboard') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('dashboard') ? 'active' : '' }}">
     <i class="bi bi-speedometer2"></i> Dashboard
 </a>
-    <a href="{{ route('users.index') }}" class="btn btn-outline-primary mb-2">
+    <a href="{{ route('users.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('users.*') ? 'active' : '' }}">
     <i class="bi bi-people"></i> Users
 </a>
 
     <!-- Employee Master -->
-<div class="sidebar-dropdown mb-2">
-   <button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-person-badge"></i> Employee Master ▾
+<div class="sidebar-dropdown mb-1">
+   <button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-person-badge"></i> Employee Master</span>
+    <span class="chevron">▾</span>
 </button>
-<div class="collapse sidebar-dropdown-menu" id="employeeMenu">
-    <a href="{{ route('employees.index') }}" class="btn btn-sm btn-outline-light mb-1">
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('employees.index') }}">
         <i class="bi bi-person-plus"></i> New Employee
     </a>
-
-    <a href="{{ route('employees.search') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('employees.search') }}">
         <i class="bi bi-search"></i> Search Employees
     </a>
-
-    <a href="{{ url('/employee-assets') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ url('/employee-assets') }}">
         <i class="bi bi-box-seam"></i> Employee Asset Lookup
     </a>
 </div>
 </div>
 
   <!-- Project Master -->
-<div class="sidebar-dropdown mb-2">
-    <button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-kanban"></i> Project Master ▾
+<div class="sidebar-dropdown mb-1">
+    <button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-kanban"></i> Project Master</span>
+    <span class="chevron">▾</span>
 </button>
-<div class="collapse sidebar-dropdown-menu" id="projectMenu">
-    <a href="{{ route('projects.index') }}" class="btn btn-sm btn-outline-light mb-1">
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('projects.index') }}">
         <i class="bi bi-card-checklist"></i> Projects List
     </a>
-
-    <a href="{{ route('projects.create') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('projects.create') }}">
         <i class="bi bi-plus-square"></i> Create Project
     </a>
 </div>
 </div>
 
- <div class="sidebar-dropdown mb-2">
-    <button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-geo-alt"></i> Location Master ▾
+ <div class="sidebar-dropdown mb-1">
+    <button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-geo-alt"></i> Location Master</span>
+    <span class="chevron">▾</span>
 </button>
-<div class="collapse sidebar-dropdown-menu" id="locationMenu">
-    <a href="{{ route('location-master.index') }}" class="btn btn-sm btn-outline-light mb-1">
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('location-master.index') }}">
         <i class="bi bi-geo"></i> New Location
     </a>
-
-    <a href="{{ route('location-master.search') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('location-master.search') }}">
         <i class="bi bi-search"></i> Location Search
     </a>
-
-    <a href="{{ url('/location-assets') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ url('/location-assets') }}">
         <i class="bi bi-pc-display"></i> Location Asset Lookup
     </a>
 </div>
 </div>
 
     <!-- Entity Master -->
-<div class="sidebar-dropdown mb-2">
-<button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-building"></i> Entity Master ▾
+<div class="sidebar-dropdown mb-1">
+<button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-building"></i> Entity Master</span>
+    <span class="chevron">▾</span>
 </button>
-<div class="collapse sidebar-dropdown-menu" id="entityMenu">
-    <a href="{{ route('entity-master.index') }}" class="btn btn-sm btn-outline-light mb-1">
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('entity-master.index') }}">
         <i class="bi bi-building-add"></i> Entity Master
     </a>
 </div>
 </div>
 
     <!-- Asset Manager -->
-<div class="sidebar-dropdown mb-2">
-<button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-person-gear"></i> Asset Manager ▾
+<div class="sidebar-dropdown mb-1">
+<button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-person-gear"></i> Asset Manager</span>
+    <span class="chevron">▾</span>
 </button>
-<div class="collapse sidebar-dropdown-menu" id="assetManagerMenu">
-    <a href="{{ route('asset-manager.index') }}" class="btn btn-sm btn-outline-light mb-1">
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('asset-manager.index') }}">
         <i class="bi bi-person-plus"></i> Assign Asset Manager
     </a>
 </div>
 </div>
 
     <!-- Asset & Brand Management -->
-<div class="sidebar-dropdown mb-2">
-<button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-pc-display"></i> Asset & Brand  ▾
+<div class="sidebar-dropdown mb-1">
+<button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-pc-display"></i> Asset & Brand</span>
+    <span class="chevron">▾</span>
 </button>
-<div class="collapse sidebar-dropdown-menu" id="assetBrandMenu">
-    <a href="{{ route('categories.manage') }}" class="btn btn-sm btn-outline-light mb-1">
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('categories.manage') }}">
         <i class="bi bi-tags"></i> Brand Management
     </a>
-
-    <a href="{{ route('assets.create') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('assets.create') }}">
         <i class="bi bi-pc-display"></i> Asset Master
     </a>
-
-    <a href="{{ route('assets.filter') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('assets.filter') }}">
         <i class="bi bi-funnel"></i> Filter Assets by Category
     </a>
 </div>
 </div>
 
-<div class="sidebar-dropdown mb-2">
-<button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-arrow-left-right"></i> Asset Transaction ▾
+<div class="sidebar-dropdown mb-1">
+<button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-arrow-left-right"></i> Asset Transaction</span>
+    <span class="chevron">▾</span>
 </button>
-<div class="collapse sidebar-dropdown-menu" id="assetTransactionMenu">
-    <a href="{{ route('asset-transactions.index') }}" class="btn btn-sm btn-outline-light mb-1">
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('asset-transactions.index') }}">
         <i class="bi bi-list-ul"></i> All Transactions
     </a>
-    <a href="{{ route('asset-transactions.create') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('asset-transactions.create') }}">
         <i class="bi bi-arrow-left-right"></i> Assign/Return
     </a>
-    <a href="{{ route('asset-transactions.maintenance') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('asset-transactions.maintenance') }}">
         <i class="bi bi-tools"></i> System Maintenance
     </a>
 </div>
 </div>
 
 <!-- Internet Services -->
-<a href="{{ route('internet-services.index') }}" class="btn btn-outline-primary mb-2">
+<a href="{{ route('internet-services.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('internet-services.*') ? 'active' : '' }}">
     <i class="bi bi-wifi"></i> Internet Services
 </a>
 
@@ -899,43 +946,43 @@
 
 <!-- Time Management -->
 <a href="{{ route('time.index') }}"
-   class="btn btn-outline-primary mb-2 {{ request()->routeIs('time.*') ? 'active' : '' }}">
+   class="sidebar-nav-item mb-1 {{ request()->routeIs('time.*') ? 'active' : '' }}">
     <i class="bi bi-clock-history"></i> Time Management
 </a>
 
 <!-- Budget Maintenance -->
-<div class="sidebar-dropdown mb-2">
-<button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-wallet2"></i> Budget Maintenance ▾
+<div class="sidebar-dropdown mb-1">
+<button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-wallet2"></i> Budget Maintenance</span>
+    <span class="chevron">▾</span>
 </button>
-<div class="collapse sidebar-dropdown-menu" id="budgetMenu">
-    <a href="{{ route('entity_budget.create') }}" class="btn btn-sm btn-outline-light mb-1">
-        <i class="bi bi-plus-circle"></i>  Entity Budget
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('entity_budget.create') }}">
+        <i class="bi bi-plus-circle"></i> Entity Budget
     </a>
-
-    <a href="{{ route('budget-expenses.create') }}" class="btn btn-sm btn-outline-light mb-1">
+    <a href="{{ route('budget-expenses.create') }}">
         <i class="bi bi-cash-coin"></i> Budget Expenses
     </a>
 </div>
 </div>
 
 <!-- IT Forms -->
-<div class="sidebar-dropdown mb-2">
-<button class="btn btn-outline-primary w-100 text-start" type="button">
-    <i class="bi bi-file-earmark-text"></i> IT Forms ▾
+<div class="sidebar-dropdown mb-1">
+<button class="sidebar-dropdown-toggle" type="button">
+    <span><i class="bi bi-file-earmark-text"></i> IT Forms</span>
+    <span class="chevron">▾</span>
 </button>
-        <div class="collapse sidebar-dropdown-menu" id="issueNoteMenu">
-            <a href="{{ route('issue-note.index') }}" class="btn btn-sm btn-outline-light mb-1">
-                <i class="bi bi-list-ul"></i> View All Notes
-            </a>
-            <a href="{{ route('issue-note.create') }}" class="btn btn-sm btn-outline-light mb-1">
-                <i class="bi bi-journal-plus"></i>  Issue Note
-            </a>
-            <a href="{{ route('issue-note.create-return') }}" class="btn btn-sm btn-outline-light mb-1">
-                <i class="bi bi-arrow-return-left"></i> Return Note
-            </a>
-
-    <a href="{{ route('preventive-maintenance.create') }}" class="btn btn-sm btn-outline-light mb-1">
+<div class="sidebar-dropdown-menu">
+    <a href="{{ route('issue-note.index') }}">
+        <i class="bi bi-list-ul"></i> View All Notes
+    </a>
+    <a href="{{ route('issue-note.create') }}">
+        <i class="bi bi-journal-plus"></i> Issue Note
+    </a>
+    <a href="{{ route('issue-note.create-return') }}">
+        <i class="bi bi-arrow-return-left"></i> Return Note
+    </a>
+    <a href="{{ route('preventive-maintenance.create') }}">
         <i class="bi bi-tools"></i> Preventive Maintenance
     </a>
 </div>

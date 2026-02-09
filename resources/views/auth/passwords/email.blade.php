@@ -1,25 +1,35 @@
 @extends('layouts.auth')
 
+@section('title', 'Forgot Password')
+
+@section('account-link')
+    <span class="auth-account-link"><a href="{{ route('login') }}">Back to Login</a></span>
+@endsection
+
 @section('content')
-<div class="card shadow-sm p-4" style="width: 400px;">
-    <h3 class="mb-4 text-center">Reset Password</h3>
 
-    @if(session('status'))
-        <div class="alert alert-success">{{ session('status') }}</div>
-    @endif
+<h2 class="auth-welcome">Forgot Password?</h2>
+<p class="auth-subtitle">Enter your email to receive a password reset link</p>
 
-    @if($errors->any())
-        <div class="alert alert-danger">{{ $errors->first() }}</div>
-    @endif
+@if(session('status'))
+    <div class="alert alert-success">{{ session('status') }}</div>
+@endif
 
-    <form method="POST" action="{{ route('password.email') }}">
-        @csrf
-        <input type="email" name="email" class="form-control mb-2" placeholder="Email Address" required>
-        <button type="submit" class="btn btn-warning w-100">Send Reset Link</button>
-    </form>
+@if($errors->any())
+    <div class="alert alert-danger">{{ $errors->first() }}</div>
+@endif
 
-    <p class="mt-3 text-center">
-        <a href="{{ route('login') }}">Back to Login</a>
-    </p>
-</div>
+<form method="POST" action="{{ route('password.email') }}">
+    @csrf
+    <div class="mb-3">
+        <label for="email" class="form-label">Email Address</label>
+        <input type="email" name="email" id="email" class="form-control" placeholder="Enter your email" required>
+    </div>
+
+    <button type="submit" class="btn btn-auth">Send Reset Link</button>
+</form>
+
+<p class="auth-footer-text">
+    <a href="{{ route('login') }}">Back to Login</a>
+</p>
 @endsection

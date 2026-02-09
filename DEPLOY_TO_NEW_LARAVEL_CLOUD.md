@@ -1,47 +1,5 @@
 # 🚀 Deploy to a New Laravel Cloud Account
 
-This guide walks you through deploying the Asset Management System to a **new** Laravel Cloud account.
-
----
-
-## 📋 Prerequisites
-
-- [ ] GitHub account with this repository (or push the code to a repo you control)
-- [ ] New Laravel Cloud account (https://cloud.laravel.com)
-- [ ] Payment method added to Laravel Cloud (required for database & hosting)
-
----
-
-## Step 1: Prepare Your Repository
-
-1. **Ensure code is pushed to GitHub:**
-   ```bash
-   cd d:\sites\final_asset
-   git add .
-   git status
-   git commit -m "Prepare for deployment to new Laravel Cloud"
-   git push origin main
-   ```
-
-2. **If using a different account’s repo:** Fork it or push to a new repo under your GitHub account.
-
----
-
-## Step 2: Create Application in Laravel Cloud
-
-1. **Log in:** https://cloud.laravel.com
-
-2. **Create application:**
-   - Click **"+ New application"**
-   - Choose **"Continue with GitHub"** and connect your GitHub account
-   - Select your **repository** (e.g. `final_asset` or your repo name)
-   - Set **Application name** (e.g. `asset-management`)
-   - Choose **region** (closest to your users)
-   - Click **"Create Application"**
-
-3. **Initial setup:**
-   - Laravel Cloud creates a default environment (e.g. `main`)
-   - You’ll be taken to the environment overview page
 
 ---
 
