@@ -194,13 +194,15 @@ Route::put('/categories/{id}', [AssetCategoryController::class, 'update'])->name
 Route::delete('/categories/{id}', [AssetCategoryController::class, 'destroy'])->name('categories.destroy');
 // Test routes removed - closures cannot be cached. Move to controllers if needed.
 use App\Http\Controllers\EntityController;
-Route::get('/entity-master', [EntityController::class, 'index'])->name('entity-master.index');
-Route::post('/entity-master', [EntityController::class, 'store'])->name('entity-master.store');
-Route::post('/entity-master/sync-from-csv', [EntityController::class, 'syncFromCsv'])->name('entity-master.sync-from-csv');
-Route::post('/entity-master/sync-from-employees', [EntityController::class, 'syncFromEmployees'])->name('entity-master.sync-from-employees');
-Route::get('/entity-master/{id}/edit', [EntityController::class, 'edit'])->name('entity-master.edit');
-Route::put('/entity-master/{id}', [EntityController::class, 'update'])->name('entity-master.update');
-Route::delete('/entity-master/{id}', [EntityController::class, 'destroy'])->name('entity-master.destroy');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/entity-master', [EntityController::class, 'index'])->name('entity-master.index');
+    Route::post('/entity-master', [EntityController::class, 'store'])->name('entity-master.store');
+    Route::post('/entity-master/sync-from-csv', [EntityController::class, 'syncFromCsv'])->name('entity-master.sync-from-csv');
+    Route::post('/entity-master/sync-from-employees', [EntityController::class, 'syncFromEmployees'])->name('entity-master.sync-from-employees');
+    Route::get('/entity-master/{id}/edit', [EntityController::class, 'edit'])->name('entity-master.edit');
+    Route::put('/entity-master/{id}', [EntityController::class, 'update'])->name('entity-master.update');
+    Route::delete('/entity-master/{id}', [EntityController::class, 'destroy'])->name('entity-master.destroy');
+});
 
 use App\Http\Controllers\AssetManagerController;
 Route::get('/asset-manager', [AssetManagerController::class, 'index'])->name('asset-manager.index');

@@ -119,12 +119,55 @@ exit
 ## Step 8: Import Data (Optional)
 
 **Employees:**  
-- Go to **Employee Master** → **Import Employees**  
+- Go to **Employee Master** → **Import Employees** (or **Entity Master** → **Import Employees**)
 - Upload your CSV (Excel saved as CSV UTF-8)
+
+**Entities:**  
+- Go to **Entity Master** → **Import Entities** → choose From CSV or From Existing Employees
 
 **Other data:**  
 - Enter manually, or  
 - Use `php artisan data:clear --keep-users` if you need to reset and re-import
+
+---
+
+## Step 9: Enabling Import in Production (Laravel Cloud)
+
+If import works on localhost but fails in production:
+
+### 1. Deploy the latest code
+```bash
+git add .
+git commit -m "Add employee and entity import"
+git push origin main
+```
+Trigger a new deployment in Laravel Cloud.
+
+### 2. Check PHP upload limits
+Large CSVs may fail if `upload_max_filesize` or `post_max_size` are too low. In **Laravel Cloud**:
+
+- Go to **Environment** → **Variables**
+- Add (if supported): `PHP_INI_SCAN_DIR` or use the Console to check current limits:
+  ```bash
+  php -i | grep -E "upload_max_filesize|post_max_size"
+  ```
+
+### 3. Create `.user.ini` for upload limits (if hosting supports it)
+Create a file `.user.ini` in your project root:
+```ini
+upload_max_filesize = 20M
+post_max_size = 25M
+max_execution_time = 120
+```
+Commit and deploy. (Note: Laravel Cloud may use Nixpacks; if `.user.ini` doesn't work, contact Laravel Cloud support for PHP config options.)
+
+### 4. Common production issues
+| Issue | Fix |
+|-------|-----|
+| 413 Payload Too Large | Increase `post_max_size` and `upload_max_filesize` |
+| 504 Gateway Timeout | Increase `max_execution_time`; split large imports into smaller files |
+| "Could not read file" | Temp directory permissions; try smaller file |
+| Import button missing | Ensure latest code is deployed; clear browser cache |
 
 ---
 

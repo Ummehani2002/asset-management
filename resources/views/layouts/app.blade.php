@@ -831,6 +831,9 @@
     <a href="{{ route('employees.search') }}">
         <i class="bi bi-search"></i> Search Employees
     </a>
+    <a href="{{ route('employees.import.form') }}">
+        <i class="bi bi-upload"></i> Import Employees
+    </a>
     <a href="{{ url('/employee-assets') }}">
         <i class="bi bi-box-seam"></i> Employee Asset Lookup
     </a>
