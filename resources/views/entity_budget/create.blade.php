@@ -203,11 +203,7 @@
             </div>
         </div>
     @else
-        <div class="alert alert-info text-center">
-            <i class="bi bi-info-circle display-4 d-block mb-3"></i>
-            <h4>Search to see budget details</h4>
-            <p class="mb-0">Select <strong>Entity</strong> and optionally <strong>Expense Type</strong> and <strong>Cost Head</strong>, then click <strong>Search</strong> to view budgets.</p>
-        </div>
+       
     @endif
 </div>
 
