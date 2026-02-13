@@ -34,6 +34,9 @@ class EntityBudgetController extends Controller
             ['name' => 'MS Office', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
             ['name' => 'Power BI Report', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
             ['name' => 'Operating System', 'expense_type' => 'Capex Software', 'category' => 'Overhead'],
+            ['name' => 'Servers & Network Equipment', 'expense_type' => 'Capex Hardware', 'category' => 'Overhead'],
+            ['name' => 'Desktops & Monitors', 'expense_type' => 'Capex Hardware', 'category' => 'Overhead'],
+            ['name' => 'Laptops & Workstations', 'expense_type' => 'Capex Hardware', 'category' => 'Overhead'],
             ['name' => 'Crowd Strike Antivirus', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
             ['name' => 'DMS', 'expense_type' => 'Maintenance', 'category' => 'Overhead'],
             ['name' => 'Firewall & Hosting Security', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
@@ -53,7 +56,7 @@ class EntityBudgetController extends Controller
             $entities = collect([]);
             $costHeadsList = self::getCostHeadsList();
             $costHeads = array_column($costHeadsList, 'name');
-            $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
+            $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
             $budgets = collect([]);
 
             // Test database connection first
@@ -101,83 +104,60 @@ class EntityBudgetController extends Controller
                 }
             }
             
-            // Filter budgets by entity and year if selected
-            if ($hasEntityBudgets) {
+            // Load budget details when user has applied filter (entity and/or expense type and/or cost head)
+            $selectedYear = $request->get('year', date('Y'));
+            $yearColumn = 'budget_' . $selectedYear;
+            $filterApplied = $request->filled('entity_id') || $request->filled('filter_expense_type') || $request->filled('filter_cost_head');
+
+            if ($hasEntityBudgets && $filterApplied) {
                 try {
                     $query = EntityBudget::with(['employee', 'expenses']);
-                    
-                    // Filter by year
-                    $selectedYear = $request->get('year', date('Y'));
-                    $yearColumn = 'budget_' . $selectedYear;
-                    
-                    // Only show budgets that have a value for the selected year
+
                     if (Schema::hasColumn('entity_budgets', $yearColumn)) {
                         $query->whereNotNull($yearColumn);
                     }
-                    
+
                     if ($request->filled('entity_id') && $hasEmployees) {
-                        // If filtering by entity, get all budgets for employees with that entity_name
-                        try {
-                            $selectedEntity = Employee::find($request->entity_id);
-                            Log::info('EntityBudget create: Filtering by entity', [
-                                'entity_id' => $request->entity_id,
-                                'entity_name' => $selectedEntity ? $selectedEntity->entity_name : 'NOT FOUND'
-                            ]);
-                            
-                            if ($selectedEntity) {
-                                // Get all employee IDs with this entity_name for direct query
-                                $employeeIds = Employee::where('entity_name', $selectedEntity->entity_name)
-                                    ->pluck('id')
-                                    ->toArray();
-                                
-                                Log::info('EntityBudget create: Employee IDs for entity', [
-                                    'entity_name' => $selectedEntity->entity_name,
-                                    'employee_ids' => $employeeIds
-                                ]);
-                                
-                                if (!empty($employeeIds)) {
-                                    // Use direct employee_id filter (more reliable than whereHas)
-                                    $query->whereIn('employee_id', $employeeIds);
-                                } else {
-                                    Log::warning('EntityBudget create: No employees found for entity_name: ' . $selectedEntity->entity_name);
-                                }
+                        $selectedEntity = Employee::find($request->entity_id);
+                        if ($selectedEntity) {
+                            $employeeIds = Employee::where('entity_name', $selectedEntity->entity_name)
+                                ->pluck('id')
+                                ->toArray();
+                            if (!empty($employeeIds)) {
+                                $query->whereIn('employee_id', $employeeIds);
                             } else {
-                                Log::warning('EntityBudget create: Selected entity not found for ID: ' . $request->entity_id);
+                                $query->whereRaw('1 = 0');
                             }
-                        } catch (\Exception $e) {
-                            Log::warning('Error filtering budgets by entity: ' . $e->getMessage());
-                            Log::warning('Stack trace: ' . $e->getTraceAsString());
+                        } else {
+                            $query->whereRaw('1 = 0');
                         }
-                    } else {
-                        // No filter - get all budgets
-                        Log::info('EntityBudget create: Loading all budgets (no filter)');
                     }
-                    
+
+                    if ($request->filled('filter_expense_type')) {
+                        $query->where('expense_type', $request->filter_expense_type);
+                    }
+
+                    if ($request->filled('filter_cost_head')) {
+                        $query->where('cost_head', $request->filter_cost_head);
+                    }
+
                     $budgets = $query->get();
-                    
-                    Log::info('EntityBudget create: Budgets loaded', [
-                        'count' => $budgets->count(),
-                        'entity_id_filter' => $request->entity_id ?? 'none'
-                    ]);
-                    
-                    // Ensure it's a collection
+
                     if (!$budgets instanceof \Illuminate\Support\Collection) {
                         $budgets = collect($budgets);
                     }
                 } catch (\Illuminate\Database\QueryException $e) {
                     Log::error('EntityBudget create: Budgets query error: ' . $e->getMessage());
-                    Log::error('SQL: ' . ($e->getSql() ?? 'N/A'));
-                    Log::error('Bindings: ' . json_encode($e->getBindings() ?? []));
+                    $budgets = collect([]);
                 } catch (\Exception $e) {
                     Log::warning('Error loading budgets: ' . $e->getMessage());
-                    Log::warning('Stack trace: ' . $e->getTraceAsString());
+                    $budgets = collect([]);
                 }
             }
-            
+
             // Get available years (current year and future years up to 5 years ahead)
             $currentYear = (int)date('Y');
             $availableYears = range($currentYear, $currentYear + 5);
-            $selectedYear = $request->get('year', $currentYear);
             
             $hasAllTables = $hasEmployees && $hasEntityBudgets;
             return view('entity_budget.create', compact('entities', 'costHeads', 'costHeadsList', 'expenseTypes', 'budgets', 'availableYears', 'selectedYear'))
@@ -192,7 +172,7 @@ class EntityBudgetController extends Controller
             $entities = collect([]);
             $costHeadsList = self::getCostHeadsList();
             $costHeads = array_column($costHeadsList, 'name');
-            $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
+            $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
             $budgets = collect([]);
             return view('entity_budget.create', compact('entities', 'costHeads', 'costHeadsList', 'expenseTypes', 'budgets'))
                 ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
@@ -206,13 +186,13 @@ class EntityBudgetController extends Controller
         $selectedYear = $request->get('year', date('Y'));
         $yearColumn = 'budget_' . $selectedYear;
         
-        // Filter by year
         if (Schema::hasColumn('entity_budgets', $yearColumn)) {
             $query->whereNotNull($yearColumn);
         }
         
+        $entityName = 'All Entities';
+        
         if ($request->filled('entity_id')) {
-            // Filter by entity_name instead of employee_id
             $selectedEntity = Employee::find($request->entity_id);
             if ($selectedEntity) {
                 $employeeIds = Employee::where('entity_name', $selectedEntity->entity_name)
@@ -221,16 +201,18 @@ class EntityBudgetController extends Controller
                 if (!empty($employeeIds)) {
                     $query->whereIn('employee_id', $employeeIds);
                 }
+                $entityName = $selectedEntity->entity_name;
             }
+        }
+
+        if ($request->filled('filter_expense_type')) {
+            $query->where('expense_type', $request->filter_expense_type);
+        }
+        if ($request->filled('filter_cost_head')) {
+            $query->where('cost_head', $request->filter_cost_head);
         }
         
         $budgets = $query->get();
-        $entityName = 'All Entities';
-        
-        if ($request->filled('entity_id')) {
-            $entity = Employee::find($request->entity_id);
-            $entityName = $entity ? $entity->entity_name : 'Unknown';
-        }
         
         $format = $request->get('format', 'pdf');
 
@@ -263,7 +245,7 @@ class EntityBudgetController extends Controller
             
             // Headers
             fputcsv($file, [
-                '#', 'Entity', 'Cost Head', 'Expense Type', 'Budget ' . $year, 'Total Expenses', 'Available Balance'
+                '#', 'Entity', 'Expense Type', 'Cost Head', 'Budget ' . $year, 'Total Expenses', 'Available Balance'
             ]);
 
             // Data
@@ -275,8 +257,8 @@ class EntityBudgetController extends Controller
                 fputcsv($file, [
                     $index + 1,
                     $budget->employee->entity_name ?? 'N/A',
-                    $budget->cost_head ?? 'N/A',
                     $budget->expense_type ?? 'N/A',
+                    $budget->cost_head ?? '—',
                     number_format($budgetAmount, 2),
                     number_format($totalExpenses, 2),
                     number_format($availableBalance, 2),
@@ -302,7 +284,6 @@ class EntityBudgetController extends Controller
 
             $validated = $request->validate([
                 'entity_id' => 'required|exists:employees,id',
-                'cost_head' => 'required|string',
                 'expense_type' => 'required|string',
                 'budget_year' => 'required|integer|min:2020|max:2100',
                 'budget_amount' => 'required|numeric|min:0'
@@ -310,7 +291,6 @@ class EntityBudgetController extends Controller
             
             $yearColumn = 'budget_' . $validated['budget_year'];
             
-            // Check if column exists, if not, we'll need to add it via migration
             if (!Schema::hasColumn('entity_budgets', $yearColumn)) {
                 return redirect()
                     ->back()
@@ -318,16 +298,23 @@ class EntityBudgetController extends Controller
                     ->withErrors(['error' => 'Budget column for year ' . $validated['budget_year'] . ' does not exist. Please run migrations.']);
             }
             
-            $budgetData = [
-                'employee_id' => $validated['entity_id'],
-                'cost_head' => $validated['cost_head'],
-                'expense_type' => $validated['expense_type'],
-                'category' => $request->get('category'),
-            ];
+            // Budget is maintained by entity + expense type only (no cost head). Update existing or create.
+            $budget = EntityBudget::where('employee_id', $validated['entity_id'])
+                ->where('expense_type', $validated['expense_type'])
+                ->whereNull('cost_head')
+                ->first();
             
-            $budgetData[$yearColumn] = $validated['budget_amount'];
-                    
-            $budget = EntityBudget::create($budgetData);
+            if ($budget) {
+                $budget->update([$yearColumn => $validated['budget_amount']]);
+            } else {
+                $budget = EntityBudget::create([
+                    'employee_id' => $validated['entity_id'],
+                    'cost_head' => null,
+                    'expense_type' => $validated['expense_type'],
+                    'category' => $request->get('category', 'Overhead'),
+                    $yearColumn => $validated['budget_amount'],
+                ]);
+            }
 
             // Redirect back to create page with entity_id and year filter to show the newly created budget
             return redirect()->route('entity_budget.create', [

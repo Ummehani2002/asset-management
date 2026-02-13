@@ -24,4 +24,3 @@ class TaskAssignedMail extends Mailable
                     ->view('emails.task_assigned');
     }
 }
-

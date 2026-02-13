@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
 
 class AssetCategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
             // Check if required tables exist
@@ -38,6 +38,13 @@ class AssetCategoryController extends Controller
                 $categories = collect([]);
             }
 
+            // Show only selected category (e.g. Printer → only printer brands/models; Laptop → only laptop)
+            $selectedCategoryId = $request->filled('category_id') ? (int) $request->category_id : null;
+            $categoriesToShow = $categories;
+            if ($selectedCategoryId) {
+                $categoriesToShow = $categories->where('id', $selectedCategoryId)->values();
+            }
+
             // Try to get assets, fallback to empty collection if table doesn't exist
             try {
                 $assets = $hasAssets 
@@ -48,15 +55,33 @@ class AssetCategoryController extends Controller
                 $assets = collect([]);
             }
 
-            return view('categories.manage', compact('categories', 'assets'));
+            // Inline "Set values" on this page: load model + feature values when set_values param is present
+            $setValuesModel = null;
+            $setValuesFeatures = collect([]);
+            $setValuesByFeature = collect([]);
+            if ($request->filled('set_values')) {
+                $m = BrandModel::with(['brand.features', 'featureValues'])->find($request->set_values);
+                if ($m) {
+                    $setValuesModel = $m;
+                    $setValuesFeatures = $m->brand->features;
+                    $setValuesByFeature = $m->featureValues->keyBy('category_feature_id');
+                }
+            }
+
+            return view('categories.manage', compact('categories', 'categoriesToShow', 'selectedCategoryId', 'assets', 'setValuesModel', 'setValuesFeatures', 'setValuesByFeature'));
         } catch (\Exception $e) {
             Log::error('AssetCategory index error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
             // Return empty collections instead of crashing
             $categories = collect([]);
+            $categoriesToShow = collect([]);
+            $selectedCategoryId = null;
             $assets = collect([]);
-            return view('categories.manage', compact('categories', 'assets'))
+            $setValuesModel = null;
+            $setValuesFeatures = collect([]);
+            $setValuesByFeature = collect([]);
+            return view('categories.manage', compact('categories', 'categoriesToShow', 'selectedCategoryId', 'assets', 'setValuesModel', 'setValuesFeatures', 'setValuesByFeature'))
                 ->with('warning', 'Unable to load categories. Please ensure migrations are run: php artisan migrate --force');
         }
     }
@@ -345,7 +370,11 @@ private function exportCategoryExcel($category)
                 ['feature_value' => $value]
             );
         }
-        return redirect()->route('categories.manage')->with('success', 'Model feature values saved.');
+        $params = ['set_values' => $model->id];
+        if (request()->filled('category_id')) {
+            $params['category_id'] = request('category_id');
+        }
+        return redirect()->route('categories.manage', $params)->with('success', 'Model feature values saved.');
     }
 
     public function destroyModel($id)

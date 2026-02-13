@@ -12,6 +12,22 @@
         </div>
     @endif
 
+    {{-- Show only one category at a time: Printer → only printer brands/models; Laptop → only laptop --}}
+    <div class="master-form-card mb-4">
+        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>View category</h5>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="{{ route('categories.manage', request()->only('set_values')) }}" class="btn btn-sm {{ empty($selectedCategoryId) ? 'btn-primary' : 'btn-outline-primary' }}">All</a>
+            @foreach($categories as $cat)
+                <a href="{{ route('categories.manage', array_merge(request()->only('set_values'), ['category_id' => $cat->id])) }}" class="btn btn-sm {{ (isset($selectedCategoryId) && $selectedCategoryId == $cat->id) ? 'btn-primary' : 'btn-outline-primary' }}">
+                    {{ $cat->category_name }}
+                </a>
+            @endforeach
+        </div>
+        @if(isset($selectedCategoryId) && $selectedCategoryId)
+            <p class="text-muted small mt-2 mb-0">Showing only <strong>{{ $categories->firstWhere('id', $selectedCategoryId)->category_name ?? 'selected' }}</strong> — brands and models for this category only.</p>
+        @endif
+    </div>
+
     {{-- Add New Category Form --}}
     <div class="master-form-card mb-4">
         <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i>Add New Category</h5>
@@ -33,7 +49,7 @@
         </form>
     </div>
 
-    @foreach($categories as $category)
+    @foreach($categoriesToShow as $category)
         <div class="master-table-card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 style="color: white; margin: 0;">
@@ -113,7 +129,8 @@
                                                 @foreach($brand->models as $bModel)
                                                     <span class="badge bg-secondary me-1 mb-1">
                                                         {{ $bModel->model_number }}
-                                                        <a href="{{ route('brand-models.edit-features', $bModel->id) }}" class="text-white ms-1" title="Type all feature values for this model – they will autofill in Asset Master"><i class="bi bi-pencil-square me-1"></i>Set values</a>
+                                                        @php $setValuesParams = ['set_values' => $bModel->id]; if (isset($selectedCategoryId) && $selectedCategoryId) { $setValuesParams['category_id'] = $selectedCategoryId; } @endphp
+                                                        <a href="{{ route('categories.manage', $setValuesParams) }}#brand-{{ $brand->id }}" class="text-white ms-1" title="Set feature values here (same page)"><i class="bi bi-pencil-square me-1"></i>Set values</a>
                                                         <form action="{{ route('brand-models.destroy', $bModel->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this model?');">
                                                             @csrf
                                                             @method('DELETE')
@@ -179,6 +196,77 @@
                                                 </button>
                                             </form>
                                         </div>
+
+                                        {{-- Set values: one feature visible at a time — no scrolling --}}
+                                        @if(isset($setValuesModel) && $setValuesModel->brand_id == $brand->id)
+                                            @php $totalFeatures = $setValuesFeatures->count(); @endphp
+                                            <div id="brand-{{ $brand->id }}" class="mt-3 p-3 border rounded bg-light set-values-one-at-a-time">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <strong>Set values for model &ldquo;{{ $setValuesModel->model_number }}&rdquo;</strong>
+                                                    @php $closeParams = isset($selectedCategoryId) && $selectedCategoryId ? ['category_id' => $selectedCategoryId] : []; @endphp
+                                                    <a href="{{ route('categories.manage', $closeParams) }}" class="btn btn-sm btn-outline-secondary">Close</a>
+                                                </div>
+                                                <form action="{{ route('brand-models.update-feature-values', $setValuesModel->id) }}" method="POST" autocomplete="off">
+                                                    @csrf
+                                                    @if(isset($selectedCategoryId) && $selectedCategoryId)
+                                                        <input type="hidden" name="category_id" value="{{ $selectedCategoryId }}">
+                                                    @endif
+                                                    <div class="set-values-steps border rounded bg-white p-3" style="min-height: 100px;">
+                                                        @foreach($setValuesFeatures as $idx => $feature)
+                                                            @php
+                                                                $fv = $setValuesByFeature->get($feature->id);
+                                                                $val = $fv ? $fv->feature_value : null;
+                                                                $subVals = $fv && $feature->sub_fields ? @json_decode($fv->feature_value, true) : [];
+                                                                $subVals = is_array($subVals) ? $subVals : [];
+                                                                $isModelNumber = strtolower($feature->feature_name ?? '') === 'model number';
+                                                            @endphp
+                                                            <div class="set-values-step {{ $idx === 0 ? '' : 'd-none' }}" data-step="{{ $idx }}">
+                                                                <div class="mb-2"><strong>{{ $feature->feature_name }}</strong></div>
+                                                                @if($feature->sub_fields && count($feature->sub_fields) > 0)
+                                                                    <div class="text-muted small mb-2">{{ implode(', ', $feature->sub_fields) }}</div>
+                                                                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                                        @foreach($feature->sub_fields as $subField)
+                                                                            <input type="text" name="features_{{ $feature->id }}_{{ $subField }}" class="form-control form-control-sm d-inline-block" style="width: 120px;" value="{{ $subVals[$subField] ?? '' }}" placeholder="{{ $subField }}">
+                                                                        @endforeach
+                                                                    </div>
+                                                                @else
+                                                                    <input type="text" name="features_{{ $feature->id }}" class="form-control form-control-sm" value="{{ $isModelNumber ? ($setValuesModel->model_number ?? '') : ($val ?? '') }}" {{ $isModelNumber ? 'readonly' : '' }} placeholder="{{ $feature->feature_name }}">
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                    <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+                                                        <div>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary set-values-prev" disabled>Previous</button>
+                                                            <span class="mx-2 set-values-counter text-muted small">1 of {{ $totalFeatures }}</span>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary set-values-next">{{ $totalFeatures > 1 ? 'Next' : '' }}</button>
+                                                        </div>
+                                                        <button type="submit" class="btn btn-primary btn-sm">Save feature values</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                            <script>
+                                            (function() {
+                                                var container = document.querySelector('#brand-{{ $brand->id }} .set-values-one-at-a-time');
+                                                if (!container) return;
+                                                var steps = container.querySelectorAll('.set-values-step');
+                                                var total = steps.length;
+                                                var prevBtn = container.querySelector('.set-values-prev');
+                                                var nextBtn = container.querySelector('.set-values-next');
+                                                var counterEl = container.querySelector('.set-values-counter');
+                                                var current = 0;
+                                                function showStep(i) {
+                                                    current = i;
+                                                    steps.forEach(function(s, idx) { s.classList.toggle('d-none', idx !== current); });
+                                                    if (prevBtn) prevBtn.disabled = current === 0;
+                                                    if (nextBtn) { nextBtn.disabled = current === total - 1; nextBtn.textContent = current === total - 1 ? '' : 'Next'; }
+                                                    if (counterEl) counterEl.textContent = (current + 1) + ' of ' + total;
+                                                }
+                                                if (prevBtn) prevBtn.addEventListener('click', function() { if (current > 0) showStep(current - 1); });
+                                                if (nextBtn) nextBtn.addEventListener('click', function() { if (current < total - 1) showStep(current + 1); });
+                                            })();
+                                            </script>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1">

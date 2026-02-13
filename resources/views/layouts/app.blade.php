@@ -24,6 +24,15 @@
             --white: #FFFFFF;
             --text-dark: #1F2A44;
             --border-light: #E5E7EB;
+            /* Sidebar: master one color, sub-menus different (darker) */
+            --sidebar-bg: #0d2838;
+            --sidebar-master-bg: rgba(30, 55, 70, 0.95);
+            --sidebar-master-text: #c5e0e8;
+            --sidebar-master-hover: rgba(50, 85, 105, 0.95);
+            --sidebar-submenu-bg: rgba(8, 22, 32, 0.98);
+            --sidebar-submenu-text: #b0d4dc;
+            --sidebar-submenu-hover: rgba(25, 50, 65, 0.98);
+            --sidebar-accent: #5ba3b8;
         }
 
         /* Disable browser autocomplete dropdowns - Aggressive */
@@ -65,12 +74,12 @@
             font-size: 13px;
         }
 
-        /* Sidebar - Golden and Blue only */
+        /* Sidebar: master items one color, sub-menus different (darker) – pattern like reference */
         .sidebar {
             width: 260px;
-            background-color: var(--primary);
+            background-color: var(--sidebar-bg);
             padding-top: 20px;
-            color: var(--secondary);
+            color: var(--sidebar-master-text);
             position: fixed;
             top: 0;
             left: 0;
@@ -80,34 +89,33 @@
             z-index: 1000;
         }
 
-        /* Custom scrollbar - golden */
         .sidebar::-webkit-scrollbar {
             width: 6px;
         }
 
         .sidebar::-webkit-scrollbar-track {
-            background: rgba(31, 42, 68, 0.5);
+            background: rgba(13, 40, 56, 0.5);
         }
 
         .sidebar::-webkit-scrollbar-thumb {
-            background: rgba(198, 168, 125, 0.5);
+            background: rgba(168, 212, 224, 0.4);
             border-radius: 3px;
         }
 
         .sidebar::-webkit-scrollbar-thumb:hover {
-            background: rgba(198, 168, 125, 0.8);
+            background: rgba(168, 212, 224, 0.7);
         }
 
         .sidebar h4 {
-            color: var(--secondary);
+            color: var(--sidebar-master-text);
             font-weight: 600;
             letter-spacing: 0.5px;
         }
 
-        /* Top-level nav items */
+        /* Master (top-level) items – one color */
         .sidebar .sidebar-nav-item,
         .sidebar .sidebar-nav-item:hover {
-            color: var(--secondary);
+            color: var(--sidebar-master-text);
             text-decoration: none;
             display: flex;
             align-items: center;
@@ -116,36 +124,37 @@
             width: 100%;
             text-align: left;
             border: none;
-            background: transparent;
+            background: var(--sidebar-master-bg);
             transition: all 0.2s ease;
             font-size: 13px;
             border-radius: 0;
             border-left: 3px solid transparent;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.15);
         }
 
         .sidebar .sidebar-nav-item:hover,
         .sidebar .sidebar-dropdown-toggle:hover {
-            background: rgba(198, 168, 125, 0.12);
+            background: var(--sidebar-master-hover) !important;
             color: #ffffff !important;
         }
 
         .sidebar .sidebar-nav-item.active,
         .sidebar a.sidebar-nav-item.active {
-            background: rgba(198, 168, 125, 0.15);
+            background: var(--sidebar-master-hover) !important;
             color: #ffffff !important;
-            border-left-color: var(--secondary);
+            border-left-color: var(--sidebar-accent);
         }
 
-        /* Dropdown parent (toggle) */
         .sidebar .sidebar-dropdown-toggle {
             display: flex;
             align-items: center;
             justify-content: space-between;
             width: 100%;
             padding: 12px 20px;
-            color: var(--secondary);
-            background: transparent;
+            color: var(--sidebar-master-text);
+            background: var(--sidebar-master-bg);
             border: none;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.15);
             text-align: left;
             font-size: 13px;
             cursor: pointer;
@@ -163,18 +172,18 @@
             transform: rotate(180deg);
         }
 
-        /* Submenu container - hover to expand */
         .sidebar .sidebar-dropdown {
             position: relative;
         }
 
+        /* Sub-menu – different (darker) color, clearly nested */
         .sidebar .sidebar-dropdown-menu {
             display: none !important;
-            background: rgba(0, 0, 0, 0.15);
+            background: var(--sidebar-submenu-bg);
             margin: 0;
-            padding: 4px 0 4px 0;
+            padding: 0;
             list-style: none;
-            border-left: 3px solid rgba(198, 168, 125, 0.5);
+            border-left: 3px solid rgba(91, 163, 184, 0.5);
             margin-left: 20px;
         }
 
@@ -182,48 +191,58 @@
             display: block !important;
         }
 
-        /* Submenu links */
         .sidebar .sidebar-dropdown-menu a {
             display: flex;
             align-items: center;
             gap: 10px;
             padding: 10px 16px 10px 20px;
             font-size: 12px;
-            color: rgba(198, 168, 125, 0.95) !important;
+            color: var(--sidebar-submenu-text) !important;
             text-decoration: none;
             transition: all 0.2s ease;
             border: none !important;
             border-radius: 0;
-            margin: 0 8px 2px 8px;
-            border-radius: 6px;
+            margin: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .sidebar .sidebar-dropdown-menu a:last-child {
+            border-bottom: none;
         }
 
         .sidebar .sidebar-dropdown-menu a:hover {
-            background: rgba(198, 168, 125, 0.2) !important;
+            background: var(--sidebar-submenu-hover) !important;
             color: #ffffff !important;
         }
 
-        /* Plain links - same as nav items */
+        .sidebar .sidebar-dropdown-menu a.active {
+            background: var(--sidebar-submenu-hover) !important;
+            color: #ffffff !important;
+            border-left: 3px solid var(--sidebar-accent);
+        }
+
+        /* Plain links – master style */
         .sidebar .btn-outline-primary,
         .sidebar .btn-outline-light,
         .sidebar a.btn-outline-primary,
         .sidebar a.btn-outline-light {
             border: none !important;
             border-left: 3px solid transparent !important;
-            color: var(--secondary) !important;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+            color: var(--sidebar-master-text) !important;
             display: flex;
             align-items: center;
             gap: 10px;
             padding: 12px 20px;
             text-align: left;
-            background: transparent;
+            background: var(--sidebar-master-bg);
         }
 
         .sidebar .btn-outline-primary:hover,
         .sidebar .btn-outline-light:hover,
         .sidebar a.btn-outline-primary:hover,
         .sidebar a.btn-outline-light:hover {
-            background: rgba(198, 168, 125, 0.12) !important;
+            background: var(--sidebar-master-hover) !important;
             color: #ffffff !important;
         }
 
@@ -796,21 +815,21 @@
     {{-- Sidebar --}}
     {{-- Sidebar --}}
 <div class="sidebar">
-    {{-- Logo Section --}}
-    <div class="text-center mb-4 pb-3" style="border-bottom: 1px solid rgba(198, 168, 125, 0.3); padding: 15px 10px;">
-        <div style="background: white; border: 1px solid rgba(198, 168, 125, 0.5); border-radius: 10px; padding: 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);">
+    {{-- Logo Section (sidebar color) --}}
+    <div class="text-center mb-4 pb-3" style="border-bottom: 1px solid rgba(168, 212, 224, 0.3); padding: 15px 10px;">
+        <div style="background: white; border: 1px solid rgba(168, 212, 224, 0.5); border-radius: 10px; padding: 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);">
             <img src="{{ asset('images/logo.png') }}" alt="Tanseeq Logo" 
                  style="max-width: 100px; width: 100%; height: auto; display: block; margin-left: auto; margin-right: auto;"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div style="display:none;">
-                <h4 style="color: #C6A87D; font-size: 14px; font-weight: 700; letter-spacing: 2px; margin: 0;">
+                <h4 style="color: var(--sidebar-master-text); font-size: 14px; font-weight: 700; letter-spacing: 2px; margin: 0;">
                     TANSEEQ
                 </h4>
             </div>
         </div>
  
     </div>
-    <h4 class="text-center mb-3" style="font-size: 16px; color: var(--secondary);">Menu</h4>
+    <h4 class="text-center mb-3" style="font-size: 16px; color: var(--sidebar-master-text);">Menu</h4>
    <a href="{{ route('dashboard') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('dashboard') ? 'active' : '' }}">
     <i class="bi bi-speedometer2"></i> Dashboard
 </a>

@@ -23,10 +23,6 @@
             <td>{{ $budget->employee->entity_name ?? 'N/A' }}</td>
         </tr>
         <tr>
-            <td><strong>Cost Head</strong></td>
-            <td>{{ ucfirst($budget->cost_head ?? 'N/A') }}</td>
-        </tr>
-        <tr>
             <td><strong>Expense Type</strong></td>
             <td>{{ $budget->expense_type ?? 'N/A' }}</td>
         </tr>

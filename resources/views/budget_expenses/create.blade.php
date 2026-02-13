@@ -27,22 +27,20 @@
             </div>
 
             <div class="col-md-4 mb-3">
-                <label for="cost_head">Cost Head</label>
-                <select name="cost_head" id="cost_head" class="form-control" required>
-                    <option value="">Select Cost Head</option>
-                    @foreach($costHeads as $head)
-                        <option value="{{ $head }}">{{ ucfirst($head) }}</option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="col-md-4 mb-3">
                 <label for="expense_type">Expense Type</label>
                 <select id="expense_type" name="expense_type" class="form-control" required>
                     <option value="">Select Type</option>
                     <option value="Maintenance">Maintenance</option>
                     <option value="Capex Software">Capex Software</option>
+                    <option value="Capex Hardware">Capex Hardware</option>
                     <option value="Subscription">Subscription</option>
+                </select>
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label for="cost_head">Cost Head</label>
+                <select name="cost_head" id="cost_head" class="form-control" required>
+                    <option value="">Select Expense Type first</option>
                 </select>
             </div>
         </div>
@@ -114,6 +112,13 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const costHeadsWithTypes = @json($costHeadsWithTypes ?? []);
+    // Build map: expense type -> list of cost head names (for filtering Cost Head by Expense Type)
+    const costHeadsByExpenseType = {};
+    Object.entries(costHeadsWithTypes).forEach(function(entry) {
+        const name = entry[0], type = entry[1];
+        if (!costHeadsByExpenseType[type]) costHeadsByExpenseType[type] = [];
+        costHeadsByExpenseType[type].push(name);
+    });
     const entitySelect = document.getElementById('entity_id');
     const costHeadSelect = document.getElementById('cost_head');
     const expenseTypeSelect = document.getElementById('expense_type');
@@ -215,16 +220,27 @@ document.addEventListener('DOMContentLoaded', function() {
         availableBalanceEl.textContent = (budgetAmount - totalExpenses - newExpense).toFixed(2);
     }
 
-    // When cost head changes, auto-set expense type from predefined list
-    costHeadSelect.addEventListener('change', function() {
-        if (costHeadsWithTypes[this.value]) {
-            expenseTypeSelect.value = costHeadsWithTypes[this.value];
+    function populateCostHeads() {
+        const type = expenseTypeSelect.value;
+        const currentVal = costHeadSelect.value;
+        costHeadSelect.innerHTML = '<option value="">Select Cost Head</option>';
+        if (type && costHeadsByExpenseType[type]) {
+            costHeadsByExpenseType[type].forEach(function(name) {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                if (name === currentVal) opt.selected = true;
+                costHeadSelect.appendChild(opt);
+            });
         }
+    }
+    expenseTypeSelect.addEventListener('change', function() {
+        populateCostHeads();
+        costHeadSelect.value = '';
+        fetchDetails();
     });
-    // update details when selects change
     entitySelect.addEventListener('change', fetchDetails);
     costHeadSelect.addEventListener('change', fetchDetails);
-    expenseTypeSelect.addEventListener('change', fetchDetails);
     expenseAmount.addEventListener('input', updateBalance);
 
     // submit via AJAX so we can show success and update table without redirect

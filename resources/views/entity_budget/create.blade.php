@@ -19,13 +19,13 @@
         </div>
     @endif
 
-    {{-- Filter Section --}}
+    {{-- Filter Section: Entity dropdown + Expense Type & Cost Head filters + Search button --}}
     <div class="master-form-card mb-4">
-        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Filter by Entity & Year</h5>
+        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Filter by Entity, Year, Expense Type & Cost Head</h5>
         <form method="GET" action="{{ route('entity_budget.create') }}" id="filterForm" autocomplete="off">
             <div class="row">
-                <div class="col-md-4">
-                    <label for="filter_entity_id" class="form-label">Select Entity</label>
+                <div class="col-md-3">
+                    <label for="filter_entity_id" class="form-label">Entity</label>
                     <select name="entity_id" id="filter_entity_id" class="form-control">
                         <option value="">-- All Entities --</option>
                         @foreach($entities as $entity)
@@ -35,19 +35,31 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label for="year" class="form-label">Select Year</label>
-                    <select name="year" id="year" class="form-control">
-                        @foreach($availableYears as $year)
-                            <option value="{{ $year }}" {{ $selectedYear == $year ? 'selected' : '' }}>
-                                {{ $year }}
-                            </option>
+                <div class="col-md-2">
+                    <label for="year" class="form-label">Year</label>
+                    <input type="number" name="year" id="year" class="form-control" placeholder="e.g. 2026" value="{{ request('year', $selectedYear) }}" min="{{ date('Y') }}" max="{{ date('Y') + 10 }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="filter_expense_type" class="form-label">Expense Type</label>
+                    <select name="filter_expense_type" id="filter_expense_type" class="form-control">
+                        <option value="">-- All Types --</option>
+                        @foreach($expenseTypes as $type)
+                            <option value="{{ $type }}" {{ request('filter_expense_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-2">
+                    <label for="filter_cost_head" class="form-label">Cost Head</label>
+                    <select name="filter_cost_head" id="filter_cost_head" class="form-control">
+                        <option value="">-- All Cost Heads --</option>
+                        @foreach($costHeads as $head)
+                            <option value="{{ $head }}" {{ request('filter_cost_head') == $head ? 'selected' : '' }}>{{ $head }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-search me-1"></i>Apply Filter
+                        <i class="bi bi-search me-1"></i>Search
                     </button>
                 </div>
             </div>
@@ -72,28 +84,18 @@
                         @endforeach
                     </select>
                 </div>
-
-           <div class="col-md-4 mb-3">
-    <label for="cost_head">Cost Head</label>
-    <select name="cost_head" id="cost_head" class="form-control" required>
-        <option value="">Select Cost Head</option>
-        @foreach($costHeadsList as $item)
-            <option value="{{ $item['name'] }}" data-expense-type="{{ $item['expense_type'] }}" data-category="{{ $item['category'] ?? 'Overhead' }}">{{ $item['name'] }}</option>
-        @endforeach
-    </select>
-</div>
-
-            <div class="col-md-4 mb-3">
-                <label for="expense_type">Expense Type</label>
-                <select name="expense_type" id="expense_type" class="form-control" required>
-                    <option value="">Select Type</option>
-                    <option value="Maintenance">Maintenance</option>
-                    <option value="Capex Software">Capex Software</option>
-                    <option value="Subscription">Subscription</option>
-                </select>
+                <div class="col-md-4 mb-3">
+                    <label for="expense_type">Expense Type</label>
+                    <select name="expense_type" id="expense_type" class="form-control" required>
+                        <option value="">Select Type</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Capex Software">Capex Software</option>
+                        <option value="Capex Hardware">Capex Hardware</option>
+                        <option value="Subscription">Subscription</option>
+                    </select>
+                </div>
+                <input type="hidden" name="category" id="category" value="Overhead">
             </div>
-            <input type="hidden" name="category" id="category" value="Overhead">
-        </div>
 
         <div class="row">
             <div class="col-md-6 mb-3">
@@ -118,8 +120,8 @@
         </button>
     </form>
 
-    {{-- Budgets Table --}}
-    @if(request()->filled('entity_id') || $budgets->count() > 0)
+    {{-- Budgets Table: when filter/search was applied (entity + optional expense type & cost head) --}}
+    @if(request()->filled('entity_id') || request()->filled('filter_expense_type') || request()->filled('filter_cost_head') || $budgets->count() > 0)
         <div class="master-table-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 style="color: white; margin: 0;">
@@ -133,15 +135,24 @@
                     ({{ $budgets->count() }})
                 </h5>
                 @if($budgets->count() > 0)
+                    @php
+                        $exportParams = [
+                            'year' => request('year', $selectedYear),
+                            'entity_id' => request('entity_id'),
+                            'filter_expense_type' => request('filter_expense_type'),
+                            'filter_cost_head' => request('filter_cost_head'),
+                        ];
+                        $exportParams = array_filter($exportParams);
+                    @endphp
                     <div class="dropdown">
                         <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-download"></i> Download
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
-                            <li><a class="dropdown-item" href="{{ route('entity_budget.export', array_merge(request()->only(['entity_id', 'year']), ['format' => 'pdf'])) }}">
+                            <li><a class="dropdown-item" href="{{ route('entity_budget.export', array_merge($exportParams, ['format' => 'pdf'])) }}">
                                 <i class="bi bi-file-pdf me-2"></i>PDF
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ route('entity_budget.export', array_merge(request()->only(['entity_id', 'year']), ['format' => 'csv'])) }}">
+                            <li><a class="dropdown-item" href="{{ route('entity_budget.export', array_merge($exportParams, ['format' => 'csv'])) }}">
                                 <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
                             </a></li>
                         </ul>
@@ -155,8 +166,8 @@
                             <tr>
                                 <th>#</th>
                                 <th>Entity</th>
-                                <th>Cost Head</th>
                                 <th>Expense Type</th>
+                                <th>Cost Head</th>
                                 <th>Budget {{ $selectedYear }}</th>
                                 <th>Total Expenses</th>
                                 <th>Available Balance</th>
@@ -173,8 +184,8 @@
                             <tr>
                                 <td>{{ $index + 1 }}</td>
                                 <td>{{ $budget->employee->entity_name ?? 'N/A' }}</td>
-                                <td>{{ ucfirst($budget->cost_head) }}</td>
                                 <td>{{ $budget->expense_type }}</td>
+                                <td>{{ $budget->cost_head ?? '—' }}</td>
                                 <td>{{ number_format($budgetAmount, 2) }}</td>
                                 <td>{{ number_format($totalExpenses, 2) }}</td>
                                 <td>{{ number_format($availableBalance, 2) }}</td>
@@ -182,11 +193,7 @@
                             @empty
                             <tr>
                                 <td colspan="7" class="text-center text-muted py-4">
-                                    @if(request()->filled('entity_id'))
-                                        No budgets found for selected entity.
-                                    @else
-                                        No budgets found. Select an entity to filter or add a new budget.
-                                    @endif
+                                    No budgets found for the selected filters. Try different entity, expense type or cost head, or add a new budget.
                                 </td>
                             </tr>
                             @endforelse
@@ -198,21 +205,10 @@
     @else
         <div class="alert alert-info text-center">
             <i class="bi bi-info-circle display-4 d-block mb-3"></i>
-            <h4>No Budgets Found</h4>
-          
+            <h4>Search to see budget details</h4>
+            <p class="mb-0">Select <strong>Entity</strong> and optionally <strong>Expense Type</strong> and <strong>Cost Head</strong>, then click <strong>Search</strong> to view budgets.</p>
         </div>
     @endif
 </div>
 
-<script>
-document.getElementById('cost_head').addEventListener('change', function() {
-    var opt = this.options[this.selectedIndex];
-    if (opt && opt.value) {
-        var expenseType = opt.getAttribute('data-expense-type');
-        var category = opt.getAttribute('data-category');
-        if (expenseType) document.getElementById('expense_type').value = expenseType;
-        if (category) document.getElementById('category').value = category;
-    }
-});
-</script>
 @endsection

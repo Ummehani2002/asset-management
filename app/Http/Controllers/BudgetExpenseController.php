@@ -19,7 +19,7 @@ class BudgetExpenseController extends Controller
         // Initialize defaults
         $entities = collect([]);
         $costHeads = [];
-        $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
+        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
         
         // Check database connection
         try {
@@ -82,7 +82,7 @@ class BudgetExpenseController extends Controller
         foreach ($costHeadsList as $item) {
             $costHeadsWithTypes[$item['name']] = $item['expense_type'];
         }
-        $expenseTypes = ['Maintenance', 'Capex Software', 'Subscription'];
+        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
         return view('budget_expenses.create', compact('entities', 'costHeads', 'costHeadsWithTypes', 'expenseTypes'))
             ->with('error', 'An error occurred. Please check logs.');
     }
@@ -93,12 +93,13 @@ class BudgetExpenseController extends Controller
         try {
             $validated = $request->validate([
                 'entity_budget_id' => 'required|exists:entity_budgets,id',
+                'cost_head' => 'nullable|string',
                 'expense_amount' => 'required|numeric|min:0',
                 'expense_date' => 'required|date',
                 'description' => 'nullable|string'
             ]);
 
-            // Check available balance
+            // Check available balance (all expenses under this budget)
             $budget = EntityBudget::find($validated['entity_budget_id']);
             $totalExpenses = BudgetExpense::where('entity_budget_id', $budget->id)
                 ->sum('expense_amount');
@@ -127,10 +128,10 @@ class BudgetExpenseController extends Controller
     {
         try {
             // Validate required parameters
-            if (!$request->has('entity_id') || !$request->has('cost_head') || !$request->has('expense_type')) {
+            if (!$request->has('entity_id') || !$request->has('expense_type')) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Missing required parameters: entity_id, cost_head, or expense_type'
+                    'message' => 'Missing required parameters: entity_id or expense_type'
                 ]);
             }
             
@@ -173,17 +174,16 @@ class BudgetExpenseController extends Controller
                 ]);
             }
             
-            // Use direct employee_id filter with case-insensitive cost_head matching
+            // Budget is maintained by entity + expense type only. Prefer row with null cost_head.
             $budget = EntityBudget::with('employee')
                 ->whereIn('employee_id', $employeeIds)
-                ->whereRaw('LOWER(cost_head) = LOWER(?)', [$request->cost_head])
                 ->where('expense_type', $request->expense_type)
+                ->orderByRaw('CASE WHEN cost_head IS NULL THEN 0 ELSE 1 END')
                 ->first();
             
             if (!$budget) {
                 Log::warning('BudgetExpense getBudgetDetails: No budget found', [
                     'entity_name' => $selectedEmployee->entity_name,
-                    'cost_head' => $request->cost_head,
                     'expense_type' => $request->expense_type
                 ]);
                 
@@ -193,42 +193,50 @@ class BudgetExpenseController extends Controller
                 ]);
             }
 
-            // Budget found, get expenses
-            $expenses = BudgetExpense::where('entity_budget_id', $budget->id)
-                ->orderBy('expense_date', 'desc')
-                ->get();
-                
-            $totalExpenses = $expenses->sum('expense_amount');
-
             $currentYear = (int) date('Y');
             $yearColumn = 'budget_' . $currentYear;
             $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
 
-            $formattedExpenses = $expenses->map(function ($expense) use ($budget, $budgetAmount) {
+            // Get expenses, optionally filtered by cost head
+            $expensesQuery = BudgetExpense::where('entity_budget_id', $budget->id);
+            if ($request->filled('cost_head')) {
+                $expensesQuery->whereRaw('LOWER(cost_head) = LOWER(?)', [$request->cost_head]);
+            }
+            $expenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->get();
+
+            // Total for this filter (this cost head only when cost_head selected)
+            $totalExpensesFiltered = $expenses->sum('expense_amount');
+            // Total all expenses under this budget (for available balance)
+            $totalExpensesAll = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
+
+            $requestCostHead = $request->cost_head;
+            $formattedExpenses = $expenses->map(function ($expense) use ($budget, $budgetAmount, $requestCostHead) {
                 $balanceAfter = $budgetAmount - BudgetExpense::where('entity_budget_id', $budget->id)
                     ->where('created_at', '<=', $expense->created_at)
                     ->sum('expense_amount');
+                $costHeadDisplay = $expense->cost_head ? ucfirst($expense->cost_head) : ($budget->cost_head ? ucfirst($budget->cost_head) : ($requestCostHead ? ucfirst($requestCostHead) : '—'));
 
                 return [
                     'expense_date' => date('Y-m-d', strtotime($expense->expense_date)),
                     'expense_amount' => number_format($expense->expense_amount, 2),
                     'description' => $expense->description ?: '-',
                     'entity_name' => $budget->employee->entity_name ?? 'N/A',
-                    'cost_head' => ucfirst($budget->cost_head),
+                    'cost_head' => $costHeadDisplay,
                     'expense_type' => $budget->expense_type,
                     'balance_after' => number_format($balanceAfter, 2)
                 ];
             });
 
+            $costHeadDisplay = $budget->cost_head ? ucfirst($budget->cost_head) : ($request->cost_head ? ucfirst($request->cost_head) : '—');
             return response()->json([
                 'success' => true,
                 'entity_budget_id' => $budget->id,
                 'entity_name' => $budget->employee->entity_name ?? 'N/A',
-                'cost_head' => ucfirst($budget->cost_head),
+                'cost_head' => $costHeadDisplay,
                 'expense_type' => $budget->expense_type,
                 'budget_amount' => number_format($budgetAmount, 2),
-                'total_expenses' => number_format($totalExpenses, 2),
-                'available_balance' => number_format($budgetAmount - $totalExpenses, 2),
+                'total_expenses' => number_format($totalExpensesFiltered, 2),
+                'available_balance' => number_format($budgetAmount - $totalExpensesAll, 2),
                 'expenses' => $formattedExpenses
             ]);
 

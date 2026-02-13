@@ -9,10 +9,10 @@ class BudgetExpense extends Model
 {
     protected $fillable = [
         'entity_budget_id',
+        'cost_head',
         'expense_amount',
         'expense_date',
         'description',
-        
     ];
 
     public function entityBudget()
