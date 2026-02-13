@@ -2,7 +2,9 @@
 
 @section('content')
 <div class="container">
-    <h2>New Budget Expense</h2>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h2 class="mb-0">New Budget Expense</h2>
+    </div>
 
     <div id="flash-placeholder">
         @if(session('success'))
@@ -83,10 +85,12 @@
             <textarea id="description" name="description" class="form-control"></textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary">Save Expense</button>
-        <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
-            <i class="bi bi-x-circle me-2"></i>Cancel
-        </button>
+        <div class="no-print">
+            <button type="submit" class="btn btn-primary">Save Expense</button>
+            <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
+                <i class="bi bi-x-circle me-2"></i>Cancel
+            </button>
+        </div>
     </form>
 
     <div class="mt-4">
@@ -135,9 +139,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_token"]').value;
     const flashPlaceholder = document.getElementById('flash-placeholder');
 
-    function renderFlash(message, type = 'success') {
-        flashPlaceholder.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-        setTimeout(() => flashPlaceholder.innerHTML = '', 4000);
+    function renderFlash(message, type = 'success', printUrl = null) {
+        let html = `<div class="alert alert-${type}">${message}`;
+        if (printUrl) {
+            html += ` <a href="${printUrl}" target="_blank" class="btn btn-sm btn-outline-light ms-3"><i class="bi bi-printer me-1"></i>Print</a>`;
+        }
+        html += '</div>';
+        flashPlaceholder.innerHTML = html;
+        setTimeout(() => flashPlaceholder.innerHTML = '', 8000);
     }
 
     async function fetchDetails() {
@@ -280,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('description').value = '';
 
                 updateBalance();
-                renderFlash('Expense saved successfully.', 'success');
+                renderFlash('Expense saved successfully.', 'success', data.print_url || null);
             } else {
                 const msg = data.message || 'Error saving expense';
                 renderFlash(msg, 'danger');

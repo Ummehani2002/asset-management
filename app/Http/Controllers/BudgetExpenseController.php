@@ -113,8 +113,15 @@ class BudgetExpenseController extends Controller
 
             $expense = BudgetExpense::create($validated);
 
-            // Get updated budget details
-            return $this->getBudgetDetails($request);
+            // Get updated budget details and add print URL for the saved expense
+            $response = $this->getBudgetDetails($request);
+            $data = $response->getData(true);
+            if (is_array($data)) {
+                $data['saved_expense_id'] = $expense->id;
+                $data['print_url'] = route('budget-expenses.print', $expense->id);
+                return response()->json($data);
+            }
+            return $response;
 
         } catch (\Exception $e) {
             return response()->json([
@@ -248,5 +255,54 @@ class BudgetExpenseController extends Controller
                 'message' => 'Error retrieving budget details: ' . $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Printable view of budget expense (form summary + expenses table). Opens in new tab and triggers print.
+     */
+    public function printExpense($id)
+    {
+        $expense = BudgetExpense::with('entityBudget.employee')->findOrFail($id);
+        $budget = $expense->entityBudget;
+        $currentYear = (int) date('Y');
+        $yearColumn = 'budget_' . $currentYear;
+        $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
+
+        $expensesQuery = BudgetExpense::where('entity_budget_id', $budget->id);
+        if (!empty($expense->cost_head)) {
+            $expensesQuery->whereRaw('LOWER(cost_head) = LOWER(?)', [$expense->cost_head]);
+        }
+        $expenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->get();
+
+        $totalExpensesAll = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
+        $costHeadDisplay = $expense->cost_head ? ucfirst($expense->cost_head) : ($budget->cost_head ? ucfirst($budget->cost_head) : '—');
+
+        $rows = $expenses->map(function ($e) use ($budget, $budgetAmount) {
+            $balanceAfter = $budgetAmount - BudgetExpense::where('entity_budget_id', $budget->id)
+                ->where('created_at', '<=', $e->created_at)
+                ->sum('expense_amount');
+            return [
+                'expense_date' => date('Y-m-d', strtotime($e->expense_date)),
+                'entity_name' => $budget->employee->entity_name ?? 'N/A',
+                'cost_head' => $e->cost_head ? ucfirst($e->cost_head) : ($budget->cost_head ? ucfirst($budget->cost_head) : '—'),
+                'expense_type' => $budget->expense_type,
+                'expense_amount' => number_format($e->expense_amount, 2),
+                'description' => $e->description ?: '-',
+                'balance_after' => number_format($balanceAfter, 2),
+            ];
+        });
+
+        $autoPrint = true;
+        return response()->view('budget_expenses.print', [
+            'expense' => $expense,
+            'entity_name' => $budget->employee->entity_name ?? 'N/A',
+            'expense_type' => $budget->expense_type,
+            'cost_head' => $costHeadDisplay,
+            'budget_amount' => number_format($budgetAmount, 2),
+            'total_expenses' => number_format($totalExpensesAll, 2),
+            'available_balance' => number_format($budgetAmount - $totalExpensesAll, 2),
+            'rows' => $rows,
+            'autoPrint' => $autoPrint,
+        ]);
     }
 }

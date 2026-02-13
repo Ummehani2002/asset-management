@@ -9,7 +9,6 @@ class Location extends Model
     protected $table = 'locations';
 
     protected $fillable = [
-        'location_id',
         'location_name',
         'location_country',
         'location_entity',
@@ -17,9 +16,9 @@ class Location extends Model
         'notes'
     ];
 
-public function assets()
-{
-    return $this->hasMany(\App\Models\Asset::class, 'location_id', 'location_id');
-}
+    public function assets()
+    {
+        return $this->hasMany(\App\Models\Asset::class, 'location_id', 'id');
+    }
 
 }

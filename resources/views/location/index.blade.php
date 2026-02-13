@@ -30,25 +30,21 @@
             @csrf
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Location ID <span class="text-danger">*</span></label>
-                    <input type="text" name="location_id" class="form-control" value="{{ old('location_id') }}" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Location Country</label>
-                    <input type="text" name="location_country" class="form-control" value="{{ old('location_country') }}">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Location Name</label>
-                    <input type="text" name="location_name" class="form-control" value="{{ old('location_name') }}">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Location Entity <span class="text-danger">*</span></label>
+                    <label class="form-label">Entity <span class="text-danger">*</span></label>
                     <select name="location_entity" class="form-control" required>
                         <option value="">-- Select Entity --</option>
                         @foreach($entities ?? [] as $ent)
                             <option value="{{ $ent }}" {{ old('location_entity') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Country</label>
+                    <input type="text" name="location_country" class="form-control" value="{{ old('location_country') }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Location Name <span class="text-danger">*</span></label>
+                    <input type="text" name="location_name" class="form-control" value="{{ old('location_name') }}" required>
                 </div>
             </div>
             <div class="text-end mt-3">

@@ -47,8 +47,10 @@
             <label for="asset_category_id">Asset Category <span class="text-danger">*</span></label>
             <select name="asset_category_id" id="asset_category_id" class="form-control" required>
                 <option value="">-- Select Category --</option>
+                @php $categoriesUseProjectName = $categoriesUseProjectName ?? []; @endphp
                 @foreach($categories as $cat)
-                    <option value="{{ $cat->id }}" 
+                    @php $assignmentType = in_array(strtolower($cat->category_name ?? ''), $categoriesUseProjectName) ? 'project' : 'employee'; @endphp
+                    <option value="{{ $cat->id }}" data-assignment-type="{{ $assignmentType }}"
                         @if(old('asset_category_id', $transaction->asset->asset_category_id ?? '') == $cat->id) selected @endif>
                         {{ $cat->category_name }}
                     </option>
@@ -125,53 +127,7 @@
         </div>
 
         {{-- Entity (for Laptop - filter locations by entity) --}}
-        <div class="mb-3" id="entity_section" style="display:none;">
-            <label for="entity_id">Entity</label>
-            <select id="entity_id" class="form-control">
-                <option value="">-- Select Entity (optional - filters locations) --</option>
-                @foreach($entities as $ent)
-                    <option value="{{ $ent->id }}" data-name="{{ strtolower($ent->name ?? '') }}">
-                        {{ ucwords($ent->name ?? '') }}
-                        @if(!empty($ent->asset_manager_name))
-                            (AM: {{ $ent->asset_manager_name }})
-                        @endif
-                    </option>
-                @endforeach
-            </select>
-           
-        </div>
-
-        {{-- Location (for Laptop only) --}}
-        <div class="mb-3" id="location_section" style="display:none;">
-            <label for="location_id">Location <span class="text-danger" id="location_required">*</span></label>
-            <select name="location_id" id="location_id" class="form-control">
-                <option value="">Select Location</option>
-                @foreach($locations as $loc)
-                    <option value="{{ $loc->id }}" data-entity="{{ strtolower($loc->location_entity ?? '') }}"
-                        @if(old('location_id', $transaction->location_id ?? '') == $loc->id) selected @endif>
-                        {{ $loc->location_name }} ({{ $loc->location_id }})
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        {{-- Entity & Asset Manager display (auto-filled from location for maintenance) --}}
-        <div class="mb-3" id="entity_display_section" style="display:none;">
-            <div class="card bg-light p-3">
-                <div class="row">
-                    <div class="col-md-6">
-                        <strong>Entity:</strong><br>
-                        <span id="display_entity_name">-</span>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Asset Manager:</strong><br>
-                        <span id="display_asset_manager">-</span>
-                    </div>
-                </div>
-            </div>
-            <small class="text-muted">Auto-filled from location for easy maintenance reference.</small>
-        </div>
-
+        <input type="hidden" name="location_id" value="">
         <div class="mb-3" id="transaction_type_info_wrapper" style="display:none;">
             <small class="text-muted" id="transaction_type_info"></small>
         </div>
@@ -233,15 +189,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Entity-Location linking: entities data for asset manager display
-    const entitiesData = @json($entitiesData ?? []);
-
     const categoryDropdown = document.getElementById('asset_category_id');
     const assetDropdown = document.getElementById('asset_id');
     const employeeSection = document.getElementById('employee_section');
     const employeeDisplaySection = document.getElementById('employee_display_section');
     const projectSection = document.getElementById('project_section');
-    const locationSection = document.getElementById('location_section');
     const transactionType = document.getElementById('transaction_type');
     const transactionTypeSection = document.getElementById('transaction_type_section');
     const transactionTypeInfoEl = document.getElementById('transaction_type_info');
@@ -253,13 +205,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const employeeAutoFillInfo = document.getElementById('employee_auto_fill_info');
     const projectAutoFillInfo = document.getElementById('project_auto_fill_info');
     const assetSelectionSection = document.getElementById('asset_selection_section');
-    const entitySection = document.getElementById('entity_section');
-    const entityDisplaySection = document.getElementById('entity_display_section');
-    const entitySelect = document.getElementById('entity_id');
-    const locationSelect = document.getElementById('location_id');
 
     let currentCategory = '';
-    let allLocationOptions = []; // Store original options for filtering
+    let currentAssignmentType = 'employee'; // 'employee' or 'project' – from category dropdown
     let assetDetails = null;
 
     // Employee autocomplete - type ID or name to search
@@ -333,94 +281,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Store all location options for filtering by entity (fetch via API if empty)
-    function loadLocationOptions(entityName) {
-        const url = entityName 
-            ? '/asset-transactions/get-locations?entity=' + encodeURIComponent(entityName)
-            : '/asset-transactions/get-locations';
-        return fetch(url, { credentials: 'same-origin' })
-            .then(r => r.json())
-            .then(locations => {
-                return locations.map(loc => ({
-                    value: String(loc.id),
-                    text: (loc.location_name || '') + ' (' + (loc.location_id || '') + ')',
-                    entity: (loc.location_entity || '').toLowerCase()
-                }));
-            })
-            .catch(err => { console.error('Error loading locations:', err); return []; });
-    }
-    function refreshAllLocationOptions() {
-        const preserveLocationId = locationSelect ? locationSelect.value : '';
-        loadLocationOptions().then(opts => {
-            allLocationOptions = opts;
-            if (opts.length > 0 && locationSelect && typeof onEntityChange === 'function') {
-                onEntityChange();
-                if (preserveLocationId) locationSelect.value = preserveLocationId;
-            }
-        });
-    }
-    if (locationSelect) {
-        allLocationOptions = Array.from(locationSelect.querySelectorAll('option')).map(opt => ({
-            value: opt.value,
-            text: opt.textContent,
-            entity: opt.getAttribute('data-entity') || ''
-        })).filter(o => o.value);
-        // If no locations from server, fetch via API
-        if (allLocationOptions.length === 0) {
-            refreshAllLocationOptions();
-        }
-    }
-
-    // Entity-Location linking: when location selected → auto-fill entity and asset manager
-    function onLocationChange() {
-        const locOpt = locationSelect?.options[locationSelect.selectedIndex];
-        const entityName = locOpt?.getAttribute('data-entity') || '';
-        if (!entityName) {
-            entityDisplaySection.style.display = 'none';
-            if (entitySelect) entitySelect.value = '';
-            return;
-        }
-        // Find matching entity and set dropdown
-        const match = entitiesData.find(e => (e.name || '').toLowerCase() === entityName.toLowerCase());
-        if (match && entitySelect) {
-            entitySelect.value = match.id;
-            entityDisplaySection.style.display = 'block';
-            document.getElementById('display_entity_name').textContent = match.display_name;
-            document.getElementById('display_asset_manager').textContent = match.asset_manager_name || 'N/A';
-        } else {
-            entityDisplaySection.style.display = 'block';
-            document.getElementById('display_entity_name').textContent = entityName ? entityName.charAt(0).toUpperCase() + entityName.slice(1) : '-';
-            document.getElementById('display_asset_manager').textContent = 'N/A';
-        }
-    }
-
-    // Entity-Location linking: when entity selected → filter locations
-    function onEntityChange() {
-        const entityOpt = entitySelect?.options[entitySelect.selectedIndex];
-        const entityName = entityOpt?.getAttribute('data-name') || '';
-        locationSelect.innerHTML = '<option value="">Select Location</option>';
-        let toShow = !entityName ? allLocationOptions : allLocationOptions.filter(o => 
-            o.entity && (o.entity || '').toLowerCase() === entityName.toLowerCase()
-        );
-        // If filter produces no results, show all locations (entity may not match location_entity)
-        if (toShow.length === 0 && allLocationOptions.length > 0) {
-            toShow = allLocationOptions;
-        }
-        toShow.forEach(o => {
-            if (o.value) {
-                const opt = document.createElement('option');
-                opt.value = o.value;
-                opt.textContent = o.text;
-                opt.setAttribute('data-entity', o.entity);
-                locationSelect.appendChild(opt);
-            }
-        });
-        onLocationChange();
-    }
-
-    if (locationSelect) locationSelect.addEventListener('change', onLocationChange);
-    if (entitySelect) entitySelect.addEventListener('change', onEntityChange);
-
     // Step 1: Transaction Type change → show/hide Category
     transactionType.addEventListener('change', function() {
         const txType = this.value;
@@ -440,6 +300,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (transactionType && transactionType.value) {
             if (categorySection) categorySection.style.display = 'block';
             if (categoryDropdown && categoryDropdown.value) {
+                const opt = categoryDropdown.options[categoryDropdown.selectedIndex];
+                currentAssignmentType = (opt && opt.getAttribute('data-assignment-type')) || 'employee';
                 if (assetSelectionSection) assetSelectionSection.style.display = 'block';
                 categoryDropdown.dispatchEvent(new Event('change'));
             }
@@ -449,8 +311,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Step 2: Category change → show Asset dropdown and load assets from Asset Master
     categoryDropdown.addEventListener('change', function() {
         const categoryId = this.value;
+        const selectedOpt = this.options[this.selectedIndex];
+        currentAssignmentType = (selectedOpt && selectedOpt.getAttribute('data-assignment-type')) || 'employee';
         currentCategory = '';
-        
+
         if (!categoryId) {
             assetSelectionSection.style.display = 'none';
             assetDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
@@ -546,35 +410,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (txType === 'assign') {
             assignFields.style.display = 'block';
-            // Ensure location and entity are shown for laptop
-            if (currentCategory.toLowerCase() === 'laptop') {
-                locationSection.style.display = 'block';
-                if (entitySection) entitySection.style.display = 'block';
-                document.getElementById('location_id').required = true;
-                if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
-            }
-            // Show appropriate fields based on category
             updateEmployeeSectionVisibility();
         } else if (txType === 'return') {
             returnFields.style.display = 'block';
-            // Hide employee dropdown for return transactions
             employeeSection.style.display = 'none';
             employeeAutoFillInfo.textContent = '';
-            // Update employee + entity/AM display (from asset's location)
             updateEmployeeSectionVisibility();
-            
+
             const employeeIdField = document.getElementById('employee_id');
             const employeeReturnField = document.getElementById('employee_id_return');
             const assetId = document.getElementById('asset_id') ? document.getElementById('asset_id').value : '';
-            
-            // If no assetDetails yet, fetch to get employee + entity/AM
+
             if (!assetDetails && assetId) {
-                // Fetch employee_id from asset if not in assetDetails
-                console.log('Fetching employee_id from asset for return transaction...');
                 fetch(`/asset-transactions/get-asset-details/${assetId}`)
                     .then(res => res.json())
                     .then(data => {
-                        assetDetails = data; // Update assetDetails
+                        assetDetails = data;
                         if (data.current_employee_id) {
                             employeeDisplaySection.style.display = 'block';
                             document.getElementById('display_employee_name').textContent = data.current_employee_name || 'N/A';
@@ -582,33 +433,21 @@ document.addEventListener('DOMContentLoaded', function() {
                             document.getElementById('display_employee_entity').textContent = data.current_employee_entity || 'N/A';
                             if (employeeIdField) employeeIdField.value = data.current_employee_id;
                             if (employeeReturnField) employeeReturnField.value = data.current_employee_id;
-                            console.log('Set employee_id from fetched asset details:', data.current_employee_id);
                         } else {
                             employeeDisplaySection.style.display = 'none';
                             if (employeeIdField) employeeIdField.value = '';
                             if (employeeReturnField) employeeReturnField.value = '';
-                            console.warn('No employee_id found in asset details');
                         }
-                        // Entity & Asset Manager (same card as Assign)
-                        if (data.asset_manager_entity || data.location_entity || data.asset_manager_name) {
-                            if (entityDisplaySection) entityDisplaySection.style.display = 'block';
-                            document.getElementById('display_entity_name').textContent = data.asset_manager_entity || data.location_entity || '-';
-                            document.getElementById('display_asset_manager').textContent = data.asset_manager_name 
-                                ? data.asset_manager_name + (data.asset_manager_employee_id ? ' (' + data.asset_manager_employee_id + ')' : '')
-                                : 'N/A';
-                        } else if (entityDisplaySection) entityDisplaySection.style.display = 'none';
                         updateEmployeeSectionVisibility();
                     })
                     .catch(err => {
                         console.error('Error fetching asset details:', err);
                         employeeDisplaySection.style.display = 'none';
-                        if (entityDisplaySection) entityDisplaySection.style.display = 'none';
                         if (employeeIdField) employeeIdField.value = '';
                         if (employeeReturnField) employeeReturnField.value = '';
                     });
             } else if (!assetId) {
                 employeeDisplaySection.style.display = 'none';
-                if (entityDisplaySection) entityDisplaySection.style.display = 'none';
                 if (employeeIdField) employeeIdField.value = '';
                 if (employeeReturnField) employeeReturnField.value = '';
             }
@@ -636,52 +475,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Show fields based on category
-        if (categoryLower === 'laptop') {
-            // For Laptop: Show employee, entity, and location
-            if (txType === 'assign') {
-                locationSection.style.display = 'block';
-                if (entitySection) entitySection.style.display = 'block';
-                document.getElementById('location_id').required = true;
-                if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
-                // Fetch locations if dropdown is empty
-                if (allLocationOptions.length === 0 && typeof refreshAllLocationOptions === 'function') {
-                    refreshAllLocationOptions();
-                }
-                // Auto-fill employee if available and assigning
-                if (data.current_employee_id && txType === 'assign') {
-                    document.getElementById('employee_id').value = data.current_employee_id;
-                    if (employeeSearch) employeeSearch.value = data.current_employee_name || 'Previous employee';
-                    employeeAutoFillInfo.textContent = `Auto-filled: ${data.current_employee_name || 'Previous employee'}`;
-                    employeeAutoFillInfo.className = 'text-success';
-                }
-                
-                // Auto-fill location if available
-                if (data.current_location_id) {
-                    document.getElementById('location_id').value = data.current_location_id;
-                    onLocationChange();
-                }
+        if (categoryLower === 'laptop' && txType === 'assign') {
+            // Auto-fill employee if available
+            if (data.current_employee_id) {
+                document.getElementById('employee_id').value = data.current_employee_id;
+                if (employeeSearch) employeeSearch.value = data.current_employee_name || 'Previous employee';
+                employeeAutoFillInfo.textContent = `Auto-filled: ${data.current_employee_name || 'Previous employee'}`;
+                employeeAutoFillInfo.className = 'text-success';
             }
         } else if (categoryLower === 'printer') {
-            // For Printer: Show project name
-            locationSection.style.display = 'none';
-            if (entitySection) entitySection.style.display = 'none';
-            if (entityDisplaySection) entityDisplaySection.style.display = 'none';
-            document.getElementById('location_id').required = false;
-            if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
-            
-            // Auto-fill project if available
             if (data.current_project_name && txType === 'assign') {
                 document.getElementById('project_name').value = data.current_project_name;
                 projectAutoFillInfo.textContent = `Auto-filled: ${data.current_project_name}`;
                 projectAutoFillInfo.className = 'text-success';
             }
-        } else {
-            // For other categories
-            locationSection.style.display = 'none';
-            if (entitySection) entitySection.style.display = 'none';
-            if (entityDisplaySection) entityDisplaySection.style.display = 'none';
-            document.getElementById('location_id').required = false;
-            if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
         }
         
         // Update visibility based on transaction type and category
@@ -698,9 +505,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateEmployeeSectionVisibility() {
         const txType = transactionType.value;
         const categoryLower = currentCategory.toLowerCase();
-        
+        const useProject = (currentAssignmentType === 'project');
+
         if (txType === 'return') {
-            // Hide employee dropdown for return
+            // Hide employee dropdown and project for return
             employeeSection.style.display = 'none';
             projectSection.style.display = 'none';
             const employeeIdField = document.getElementById('employee_id');
@@ -709,14 +517,13 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('project_name').required = false;
             employeeAutoFillInfo.textContent = '';
             projectAutoFillInfo.textContent = '';
-            
+
             // Show employee display section if asset has assigned employee
             if (assetDetails && assetDetails.current_employee_id) {
                 employeeDisplaySection.style.display = 'block';
                 document.getElementById('display_employee_name').textContent = assetDetails.current_employee_name || 'N/A';
                 document.getElementById('display_employee_id').textContent = assetDetails.current_employee_id || 'N/A';
                 document.getElementById('display_employee_entity').textContent = assetDetails.current_employee_entity || 'N/A';
-                // Set both employee_id and employee_id_return (both are needed)
                 if (employeeIdField) {
                     employeeIdField.value = assetDetails.current_employee_id;
                     employeeIdField.required = false;
@@ -724,60 +531,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (employeeReturnField) {
                     employeeReturnField.value = assetDetails.current_employee_id;
                 }
-                console.log('Set employee_id and employee_id_return for return:', assetDetails.current_employee_id);
             } else {
                 employeeDisplaySection.style.display = 'none';
                 if (employeeIdField) employeeIdField.value = '';
                 if (employeeReturnField) employeeReturnField.value = '';
             }
-            // Show Entity & Asset Manager (same card as Assign) - from asset's location
-            if (assetDetails && (assetDetails.asset_manager_entity || assetDetails.location_entity || assetDetails.asset_manager_name)) {
-                if (entityDisplaySection) entityDisplaySection.style.display = 'block';
-                document.getElementById('display_entity_name').textContent = assetDetails.asset_manager_entity || assetDetails.location_entity || '-';
-                document.getElementById('display_asset_manager').textContent = assetDetails.asset_manager_name 
-                    ? assetDetails.asset_manager_name + (assetDetails.asset_manager_employee_id ? ' (' + assetDetails.asset_manager_employee_id + ')' : '')
-                    : 'N/A';
-            } else if (entityDisplaySection) {
-                entityDisplaySection.style.display = 'none';
-            }
         } else if (txType === 'assign') {
-            // Hide employee display section for assign
             employeeDisplaySection.style.display = 'none';
-            // Always show assign fields (Assigned Date and Asset Image)
             assignFields.style.display = 'block';
-            
-            // Show appropriate fields based on category
-            if (categoryLower === 'laptop') {
+
+            if (useProject) {
+                employeeSection.style.display = 'none';
+                if (projectSection) projectSection.style.display = 'block';
+                document.getElementById('employee_id').required = false;
+                if (document.getElementById('employee_required')) document.getElementById('employee_required').style.display = 'none';
+                if (document.getElementById('project_name')) document.getElementById('project_name').required = true;
+                if (document.getElementById('project_required')) document.getElementById('project_required').style.display = 'inline';
+            } else {
                 employeeSection.style.display = 'block';
                 if (projectSection) projectSection.style.display = 'none';
                 document.getElementById('employee_id').required = true;
-                if (document.getElementById('employee_required')) {
-                    document.getElementById('employee_required').style.display = 'inline';
-                }
-                if (document.getElementById('project_name')) {
-                    document.getElementById('project_name').required = false;
-                }
-                // Show location and entity for laptop (required)
-                locationSection.style.display = 'block';
-                if (entitySection) entitySection.style.display = 'block';
-                document.getElementById('location_id').required = true;
-                if (document.getElementById('location_required')) document.getElementById('location_required').style.display = '';
-            } else if (categoryLower === 'printer') {
-                employeeSection.style.display = 'none';
-                if (projectSection) projectSection.style.display = 'block';
-                if (document.getElementById('project_name')) {
-                    document.getElementById('project_name').required = true;
-                }
-                if (document.getElementById('project_required')) {
-                    document.getElementById('project_required').style.display = 'inline';
-                }
-                document.getElementById('employee_id').required = false;
-                if (document.getElementById('employee_required')) {
-                    document.getElementById('employee_required').style.display = 'none';
-                }
-                locationSection.style.display = 'none';
-                document.getElementById('location_id').required = false;
-                if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
+                if (document.getElementById('employee_required')) document.getElementById('employee_required').style.display = 'inline';
+                if (document.getElementById('project_name')) document.getElementById('project_name').required = false;
+                if (document.getElementById('project_required')) document.getElementById('project_required').style.display = 'none';
             }
         }
     }
@@ -802,11 +578,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function hideAssignmentFields() {
         employeeSection.style.display = 'none';
-        locationSection.style.display = 'none';
-        if (entitySection) entitySection.style.display = 'none';
-        if (entityDisplaySection) entityDisplaySection.style.display = 'none';
-        document.getElementById('location_id').required = false;
-        if (document.getElementById('location_required')) document.getElementById('location_required').style.display = 'none';
+        if (projectSection) projectSection.style.display = 'none';
+        if (document.getElementById('project_name')) document.getElementById('project_name').required = false;
         if (transactionTypeInfoWrapper) transactionTypeInfoWrapper.style.display = 'none';
         assignFields.style.display = 'none';
         returnFields.style.display = 'none';

@@ -67,13 +67,13 @@ class LocationController extends Controller
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
-                    $q->where('location_id', 'like', "%{$search}%")
-                      ->orWhere('location_name', 'like', "%{$search}%")
-                      ->orWhere('location_country', 'like', "%{$search}%");
+                    $q->where('location_name', 'like', "%{$search}%")
+                      ->orWhere('location_country', 'like', "%{$search}%")
+                      ->orWhere('location_entity', 'like', "%{$search}%");
                 });
             }
 
-            $locations = $query->orderBy('location_id')->get();
+            $locations = $query->orderBy('location_name')->get();
             if (!$locations instanceof \Illuminate\Support\Collection) {
                 $locations = collect($locations);
             }
@@ -96,21 +96,17 @@ class LocationController extends Controller
         }
 
         $request->validate([
-            'location_id' => 'required|unique:locations,location_id',
             'location_name' => 'required|string',
             'location_country' => 'nullable|string',
             'location_entity' => 'required|string',
         ]);
 
         $locationData = [
-            'location_id' => $request->location_id,
             'location_name' => $request->location_name,
             'location_country' => $request->location_country,
             'location_entity' => $request->location_entity,
         ];
-        
-        Log::info('Creating location with data:', $locationData);
-        
+
         $location = Location::create($locationData);
         
         Log::info('Location created successfully. ID: ' . $location->id);
@@ -195,23 +191,21 @@ public function autocomplete(Request $request)
         return response()->json([]);
     }
 
-    // Search by location_name (starts with first, then contains) or location_id
     $locations = Location::where(function($q) use ($query) {
-            $q->where('location_name', 'LIKE', "{$query}%")  // Starts with (priority)
-              ->orWhere('location_name', 'LIKE', "%{$query}%") // Contains
-              ->orWhere('location_id', 'LIKE', "{$query}%"); // Location ID starts with
+            $q->where('location_name', 'LIKE', "{$query}%")
+              ->orWhere('location_name', 'LIKE', "%{$query}%")
+              ->orWhere('location_country', 'LIKE', "%{$query}%")
+              ->orWhere('location_entity', 'LIKE', "%{$query}%");
         })
         ->orderBy('location_name', 'asc')
         ->take(15)
-        ->get(['id', 'location_id', 'location_name', 'location_country']);
+        ->get(['id', 'location_name', 'location_country', 'location_entity']);
 
-    // Sort results: names starting with query first
     $locations = $locations->sortBy(function($location) use ($query) {
         $name = strtolower($location->location_name ?? '');
         $queryLower = strtolower($query);
-        
-        if(strpos($name, $queryLower) === 0) return 1; // Starts with
-        return 2; // Contains
+        if (strpos($name, $queryLower) === 0) return 1;
+        return 2;
     })->values();
 
     return response()->json($locations);
@@ -355,12 +349,12 @@ public function autocomplete(Request $request)
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('location_id', 'like', "%{$search}%")
-                  ->orWhere('location_name', 'like', "%{$search}%")
-                  ->orWhere('location_country', 'like', "%{$search}%");
+                $q->where('location_name', 'like', "%{$search}%")
+                  ->orWhere('location_country', 'like', "%{$search}%")
+                  ->orWhere('location_entity', 'like', "%{$search}%");
             });
         }
-        $locations = $query->orderBy('location_id')->get();
+        $locations = $query->orderBy('location_name')->get();
         $format = $request->get('format', 'pdf');
 
         if ($format === 'excel' || $format === 'csv') {
@@ -389,17 +383,16 @@ public function autocomplete(Request $request)
             
             // Headers
             fputcsv($file, [
-                '#', 'Location ID', 'Country', 'Location Name', 'Entity'
+                '#', 'Entity', 'Country', 'Location Name'
             ]);
 
             // Data
             foreach ($locations as $index => $location) {
                 fputcsv($file, [
                     $index + 1,
-                    $location->location_id ?? 'N/A',
+                    $location->location_entity ?? 'N/A',
                     $location->location_country ?? 'N/A',
                     $location->location_name ?? 'N/A',
-                    $location->location_entity ?? 'N/A',
                 ]);
             }
 

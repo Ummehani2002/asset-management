@@ -12,20 +12,27 @@
         </div>
     @endif
 
-    {{-- Show only one category at a time: Printer → only printer brands/models; Laptop → only laptop --}}
+    {{-- View category: dropdown — select one to see that category only --}}
     <div class="master-form-card mb-4">
         <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>View category</h5>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-            <a href="{{ route('categories.manage', request()->only('set_values')) }}" class="btn btn-sm {{ empty($selectedCategoryId) ? 'btn-primary' : 'btn-outline-primary' }}">All</a>
-            @foreach($categories as $cat)
-                <a href="{{ route('categories.manage', array_merge(request()->only('set_values'), ['category_id' => $cat->id])) }}" class="btn btn-sm {{ (isset($selectedCategoryId) && $selectedCategoryId == $cat->id) ? 'btn-primary' : 'btn-outline-primary' }}">
-                    {{ $cat->category_name }}
-                </a>
-            @endforeach
+        <div class="row align-items-end">
+            <div class="col-md-5">
+                <label for="view_category_id" class="form-label">Select category</label>
+                <select id="view_category_id" class="form-control" onchange="window.location.href=this.options[this.selectedIndex].value">
+                    <option value="{{ route('categories.manage', request()->only('set_values')) }}" {{ empty($selectedCategoryId) ? 'selected' : '' }}>— All —</option>
+                    @foreach($categories as $cat)
+                        <option value="{{ route('categories.manage', array_merge(request()->only('set_values'), ['category_id' => $cat->id])) }}" {{ (isset($selectedCategoryId) && $selectedCategoryId == $cat->id) ? 'selected' : '' }}>
+                            {{ $cat->category_name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            @if(isset($selectedCategoryId) && $selectedCategoryId)
+                <div class="col-md-7">
+                    <p class="text-muted small mb-0">Showing only <strong>{{ $categories->firstWhere('id', $selectedCategoryId)->category_name ?? 'selected' }}</strong> — brands and models for this category.</p>
+                </div>
+            @endif
         </div>
-        @if(isset($selectedCategoryId) && $selectedCategoryId)
-            <p class="text-muted small mt-2 mb-0">Showing only <strong>{{ $categories->firstWhere('id', $selectedCategoryId)->category_name ?? 'selected' }}</strong> — brands and models for this category only.</p>
-        @endif
     </div>
 
     {{-- Add New Category Form --}}

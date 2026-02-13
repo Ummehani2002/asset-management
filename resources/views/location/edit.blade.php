@@ -23,13 +23,7 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Location ID</label>
-                    <input type="text" value="{{ $location->location_id }}" class="form-control bg-light" readonly disabled>
-                    <small class="text-muted">Location ID cannot be changed.</small>
-                </div>
-
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Location Country</label>
+                    <label class="form-label">Country</label>
                     <input type="text" name="location_country" value="{{ old('location_country', $location->location_country) }}" class="form-control">
                 </div>
 

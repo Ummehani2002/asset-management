@@ -37,7 +37,7 @@
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Search (optional)</label>
                     <div class="position-relative" id="locationSearchWrap">
-                        <input type="text" name="search" id="locationSearchInput" class="form-control" placeholder="Type location ID, name, or category..." value="{{ request('search') }}" autocomplete="off">
+                        <input type="text" name="search" id="locationSearchInput" class="form-control" placeholder="Type name, country, or entity..." value="{{ request('search') }}" autocomplete="off">
                         <div id="locationSearchDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
                     </div>
                 
@@ -78,10 +78,9 @@
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Location ID</th>
+                                <th>Entity</th>
                                 <th>Country</th>
                                 <th>Location Name</th>
-                                <th>Entity</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -90,10 +89,9 @@
                                 @foreach($locations as $loc)
                                     <tr>
                                         <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $loc->location_id ?? 'N/A' }}</td>
+                                        <td>{{ $loc->location_entity ?? 'N/A' }}</td>
                                         <td>{{ $loc->location_country ?? 'N/A' }}</td>
                                         <td>{{ $loc->location_name ?? 'N/A' }}</td>
-                                        <td>{{ $loc->location_entity ?? 'N/A' }}</td>
                                         <td>
                                             @if(isset($loc->id))
                                                 <a href="{{ route('location.edit', $loc->id) }}" class="btn btn-sm btn-warning">
@@ -137,8 +135,8 @@
         if (!items || items.length === 0) { dropdown.innerHTML = '<div class="list-group-item text-muted">No locations found</div>'; }
         else {
             dropdown.innerHTML = items.map(function(loc) {
-                var label = (loc.location_id || '') + ' — ' + (loc.location_name || '') + (loc.location_country ? ' (' + loc.location_country + ')' : '');
-                var val = loc.location_id || loc.location_name || '';
+                var label = (loc.location_name || '') + (loc.location_country ? ' — ' + loc.location_country : '') + (loc.location_entity ? ' (' + loc.location_entity + ')' : '');
+                var val = loc.location_name || '';
                 return '<a href="#" class="list-group-item list-group-item-action loc-sugg" data-value="' + (val + '').replace(/"/g, '&quot;') + '">' + label + '</a>';
             }).join('');
         }

@@ -104,12 +104,11 @@ class EntityBudgetController extends Controller
                 }
             }
             
-            // Load budget details when user has applied filter (entity and/or expense type and/or cost head)
+            // Filter budgets by entity and year (as before – entity and year only)
             $selectedYear = $request->get('year', date('Y'));
             $yearColumn = 'budget_' . $selectedYear;
-            $filterApplied = $request->filled('entity_id') || $request->filled('filter_expense_type') || $request->filled('filter_cost_head');
 
-            if ($hasEntityBudgets && $filterApplied) {
+            if ($hasEntityBudgets) {
                 try {
                     $query = EntityBudget::with(['employee', 'expenses']);
 
@@ -133,14 +132,6 @@ class EntityBudgetController extends Controller
                         }
                     }
 
-                    if ($request->filled('filter_expense_type')) {
-                        $query->where('expense_type', $request->filter_expense_type);
-                    }
-
-                    if ($request->filled('filter_cost_head')) {
-                        $query->where('cost_head', $request->filter_cost_head);
-                    }
-
                     $budgets = $query->get();
 
                     if (!$budgets instanceof \Illuminate\Support\Collection) {
@@ -155,10 +146,9 @@ class EntityBudgetController extends Controller
                 }
             }
 
-            // Get available years (current year and future years up to 5 years ahead)
             $currentYear = (int)date('Y');
             $availableYears = range($currentYear, $currentYear + 5);
-            
+
             $hasAllTables = $hasEmployees && $hasEntityBudgets;
             return view('entity_budget.create', compact('entities', 'costHeads', 'costHeadsList', 'expenseTypes', 'budgets', 'availableYears', 'selectedYear'))
                 ->with('warning', $hasAllTables ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
@@ -205,13 +195,6 @@ class EntityBudgetController extends Controller
             }
         }
 
-        if ($request->filled('filter_expense_type')) {
-            $query->where('expense_type', $request->filter_expense_type);
-        }
-        if ($request->filled('filter_cost_head')) {
-            $query->where('cost_head', $request->filter_cost_head);
-        }
-        
         $budgets = $query->get();
         
         $format = $request->get('format', 'pdf');
@@ -245,7 +228,7 @@ class EntityBudgetController extends Controller
             
             // Headers
             fputcsv($file, [
-                '#', 'Entity', 'Expense Type', 'Cost Head', 'Budget ' . $year, 'Total Expenses', 'Available Balance'
+                '#', 'Entity', 'Expense Type', 'Budget ' . $year, 'Total Expenses', 'Available Balance'
             ]);
 
             // Data
@@ -258,7 +241,6 @@ class EntityBudgetController extends Controller
                     $index + 1,
                     $budget->employee->entity_name ?? 'N/A',
                     $budget->expense_type ?? 'N/A',
-                    $budget->cost_head ?? '—',
                     number_format($budgetAmount, 2),
                     number_format($totalExpenses, 2),
                     number_format($availableBalance, 2),
@@ -285,6 +267,7 @@ class EntityBudgetController extends Controller
             $validated = $request->validate([
                 'entity_id' => 'required|exists:employees,id',
                 'expense_type' => 'required|string',
+                'cost_head' => 'required|string|max:255',
                 'budget_year' => 'required|integer|min:2020|max:2100',
                 'budget_amount' => 'required|numeric|min:0'
             ]);
@@ -298,10 +281,10 @@ class EntityBudgetController extends Controller
                     ->withErrors(['error' => 'Budget column for year ' . $validated['budget_year'] . ' does not exist. Please run migrations.']);
             }
             
-            // Budget is maintained by entity + expense type only (no cost head). Update existing or create.
+            // Budget is maintained by entity + expense type + cost head. Update existing or create.
             $budget = EntityBudget::where('employee_id', $validated['entity_id'])
                 ->where('expense_type', $validated['expense_type'])
-                ->whereNull('cost_head')
+                ->where('cost_head', $validated['cost_head'])
                 ->first();
             
             if ($budget) {
@@ -309,7 +292,7 @@ class EntityBudgetController extends Controller
             } else {
                 $budget = EntityBudget::create([
                     'employee_id' => $validated['entity_id'],
-                    'cost_head' => null,
+                    'cost_head' => $validated['cost_head'],
                     'expense_type' => $validated['expense_type'],
                     'category' => $request->get('category', 'Overhead'),
                     $yearColumn => $validated['budget_amount'],
@@ -346,8 +329,22 @@ class EntityBudgetController extends Controller
         $currentYear = date('Y');
         $yearColumn = 'budget_' . $currentYear;
         $budgetAmount = $budget->$yearColumn ?? 0;
-        
+
         $pdf = \PDF::loadView('entity_budget.download-form', compact('budget', 'budgetAmount', 'currentYear'));
         return $pdf->download('budget-' . $budget->id . '-' . date('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Show the saved budget form as HTML and trigger print dialog (used after save).
+     */
+    public function printForm($id)
+    {
+        $budget = EntityBudget::with(['employee', 'expenses'])->findOrFail($id);
+        $currentYear = date('Y');
+        $yearColumn = 'budget_' . $currentYear;
+        $budgetAmount = $budget->$yearColumn ?? 0;
+        $autoPrint = true;
+
+        return response()->view('entity_budget.download-form', compact('budget', 'budgetAmount', 'currentYear', 'autoPrint'));
     }
 }

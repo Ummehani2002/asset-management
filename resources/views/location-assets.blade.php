@@ -139,17 +139,15 @@ $(document).ready(function(){
                         } else {
                             data.forEach(function(loc){
                                 let displayName = loc.location_name || 'N/A';
-                                let locationId = loc.location_id || '';
                                 let highlight = query.length > 0 ? displayName.replace(new RegExp(query, 'gi'), '<strong>$&</strong>') : displayName;
-                                
+                                let sub = [loc.location_country, loc.location_entity].filter(Boolean).join(' • ');
                                 locationList.append(`
                                     <a href="#" class="list-group-item list-group-item-action location-item" 
                                        data-id="${loc.id}" 
                                        data-name="${displayName}"
                                        style="cursor: pointer; border-left: 3px solid #1F2A44;">
                                         <div class="fw-semibold">${highlight}</div>
-                                        ${locationId ? '<small class="text-muted">ID: ' + locationId + '</small>' : ''}
-                                        ${loc.location_country ? '<small class="text-muted ms-2">• ' + loc.location_country + '</small>' : ''}
+                                        ${sub ? '<small class="text-muted">' + sub + '</small>' : ''}
                                     </a>
                                 `);
                             });

@@ -269,6 +269,19 @@
             margin-left: 260px; /* Account for fixed sidebar width */
         }
 
+        /* Print: hide sidebar and nav, show only main content */
+        @media print {
+            .sidebar, .sidebar *, nav, .btn-print-hide, .no-print { display: none !important; }
+            .content { margin-left: 0 !important; width: 100% !important; }
+            body { background: #fff !important; }
+            .master-page, .container, .container-fluid { max-width: 100% !important; }
+            /* When printing only the "Set budget" form: hide everything except that form */
+            body.printing-budget-form .page-header,
+            body.printing-budget-form .alert,
+            body.printing-budget-form .master-form-card:not(.budget-form-printable),
+            body.printing-budget-form .master-table-card { display: none !important; }
+        }
+
         /* Buttons */
         .btn-primary {
             background-color: var(--primary);

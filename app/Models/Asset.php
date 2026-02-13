@@ -41,7 +41,7 @@ class Asset extends Model
     }
   public function location()
 {
-    return $this->belongsTo(\App\Models\Location::class, 'location_id', 'location_id');
+    return $this->belongsTo(\App\Models\Location::class, 'location_id', 'id');
 }
 
     public function features()

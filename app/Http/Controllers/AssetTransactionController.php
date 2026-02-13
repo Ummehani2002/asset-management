@@ -20,6 +20,12 @@ use Illuminate\Support\Collection;
 
 class AssetTransactionController extends Controller
 {
+    /** Categories that show "Project Name" in asset transaction; others show "Employee Name". */
+    public static function getCategoriesUsingProjectName(): array
+    {
+        return array_map('strtolower', config('asset_categories.project_name_categories', []));
+    }
+
     public function index(Request $request)
     {
         try {
@@ -546,7 +552,8 @@ class AssetTransactionController extends Controller
                 Log::error('AssetTransaction create: Database connection failed: ' . $e->getMessage());
                 $entities = collect([]);
                 $entitiesData = [];
-                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'))
+                $categoriesUseProjectName = self::getCategoriesUsingProjectName();
+                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData', 'categoriesUseProjectName'))
                     ->with('error', 'Database connection failed. Please check your database credentials in Laravel Cloud environment variables.');
             }
 
@@ -561,7 +568,8 @@ class AssetTransactionController extends Controller
                 Log::error('AssetTransaction create: Schema check failed: ' . $e->getMessage());
                 $entities = collect([]);
                 $entitiesData = [];
-                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'))
+                $categoriesUseProjectName = self::getCategoriesUsingProjectName();
+                return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData', 'categoriesUseProjectName'))
                     ->with('error', 'Unable to check database tables. Please verify database connection.');
             }
             
@@ -659,7 +667,8 @@ class AssetTransactionController extends Controller
                 }
             }
             $hasAllTables = $hasAssetCategories && $hasAssets && $hasEmployees && $hasLocations && $hasProjects;
-            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'))
+            $categoriesUseProjectName = self::getCategoriesUsingProjectName();
+            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData', 'categoriesUseProjectName'))
                 ->with('warning', $hasAllTables ? null : 'Some database tables not found. Please run migrations: php artisan migrate --force');
         } catch (\Throwable $e) {
             Log::error('AssetTransaction create fatal error: ' . $e->getMessage());
@@ -675,7 +684,8 @@ class AssetTransactionController extends Controller
             $projects = collect([]);
             $entities = collect([]);
             $entitiesData = [];
-            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'))
+            $categoriesUseProjectName = self::getCategoriesUsingProjectName();
+            return view('asset_transactions.create', compact('categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData', 'categoriesUseProjectName'))
                 ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
         }
     }
@@ -1122,7 +1132,8 @@ class AssetTransactionController extends Controller
             ];
         })->values()->toArray();
 
-        return view('asset_transactions.create', compact('transaction', 'categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData'));
+        $categoriesUseProjectName = self::getCategoriesUsingProjectName();
+        return view('asset_transactions.create', compact('transaction', 'categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData', 'categoriesUseProjectName'));
     }
 
     public function getAssetsByCategory($categoryId)
@@ -1154,7 +1165,7 @@ class AssetTransactionController extends Controller
         if ($request->filled('entity')) {
             $query->whereRaw('LOWER(location_entity) = ?', [strtolower(trim($request->entity))]);
         }
-        $locations = $query->orderBy('location_name')->get(['id', 'location_id', 'location_name', 'location_entity', 'location_country']);
+        $locations = $query->orderBy('location_name')->get(['id', 'location_name', 'location_entity', 'location_country']);
         return response()->json($locations);
     }
 
@@ -1237,15 +1248,26 @@ class AssetTransactionController extends Controller
 
     if ($request->transaction_type === 'return') {
         $rules['return_date'] = 'required|date';
-        // Make employee_id required, but we've already tried to populate it above
-        $rules['employee_id'] = 'required|exists:employees,id';
+        // When asset was assigned to project (no employee), return does not require employee_id
+        $returnAsset = $request->asset_id ? Asset::with('latestTransaction')->find($request->asset_id) : null;
+        $latestForReturn = $returnAsset && $returnAsset->latestTransaction ? $returnAsset->latestTransaction : null;
+        $wasAssignedToProject = $latestForReturn && ($latestForReturn->assigned_to_type === 'project' || ($latestForReturn->project_name && !$latestForReturn->employee_id));
+        $rules['employee_id'] = $wasAssignedToProject ? 'nullable|exists:employees,id' : 'required|exists:employees,id';
     }
 
-    // Require location when assigning a laptop
+    // Assign: require Employee Name or Project Name based on category (config: project_name_categories)
     if ($request->transaction_type === 'assign' && $request->asset_id) {
         $assignAsset = Asset::with('assetCategory')->find($request->asset_id);
-        if ($assignAsset && $assignAsset->assetCategory && strtolower($assignAsset->assetCategory->category_name) === 'laptop') {
-            $rules['location_id'] = 'required|exists:locations,id';
+        if ($assignAsset && $assignAsset->assetCategory) {
+            $catName = strtolower($assignAsset->assetCategory->category_name ?? '');
+            $useProject = in_array($catName, self::getCategoriesUsingProjectName());
+            if ($useProject) {
+                $rules['project_name'] = 'required|string';
+                $rules['employee_id'] = 'nullable|exists:employees,id';
+            } else {
+                $rules['employee_id'] = 'required|exists:employees,id';
+                $rules['project_name'] = 'nullable|string';
+            }
         }
     }
 
@@ -1298,7 +1320,7 @@ class AssetTransactionController extends Controller
         if ($request->transaction_type === 'assign' && $request->location_id && \Schema::hasColumn('assets', 'location_id')) {
             $location = Location::find($request->location_id);
             if ($location) {
-                $assetUpdate['location_id'] = $location->location_id;
+                $assetUpdate['location_id'] = $location->id;
             }
         }
         $asset->update($assetUpdate);
@@ -1435,10 +1457,13 @@ class AssetTransactionController extends Controller
     private function resolveAssignment($asset, $latest, $request, $category)
 {
     if ($request->transaction_type === 'assign') {
+        $projectName = $request->project_name ? trim($request->project_name) : null;
+        $employeeId = $request->employee_id ?: null;
+        $assignedToType = ($projectName && !$employeeId) ? 'project' : 'employee';
         return [
-            'assigned_to_type' => 'employee',
-            'employee_id' => $request->employee_id,
-            'project_name' => $request->project_name ?: null,
+            'assigned_to_type' => $assignedToType,
+            'employee_id' => $employeeId,
+            'project_name' => $projectName,
             'location_id' => $request->location_id ?: null,
         ];
     }
@@ -1601,7 +1626,7 @@ private function sendAssetEmail($transaction)
             }
             // Fallback: transaction has no location_id - try asset's location (e.g. from backfill or old assigns)
             if (!$location && $asset && !empty($asset->location_id)) {
-                $location = Location::where('location_id', $asset->location_id)->first();
+                $location = Location::find($asset->location_id);
                 if ($location && !empty(trim($location->location_entity ?? ''))) {
                     $entityName = trim($location->location_entity);
                 }

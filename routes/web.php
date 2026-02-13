@@ -214,11 +214,13 @@ Route::get('/entity-budget/create', [EntityBudgetController::class, 'create'])->
 Route::get('/entity-budget/export', [EntityBudgetController::class, 'export'])->name('entity_budget.export');
 Route::post('/entity-budget/store', [EntityBudgetController::class, 'store'])->name('entity_budget.store');
 Route::get('/entity-budget/{id}/download-form', [EntityBudgetController::class, 'downloadForm'])->name('entity_budget.download-form');
+Route::get('/entity-budget/{id}/print-form', [EntityBudgetController::class, 'printForm'])->name('entity_budget.print-form');
 
 use App\Http\Controllers\BudgetExpenseController;
 Route::get('/budget-expenses/create', [BudgetExpenseController::class, 'create'])->name('budget-expenses.create');
 Route::post('/budget-expenses/store', [BudgetExpenseController::class, 'store'])->name('budget-expenses.store');
 Route::get('/budget-expenses/get-details', [BudgetExpenseController::class, 'getBudgetDetails'])->name('budget-expenses.get-details');
+Route::get('/budget-expenses/{id}/print', [BudgetExpenseController::class, 'printExpense'])->name('budget-expenses.print');
 
 use App\Http\Controllers\TimeManagementController;
 // Time Management - All authenticated users

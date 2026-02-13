@@ -20,20 +20,18 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th>Location ID</th>
+                <th>Entity</th>
                 <th>Country</th>
                 <th>Location Name</th>
-                <th>Entity</th>
             </tr>
         </thead>
         <tbody>
             @foreach($locations as $index => $location)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ $location->location_id ?? 'N/A' }}</td>
+                    <td>{{ $location->location_entity ?? 'N/A' }}</td>
                     <td>{{ $location->location_country ?? 'N/A' }}</td>
                     <td>{{ $location->location_name ?? 'N/A' }}</td>
-                    <td>{{ $location->location_entity ?? 'N/A' }}</td>
                 </tr>
             @endforeach
         </tbody>

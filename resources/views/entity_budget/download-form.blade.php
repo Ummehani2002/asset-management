@@ -27,6 +27,10 @@
             <td>{{ $budget->expense_type ?? 'N/A' }}</td>
         </tr>
         <tr>
+            <td><strong>Cost Head</strong></td>
+            <td>{{ $budget->cost_head ?? '—' }}</td>
+        </tr>
+        <tr>
             <td><strong>Budget {{ $currentYear }}</strong></td>
             <td>{{ number_format($budgetAmount, 2) }}</td>
         </tr>
@@ -67,5 +71,8 @@
     <p style="margin-top: 30px; font-size: 12px; color: #666;">
         Generated on: {{ date('Y-m-d H:i:s') }}
     </p>
+    @if(!empty($autoPrint))
+        <script>window.onload = function() { window.print(); };</script>
+    @endif
 </body>
 </html>

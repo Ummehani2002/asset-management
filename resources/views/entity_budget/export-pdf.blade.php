@@ -24,7 +24,6 @@
                 <th>#</th>
                 <th>Entity</th>
                 <th>Expense Type</th>
-                <th>Cost Head</th>
                 <th class="text-right">Budget {{ $year ?? date('Y') }}</th>
                 <th class="text-right">Total Expenses</th>
                 <th class="text-right">Available Balance</th>
@@ -43,7 +42,6 @@
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $budget->employee->entity_name ?? 'N/A' }}</td>
                     <td>{{ $budget->expense_type }}</td>
-                    <td>{{ $budget->cost_head ?? '—' }}</td>
                     <td class="text-right">{{ number_format($budgetAmount, 2) }}</td>
                     <td class="text-right">{{ number_format($totalExpenses, 2) }}</td>
                     <td class="text-right">{{ number_format($availableBalance, 2) }}</td>

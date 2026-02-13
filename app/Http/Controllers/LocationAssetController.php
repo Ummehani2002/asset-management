@@ -91,9 +91,10 @@ class LocationAssetController extends Controller
 
             try {
                 $locations = Location::where('location_name', 'LIKE', $query.'%')
-                    ->orWhere('location_id', 'LIKE', $query.'%')
+                    ->orWhere('location_country', 'LIKE', $query.'%')
+                    ->orWhere('location_entity', 'LIKE', $query.'%')
                     ->limit(10)
-                    ->get(['location_id', 'location_name']);
+                    ->get(['id', 'location_name', 'location_country', 'location_entity']);
 
                 return response()->json($locations);
             } catch (\Exception $e) {
