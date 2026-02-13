@@ -172,3 +172,35 @@ php artisan optimize:clear
 ```
 
 Then test the page again!
+
+---
+
+## 🔍 Internet Service error on `/internet-services/create`
+
+If you see **"Database error occurred. On production run: php artisan migrate --force"** on the Internet Service page:
+
+### Step 1: Diagnose (optional)
+
+Run this in production to see what’s missing:
+
+```bash
+php artisan internet-service:check
+```
+
+It will report:
+- Database connection
+- Whether `internet_services`, `projects`, `employees` tables exist
+- Whether `internet_services` has all required columns
+
+### Step 2: Apply fix
+
+```bash
+php artisan migrate --force
+php artisan optimize:clear
+```
+
+### Step 3: If it still fails
+
+Check **application logs** (Laravel Cloud → your app → Logs). The exact SQL error is logged there. Then either:
+- Fix the schema (e.g. run missing migrations), or
+- Share the log line so the code can be adjusted.

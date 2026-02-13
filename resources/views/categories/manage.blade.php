@@ -89,25 +89,17 @@
                 </div>
             </div>
             <div class="card-body">
-                {{-- Add New Brand: category search (dropdown) + brand name --}}
+                {{-- Add New Brand (for this category only — no category dropdown) --}}
                 <div class="mb-4">
-                    <h6 class="mb-2">Add New Brand</h6>
+                    <h6 class="mb-2">Add New Brand to {{ $category->category_name }}</h6>
                     <form action="{{ route('brands.store') }}" method="POST" class="row g-2 align-items-end" autocomplete="off">
                         @csrf
-                        <div class="col-md-4">
-                            <label class="form-label small">Category</label>
-                            <select name="asset_category_id" class="form-control form-control-sm" required>
-                                <option value="">-- Select Category --</option>
-                                @foreach($categories as $cat)
-                                    <option value="{{ $cat->id }}" {{ (isset($selectedCategoryId) && $selectedCategoryId == $cat->id) ? 'selected' : '' }}>{{ $cat->category_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-4">
+                        <input type="hidden" name="asset_category_id" value="{{ $category->id }}">
+                        <div class="col-md-6">
                             <label class="form-label small">Brand Name</label>
                             <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Lenovo" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <button type="submit" class="btn btn-success btn-sm">
                                 <i class="bi bi-plus-circle me-1"></i>Add Brand
                             </button>
@@ -132,7 +124,7 @@
                 </div>
 
                 @if($categoryBrands->isEmpty())
-                    <p class="text-muted">No brands yet. Add a brand above (select category and enter brand name).</p>
+                    <p class="text-muted">No brands yet. Add a brand above.</p>
                 @else
                     {{-- Show only the selected brand (one at a time) --}}
                     @php $brandsToShow = isset($selectedBrandId) ? $categoryBrands->where('id', $selectedBrandId) : collect(); @endphp
