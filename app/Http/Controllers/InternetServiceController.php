@@ -67,12 +67,13 @@ class InternetServiceController extends Controller
     public function create()
     {
         try {
+            $hasInternetServices = Schema::hasTable('internet_services');
             $hasProjects = Schema::hasTable('projects');
             $hasEmployees = Schema::hasTable('employees');
-            
+
             $projects = collect([]);
             $employees = collect([]);
-            
+
             if ($hasProjects) {
                 try {
                     $projects = Project::select('id','project_id','project_name','entity')->orderBy('project_id')->get();
@@ -80,7 +81,7 @@ class InternetServiceController extends Controller
                     Log::warning('Error loading projects for internet service create: ' . $e->getMessage());
                 }
             }
-            
+
             if ($hasEmployees) {
                 try {
                     $employees = Employee::orderBy('name')->get();
@@ -88,12 +89,19 @@ class InternetServiceController extends Controller
                     Log::warning('Error loading employees for internet service create: ' . $e->getMessage());
                 }
             }
-            
-            $hasAllTables = $hasProjects && $hasEmployees;
+
+            $hasAllTables = $hasInternetServices && $hasProjects && $hasEmployees;
+            $warning = null;
+            if (!$hasInternetServices) {
+                $warning = 'Internet services table is missing. Run in production: php artisan migrate --force';
+            } elseif (!$hasProjects || !$hasEmployees) {
+                $warning = 'Database tables not found. Please run migrations: php artisan migrate --force';
+            }
             return view('internet-services.create', compact('projects', 'employees'))
-                ->with('warning', $hasAllTables ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
+                ->with('warning', $warning);
         } catch (\Exception $e) {
             Log::error('InternetService create error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             $projects = collect([]);
             $employees = collect([]);
             return view('internet-services.create', compact('projects', 'employees'))
@@ -202,10 +210,14 @@ class InternetServiceController extends Controller
             throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
             Log::error('InternetService store database error: ' . $e->getMessage());
+            Log::error('SQL: ' . ($e->getSql() ?? 'N/A'));
+            if ($e->getBindings()) {
+                Log::error('Bindings: ' . json_encode($e->getBindings()));
+            }
             return redirect()
                 ->back()
                 ->withInput()
-                ->withErrors(['error' => 'Database error occurred. Please ensure migrations are run: php artisan migrate --force']);
+                ->withErrors(['error' => 'Database error occurred. On production run: php artisan migrate --force. If the error continues, check application logs for the exact error.']);
         } catch (\Exception $e) {
             Log::error('InternetService store error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());

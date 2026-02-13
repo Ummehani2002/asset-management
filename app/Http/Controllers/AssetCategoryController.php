@@ -40,6 +40,7 @@ class AssetCategoryController extends Controller
 
             // Show only selected category (e.g. Printer → only printer brands/models; Laptop → only laptop)
             $selectedCategoryId = $request->filled('category_id') ? (int) $request->category_id : null;
+            $selectedBrandId = $request->filled('brand_id') ? (int) $request->brand_id : null;
             $categoriesToShow = $categories;
             if ($selectedCategoryId) {
                 $categoriesToShow = $categories->where('id', $selectedCategoryId)->values();
@@ -68,7 +69,7 @@ class AssetCategoryController extends Controller
                 }
             }
 
-            return view('categories.manage', compact('categories', 'categoriesToShow', 'selectedCategoryId', 'assets', 'setValuesModel', 'setValuesFeatures', 'setValuesByFeature'));
+            return view('categories.manage', compact('categories', 'categoriesToShow', 'selectedCategoryId', 'selectedBrandId', 'assets', 'setValuesModel', 'setValuesFeatures', 'setValuesByFeature'));
         } catch (\Exception $e) {
             Log::error('AssetCategory index error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -77,11 +78,12 @@ class AssetCategoryController extends Controller
             $categories = collect([]);
             $categoriesToShow = collect([]);
             $selectedCategoryId = null;
+            $selectedBrandId = null;
             $assets = collect([]);
             $setValuesModel = null;
             $setValuesFeatures = collect([]);
             $setValuesByFeature = collect([]);
-            return view('categories.manage', compact('categories', 'categoriesToShow', 'selectedCategoryId', 'assets', 'setValuesModel', 'setValuesFeatures', 'setValuesByFeature'))
+            return view('categories.manage', compact('categories', 'categoriesToShow', 'selectedCategoryId', 'selectedBrandId', 'assets', 'setValuesModel', 'setValuesFeatures', 'setValuesByFeature'))
                 ->with('warning', 'Unable to load categories. Please ensure migrations are run: php artisan migrate --force');
         }
     }
@@ -183,13 +185,16 @@ class AssetCategoryController extends Controller
     private function addDefaultLaptopFeatures($brand)
     {
         $defaultFeatures = [
-            ['name' => 'Brand'],
+            ['name' => 'Make'],
             ['name' => 'Model Number'],
             ['name' => 'Processor'],
             ['name' => 'RAM'],
-            ['name' => 'Storage', 'sub_fields' => ['NVMI', 'PLC3', 'SATA']],
+            ['name' => 'RAM Model / Family'],
+            ['name' => 'Storage'],
+            ['name' => 'Hard Drive Type'],
             ['name' => 'Graphic Card'],
-            ['name' => 'Display']
+            ['name' => 'Card Size'],
+            ['name' => 'Screen Size'],
         ];
 
         foreach ($defaultFeatures as $feature) {

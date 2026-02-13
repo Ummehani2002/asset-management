@@ -3,7 +3,9 @@
 ## Current Error
 **"Database error occurred. Please ensure migrations are run: php artisan migrate --force"**
 
-This error appears on `/projects/create` (and possibly other pages).
+This error can appear on:
+- `/internet-services/create` (when creating or loading Internet Service form)
+- `/projects/create` and other create/store pages
 
 ---
 
@@ -54,6 +56,7 @@ In **Laravel Cloud Console**, run:
 php artisan tinker
 >>> Schema::hasTable('employees')
 >>> Schema::hasTable('projects')
+>>> Schema::hasTable('internet_services')
 >>> Schema::hasTable('entity_budgets')
 >>> exit
 ```
@@ -146,10 +149,12 @@ php artisan optimize:clear
 ## ✅ After Fixing
 
 1. **Test the page again:**
-   - Visit: `https://asset-mgmt.laravel.cloud/projects/create`
+   - Visit: `https://asset-management.laravel.cloud/internet-services/create`
+   - Visit: `/projects/create`
    - Should load without errors
 
 2. **Verify other pages work:**
+   - `/internet-services/create`
    - `/location-master`
    - `/location-assets`
    - `/asset-transactions/create`
