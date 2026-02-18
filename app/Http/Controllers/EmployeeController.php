@@ -173,29 +173,43 @@ public function edit($id)
 
     public function update(Request $request, $id)
 {
-    $employee = Employee::findOrFail($id);
+    try {
+        $employee = Employee::findOrFail($id);
 
-    if ($employee->is_active === false) {
-        return redirect()->route('employees.index')->with('error', 'Cannot update inactive employee. Employee details are locked after returning all assets.');
+        if (Schema::hasColumn('employees', 'is_active') && $employee->is_active === false) {
+            return redirect()->route('employees.index')->with('error', 'Cannot update inactive employee. Employee details are locked after returning all assets.');
+        }
+
+        $request->validate([
+            'email'           => 'nullable|email|max:100',
+            'phone'           => 'nullable|string|max:20',
+            'entity_name'     => 'nullable|string|max:100',
+            'department_name' => 'nullable|string|max:100',
+            'designation'     => 'nullable|string|max:100',
+        ]);
+
+        $employee->email = $request->input('email');
+        $employee->phone = $request->input('phone');
+        $employee->entity_name = $request->input('entity_name') ?: null;
+        $employee->department_name = $request->input('department_name') ?: null;
+        if (Schema::hasColumn('employees', 'designation')) {
+            $employee->designation = $request->input('designation');
+        }
+        $employee->save();
+        return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        throw $e;
+    } catch (\Exception $e) {
+        Log::error('Employee update failed', [
+            'employee_id' => $id,
+            'message'     => $e->getMessage(),
+            'trace'       => $e->getTraceAsString(),
+        ]);
+        return redirect()
+            ->back()
+            ->withInput()
+            ->withErrors(['error' => 'Unable to update employee. Please try again or contact support.']);
     }
-
-    $request->validate([
-        'email'           => 'nullable|email|max:100',
-        'phone'           => 'nullable|string|max:20',
-        'entity_name'     => 'nullable|string|max:100',
-        'department_name' => 'nullable|string|max:100',
-        'designation'     => 'nullable|string|max:100',
-    ]);
-
-    $employee->email = $request->input('email');
-    $employee->phone = $request->input('phone');
-    $employee->entity_name = $request->input('entity_name');
-    $employee->department_name = $request->input('department_name');
-    if (Schema::hasColumn('employees', 'designation')) {
-        $employee->designation = $request->input('designation');
-    }
-    $employee->save();
-    return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
 }
 
 
