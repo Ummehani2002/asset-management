@@ -373,8 +373,8 @@ private function mapRowToEmployee(array $data, $defaultEntity)
     $email = $normalize('Email');
     $phone = $normalize('Phone');
     $designation = $normalize('Designation');
-    // Normalize old designation to new one (Excel may still have "Project Engineer")
-    if (strcasecmp(trim($designation ?? ''), 'Project Engineer') === 0) {
+    // Normalize old designation to new one (Excel may have "Project Engineer", "Project Engineer (Civil)", etc.)
+    if (preg_match('/^Project\s+Engineer\b/i', trim($designation ?? ''))) {
         $designation = 'Assistant Project Manager';
     }
     $department = $normalize('Department Name') ?: $normalize('Department');
