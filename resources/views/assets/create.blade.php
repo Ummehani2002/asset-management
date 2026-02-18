@@ -102,25 +102,68 @@
             <input type="number" name="value" class="form-control" step="0.01" min="0" placeholder="Enter value">
         </div>
 
-        {{-- Laptop-only: manual entry fields --}}
+        {{-- Laptop-only: Patch / Antivirus / AutoCAD = Yes/No only; OS / MS Office / On-Screen Takeoff = Yes/No then value field --}}
         <div id="laptop-license-fields" class="border rounded p-3 mb-3 bg-light" style="display: none;">
-            <h6 class="mb-3"><i class="bi bi-laptop me-2"></i>Laptop License & Software Details</h6>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label>Operating System License Key</label>
-                    <input type="text" name="os_license_key" class="form-control" placeholder="Enter OS license key">
+            <h6 class="mb-3"><i class="bi bi-laptop me-2"></i>License & Software</h6>
+
+            {{-- Yes/No only (no value field) --}}
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Patch Management</label>
+                    <div class="d-flex gap-3">
+                        <label class="d-flex align-items-center gap-1"><input type="radio" name="patch_management_software" value="Yes"> Yes</label>
+                        <label class="d-flex align-items-center gap-1"><input type="radio" name="patch_management_software" value="No" checked> No</label>
+                    </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label>Antivirus License Version</label>
-                    <input type="text" name="antivirus_license_version" class="form-control" placeholder="Enter antivirus license version">
+                <div class="col-md-4">
+                    <label class="form-label">Antivirus</label>
+                    <div class="d-flex gap-3">
+                        <label class="d-flex align-items-center gap-1"><input type="radio" name="antivirus_license_version" value="Yes"> Yes</label>
+                        <label class="d-flex align-items-center gap-1"><input type="radio" name="antivirus_license_version" value="No" checked> No</label>
+                    </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label>Patch Management Software</label>
-                    <input type="text" name="patch_management_software" class="form-control" placeholder="Enter patch management software">
+                <div class="col-md-4">
+                    <label class="form-label">AutoCAD</label>
+                    <div class="d-flex gap-3">
+                        <label class="d-flex align-items-center gap-1"><input type="radio" name="autocad_license_key" value="Yes"> Yes</label>
+                        <label class="d-flex align-items-center gap-1"><input type="radio" name="autocad_license_key" value="No" checked> No</label>
+                    </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label>AutoCAD License Key</label>
-                    <input type="text" name="autocad_license_key" class="form-control" placeholder="Enter AutoCAD license key">
+            </div>
+
+            {{-- OS License Key: Yes/No then value --}}
+            <div class="mb-3">
+                <label class="form-label">OS License Key</label>
+                <div class="d-flex gap-3 mb-2">
+                    <label class="d-flex align-items-center gap-1"><input type="radio" name="has_os_license" id="has_os_yes" value="yes"> Yes</label>
+                    <label class="d-flex align-items-center gap-1"><input type="radio" name="has_os_license" id="has_os_no" value="no" checked> No</label>
+                </div>
+                <div id="os_license_value_wrap" style="display: none;">
+                    <input type="text" name="os_license_key" id="os_license_key" class="form-control" placeholder="Enter OS license key">
+                </div>
+            </div>
+
+            {{-- MS Office License Key: Yes/No then value --}}
+            <div class="mb-3">
+                <label class="form-label">MS Office License Key</label>
+                <div class="d-flex gap-3 mb-2">
+                    <label class="d-flex align-items-center gap-1"><input type="radio" name="has_ms_office_license" id="has_ms_office_yes" value="yes"> Yes</label>
+                    <label class="d-flex align-items-center gap-1"><input type="radio" name="has_ms_office_license" id="has_ms_office_no" value="no" checked> No</label>
+                </div>
+                <div id="ms_office_license_value_wrap" style="display: none;">
+                    <input type="text" name="ms_office_license_key" id="ms_office_license_key" class="form-control" placeholder="Enter MS Office license key">
+                </div>
+            </div>
+
+            {{-- On-Screen Takeoff Key: Yes/No then value --}}
+            <div class="mb-3">
+                <label class="form-label">On-Screen Takeoff Key</label>
+                <div class="d-flex gap-3 mb-2">
+                    <label class="d-flex align-items-center gap-1"><input type="radio" name="has_takeoff_key" id="has_takeoff_yes" value="yes"> Yes</label>
+                    <label class="d-flex align-items-center gap-1"><input type="radio" name="has_takeoff_key" id="has_takeoff_no" value="no" checked> No</label>
+                </div>
+                <div id="takeoff_key_value_wrap" style="display: none;">
+                    <input type="text" name="on_screen_takeoff_key" id="on_screen_takeoff_key" class="form-control" placeholder="Enter On-Screen Takeoff key">
                 </div>
             </div>
         </div>
@@ -170,18 +213,21 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#feature-fields').html('');
         $('input[name="asset_id"]').val('');
 
-        // Show laptop license fields only for Laptop category
+        // Show laptop license block only for Laptop category
         if (categoryName === 'laptop') {
             $('#laptop-license-fields').show();
-            $('#laptop-license-fields input').prop('disabled', false);
+            $('#has_os_no, #has_ms_office_no, #has_takeoff_no').prop('checked', true);
+            $('#os_license_value_wrap, #ms_office_license_value_wrap, #takeoff_key_value_wrap').hide();
+            $('#os_license_key, #ms_office_license_key, #on_screen_takeoff_key').val('');
         } else {
             $('#laptop-license-fields').hide();
-            $('#laptop-license-fields input').val('').prop('disabled', true);
+            $('#os_license_value_wrap, #ms_office_license_value_wrap, #takeoff_key_value_wrap').hide();
+            $('#os_license_key, #ms_office_license_key, #on_screen_takeoff_key').val('');
         }
 
         if (!categoryId) {
             $('#laptop-license-fields').hide();
-            $('#laptop-license-fields input').val('').prop('disabled', true);
+            $('#os_license_value_wrap, #ms_office_license_value_wrap, #takeoff_key_value_wrap').hide();
         }
 
         if (categoryId) {
@@ -328,6 +374,34 @@ document.addEventListener('DOMContentLoaded', function() {
     $(document).ready(function() {
         calculateExpiry();
         setTimeout(function() { hookWarrantyFlatpickr(); }, 100);
+
+        // OS License Key: show value field only when Yes
+        $('input[name="has_os_license"]').on('change', function () {
+            if ($(this).val() === 'yes') {
+                $('#os_license_value_wrap').show();
+            } else {
+                $('#os_license_value_wrap').hide();
+                $('#os_license_key').val('');
+            }
+        });
+        // MS Office License Key: show value field only when Yes
+        $('input[name="has_ms_office_license"]').on('change', function () {
+            if ($(this).val() === 'yes') {
+                $('#ms_office_license_value_wrap').show();
+            } else {
+                $('#ms_office_license_value_wrap').hide();
+                $('#ms_office_license_key').val('');
+            }
+        });
+        // On-Screen Takeoff Key: show value field only when Yes
+        $('input[name="has_takeoff_key"]').on('change', function () {
+            if ($(this).val() === 'yes') {
+                $('#takeoff_key_value_wrap').show();
+            } else {
+                $('#takeoff_key_value_wrap').hide();
+                $('#on_screen_takeoff_key').val('');
+            }
+        });
     });
 
 </script>

@@ -3,22 +3,22 @@
 @section('content')
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Assets in Category: {{ $category->category_name }}</h2>
+        <h2>Assets in Category: {{ $category->category_name }}@if(isset($selectedEntity) && $selectedEntity) ({{ ucwords($selectedEntity->name) }})@endif</h2>
         <div class="d-flex gap-2">
             <div class="dropdown">
                 <button class="btn btn-sm btn-success dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-download me-1"></i>Download
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
-                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'pdf']) }}">
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'pdf'] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : [])) }}">
                         <i class="bi bi-file-earmark-pdf me-2"></i>PDF
                     </a></li>
-                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'csv']) }}">
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'csv'] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : [])) }}">
                         <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
                     </a></li>
                 </ul>
             </div>
-            <a href="{{ route('dashboard') }}" class="btn btn-sm btn-secondary">
+            <a href="{{ route('dashboard') }}{{ isset($selectedEntity) && $selectedEntity ? '?entity=' . $selectedEntity->id : '' }}" class="btn btn-sm btn-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
             </a>
         </div>

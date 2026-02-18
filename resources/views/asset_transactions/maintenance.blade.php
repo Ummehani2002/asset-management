@@ -70,6 +70,44 @@
         </div>
     @endif
 
+    {{-- Pending maintenance approval requests: someone (non-AM) requested approval; you (AM) can approve so they can proceed --}}
+    @if(($pendingMaintenanceRequests ?? collect())->count() > 0)
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning bg-opacity-25 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-envelope-check me-2"></i>Maintenance Approval Requests ({{ $pendingMaintenanceRequests->count() }})</h5>
+                <small class="text-dark">Someone requested to send an asset for maintenance. Approve to enable maintenance for that asset, then fill details in "Send for Maintenance".</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light"><tr><th>Asset</th><th>Category</th><th>Requested By</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            @foreach($pendingMaintenanceRequests as $req)
+                                <tr>
+                                    <td>{{ $req->asset->serial_number ?? 'N/A' }} ({{ $req->asset->asset_id ?? '' }})</td>
+                                    <td>{{ $req->asset->assetCategory->category_name ?? '-' }}</td>
+                                    <td>{{ $req->requestedByUser->name ?? $req->requestedByUser->email ?? 'N/A' }}</td>
+                                    <td>{{ $req->created_at->format('d-M-Y H:i') }}</td>
+                                    <td><small>{{ Str::limit($req->request_notes, 40) ?: '-' }}</small></td>
+                                    <td>
+                                        <form action="{{ route('asset-transactions.maintenance-approval-request-approve', $req->id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i> Approve</button>
+                                        </form>
+                                        <form action="{{ route('asset-transactions.maintenance-approval-request-reject', $req->id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject this request?');"><i class="bi bi-x"></i> Reject</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Your Pending Approvals (quick access for assigned AM) --}}
     @if($pendingApprovals->count() > 0)
         <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
@@ -174,7 +212,25 @@
                     </div>
                 </div>
 
-        {{-- Maintenance Details --}}
+        {{-- Request approval (shown when current user is NOT the asset manager and has no approved request) --}}
+        <div class="master-form-card mb-4 border-warning" id="request_approval_section" style="display:none;">
+            <h5 class="mb-3"><i class="bi bi-person-check me-2"></i>Request Approval</h5>
+            <p class="text-muted mb-3">You are not the asset manager for this asset. Maintenance details are disabled until the asset manager approves your request.</p>
+            <p class="mb-2"><strong>Asset Manager:</strong> <span id="request_am_name">-</span></p>
+            <form method="POST" action="{{ route('asset-transactions.maintenance-request-approval') }}" id="requestApprovalForm">
+                @csrf
+                <input type="hidden" name="asset_id" id="request_approval_asset_id" value="">
+                <div class="mb-3">
+                    <label for="request_notes" class="form-label">Notes (optional)</label>
+                    <textarea name="request_notes" id="request_notes" class="form-control" rows="2" placeholder="e.g. Employee dropped off laptop for repair"></textarea>
+                </div>
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-send me-2"></i>Request for Approval
+                </button>
+            </form>
+        </div>
+
+        {{-- Maintenance Details (shown only when user is asset manager or has approved request) --}}
         <div class="master-form-card mb-4" id="maintenance_details_section" style="display:none;">
             <h5 class="mb-3"><i class="bi bi-wrench me-2"></i>Maintenance Details</h5>
             <div class="row">
@@ -586,8 +642,10 @@ $(document).ready(function() {
         
         if (!assetId) {
             $('#maintenance_details_section').hide();
+            $('#request_approval_section').hide();
             $('#send_entity_display_section').hide();
             $('#asset_error_info').text('');
+            $('#submitBtn').prop('disabled', true);
             return;
         }
 
@@ -596,7 +654,9 @@ $(document).ready(function() {
             if (data.status !== 'assigned' && data.original_status !== 'assigned') {
                 $('#asset_error_info').text('This asset is not assigned. Only assigned assets can be sent for maintenance.');
                 $('#maintenance_details_section').hide();
+                $('#request_approval_section').hide();
                 $('#send_entity_display_section').hide();
+                $('#submitBtn').prop('disabled', true);
                 return;
             }
 
@@ -614,6 +674,20 @@ $(document).ready(function() {
                 $('#send_asset_manager_display').html(amText + ' <small class="text-warning">(Assign in <a href="{{ route("asset-manager.index") }}">Entity Master</a>)</small>');
             }
             $('#send_entity_display_section').show();
+
+            // Can current user fill maintenance? (asset manager or has approved request)
+            const canFill = data.can_fill_maintenance === true;
+            $('#request_approval_asset_id').val(assetId);
+            $('#request_am_name').text(amText);
+            if (canFill) {
+                $('#maintenance_details_section').show();
+                $('#request_approval_section').hide();
+                $('#submitBtn').prop('disabled', false);
+            } else {
+                $('#maintenance_details_section').hide();
+                $('#request_approval_section').show();
+                $('#submitBtn').prop('disabled', true);
+            }
             
             let infoHtml = '';
             if (data.current_employee_name) {
@@ -625,16 +699,19 @@ $(document).ready(function() {
             if (data.asset_manager_name) {
                 infoHtml += (infoHtml ? ' &nbsp;|&nbsp; ' : '') + `<strong>Asset Manager:</strong> ${data.asset_manager_name} (${data.asset_manager_employee_id || ''}) - ${data.asset_manager_entity || ''}`;
             }
+            if (!canFill && data.asset_manager_name) {
+                infoHtml += (infoHtml ? ' &nbsp;|&nbsp; ' : '') + '<span class="text-warning">Request approval below to enable maintenance.</span>';
+            }
             if (infoHtml) {
-                $('#asset_status_info').html(infoHtml + '<br><small class="text-muted">If asset manager is busy, use "Assign to Asset Manager" tab to reassign.</small>');
+                $('#asset_status_info').html(infoHtml + (canFill ? '<br><small class="text-muted">If asset manager is busy, use "Assign to Asset Manager" tab to reassign.</small>' : ''));
                 $('#asset_status_info').removeClass('text-danger').addClass('text-info');
             }
-            
-            $('#maintenance_details_section').show();
         }).fail(function() {
             $('#asset_error_info').text('Error loading asset details.');
             $('#maintenance_details_section').hide();
+            $('#request_approval_section').hide();
             $('#send_entity_display_section').hide();
+            $('#submitBtn').prop('disabled', true);
         });
     });
 

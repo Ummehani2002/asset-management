@@ -8,10 +8,30 @@
         <h2><i class="bi bi-speedometer2 me-2"></i>Dashboard</h2>
     </div>
 
+    <!-- Entity filter -->
+    @if(isset($entities) && $entities->isNotEmpty())
+    <div class="master-form-card mb-4">
+        <form method="GET" action="{{ route('dashboard') }}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Entity</label>
+                <select name="entity" class="form-control" onchange="this.form.submit()">
+                    <option value="">All entities</option>
+                    @foreach($entities as $ent)
+                        <option value="{{ $ent->id }}" {{ (isset($selectedEntityId) && $selectedEntityId == $ent->id) ? 'selected' : '' }}>{{ ucwords($ent->name) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">Apply</button>
+            </div>
+        </form>
+    </div>
+    @endif
+
     <!-- Asset Categories Card -->
     <div class="table-card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <h5 style="color: white; margin: 0;"><i class="bi bi-grid-3x3-gap me-2"></i>Asset Categories</h5>
+            <h5 style="color: white; margin: 0;"><i class="bi bi-grid-3x3-gap me-2"></i>Asset Categories @if(isset($selectedEntity)) ({{ ucwords($selectedEntity->name) }}) @endif</h5>
             <div class="d-flex gap-3 align-items-center">
                 <span class="text-white"><i class="bi bi-box-seam me-1"></i><strong>Total:</strong> {{ number_format($totalAssets ?? 0) }}</span>
                 <span class="text-white"><i class="bi bi-check-circle me-1"></i><strong>Available:</strong> {{ number_format($availableAssets ?? 0) }}</span>
@@ -49,7 +69,7 @@
                                 </td>
 
                                 <td class="text-center">
-                                    <a href="{{ route('assets.byCategory', $category->id) }}"
+                                    <a href="{{ route('assets.byCategory', $category->id) }}{{ isset($selectedEntityId) ? '?entity=' . $selectedEntityId : '' }}"
                                        class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i> View Assets
                                     </a>

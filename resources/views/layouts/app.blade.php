@@ -849,6 +849,11 @@
     <a href="{{ route('users.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('users.*') ? 'active' : '' }}">
     <i class="bi bi-people"></i> Users
 </a>
+    @if(auth()->user() && auth()->user()->role === 'admin')
+    <a href="{{ route('activity-logs.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}">
+    <i class="bi bi-journal-text"></i> User Logs
+</a>
+    @endif
 
     <!-- Employee Master -->
 <div class="sidebar-dropdown mb-1">

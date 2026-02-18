@@ -29,7 +29,7 @@
                 <th>Department</th>
                 <th>Entity</th>
                 <th>Location</th>
-                <th>System Code</th>
+                <th>Serial Number</th>
                 <th>Printer Code</th>
                 <th>Issued Date</th>
                 <th>Return Date</th>
@@ -68,6 +68,9 @@
             @endforeach
         </tbody>
     </table>
+    <p style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 11px; color: #666; text-align: center;">
+        This is generated from the system. Do not reply.
+    </p>
 </body>
 </html>
 

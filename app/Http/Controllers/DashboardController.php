@@ -2,39 +2,75 @@
 namespace App\Http\Controllers;
 use App\Models\AssetCategory;
 use App\Models\Asset;
+use App\Models\Entity;
+use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
-    public function index()
+    /**
+     * Scope assets query by entity (via location.location_entity = entity name).
+     */
+    private function scopeAssetsByEntity($query, $entityName)
+    {
+        if (empty($entityName)) {
+            return $query;
+        }
+        $locationIds = Location::where('location_entity', $entityName)->pluck('id');
+        return $query->whereIn('location_id', $locationIds);
+    }
+
+    public function index(Request $request)
     {
         try {
+            $entities = collect([]);
+            if (Schema::hasTable('entities')) {
+                $entities = Entity::orderBy('name')->get();
+            }
+
+            $selectedEntityId = $request->get('entity');
+            $selectedEntity = null;
+            $entityName = null;
+            if ($selectedEntityId && $entities->isNotEmpty()) {
+                $selectedEntity = $entities->firstWhere('id', $selectedEntityId);
+                $entityName = $selectedEntity ? $selectedEntity->name : null;
+            }
+
+            // Only count assets that are assigned, available, or returned (exclude under_maintenance etc.)
+            $relevantStatuses = ['assigned', 'available', 'returned'];
             $totalAssets = 0;
             $availableAssets = 0;
 
             if (Schema::hasTable('assets')) {
-                $totalAssets = Asset::count();
-                $availableAssets = Asset::whereIn('status', ['available', 'returned'])->count();
+                $assetQuery = Asset::whereIn('status', $relevantStatuses);
+                $this->scopeAssetsByEntity($assetQuery, $entityName);
+                $totalAssets = $assetQuery->count();
+
+                $availQuery = Asset::whereIn('status', ['available', 'returned']);
+                $this->scopeAssetsByEntity($availQuery, $entityName);
+                $availableAssets = $availQuery->count();
             }
 
             // Check if required tables exist
             if (!Schema::hasTable('asset_categories')) {
                 Log::warning('asset_categories table does not exist');
-                $categoryCounts = collect([]); // Empty collection
+                $categoryCounts = collect([]);
             } else {
-                // Try to get category counts, but handle if assets table doesn't exist
                 try {
                     $categoryCounts = AssetCategory::withCount([
-                        'assets',
-                        'assets as available_count' => function ($q) {
+                        'assets as assets_count' => function ($q) use ($entityName) {
+                            $q->whereIn('status', ['assigned', 'available', 'returned']);
+                            $this->scopeAssetsByEntity($q, $entityName);
+                        },
+                        'assets as available_count' => function ($q) use ($entityName) {
                             $q->whereIn('status', ['available', 'returned']);
+                            $this->scopeAssetsByEntity($q, $entityName);
                         }
                     ])->get();
                 } catch (\Exception $e) {
                     Log::warning('Error loading asset categories: ' . $e->getMessage());
-                    // Fallback: get categories without count
                     $categoryCounts = AssetCategory::all()->map(function ($category) {
                         $category->assets_count = 0;
                         $category->available_count = 0;
@@ -43,16 +79,17 @@ class DashboardController extends Controller
                 }
             }
 
-        return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets'));
+            return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets', 'entities', 'selectedEntityId', 'selectedEntity'));
         } catch (\Exception $e) {
             Log::error('Dashboard error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
-            
-            // Return empty dashboard instead of crashing
             $categoryCounts = collect([]);
             $totalAssets = 0;
             $availableAssets = 0;
-            return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets'))
+            $entities = Schema::hasTable('entities') ? Entity::orderBy('name')->get() : collect([]);
+            $selectedEntityId = null;
+            $selectedEntity = null;
+            return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets', 'entities', 'selectedEntityId', 'selectedEntity'))
                 ->with('warning', 'Some data could not be loaded. Please ensure migrations are run.');
         }
     }

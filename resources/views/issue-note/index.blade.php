@@ -90,7 +90,7 @@
                                 <th>Department</th>
                                 <th>Entity</th>
                                 <th>Location</th>
-                                <th>System Code</th>
+                                <th>Serial Number</th>
                                 <th>Printer Code</th>
                                 <th>Issued Date</th>
                                 <th>Return Date</th>

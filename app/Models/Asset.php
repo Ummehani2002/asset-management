@@ -22,6 +22,8 @@ class Asset extends Model
         'invoice_path',
         'status',
         'os_license_key',
+        'ms_office_license_key',
+        'on_screen_takeoff_key',
         'antivirus_license_version',
         'patch_management_software',
         'autocad_license_key',

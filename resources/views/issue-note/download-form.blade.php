@@ -8,7 +8,9 @@
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
         th { background-color: #1F2A44; color: white; }
-        .signature { width: 200px; height: 100px; border: 1px solid #ddd; margin: 10px 0; }
+        .signature { width: 200px; height: 100px; border: 1px solid #ddd; margin: 10px 0; display: block; }
+        .signature-block { margin-top: 20px; }
+        .footer-note { margin-top: 30px; padding-top: 15px; border-top: 1px solid #999; font-size: 12px; color: #333; text-align: center; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -36,7 +38,7 @@
             <td>{{ $issueNote->location ?? 'N/A' }}</td>
         </tr>
         <tr>
-            <td><strong>System Code</strong></td>
+            <td><strong>Serial Number (Asset)</strong></td>
             <td>{{ $issueNote->system_code ?? 'N/A' }}</td>
         </tr>
         <tr>
@@ -63,22 +65,24 @@
         </tr>
     </table>
     
-    @if($issueNote->user_signature)
-        <div>
+    @if(!empty($userSigBase64))
+        <div class="signature-block">
             <strong>User Signature:</strong><br>
-            <img src="{{ $issueNote->user_signature }}" class="signature" alt="User Signature">
+            <img src="data:image/png;base64,{{ $userSigBase64 }}" class="signature" alt="User Signature" />
         </div>
     @endif
-    
-    @if($issueNote->manager_signature)
-        <div>
+    @if(!empty($managerSigBase64))
+        <div class="signature-block">
             <strong>IT Manager Signature:</strong><br>
-            <img src="{{ $issueNote->manager_signature }}" class="signature" alt="Manager Signature">
+            <img src="data:image/png;base64,{{ $managerSigBase64 }}" class="signature" alt="Manager Signature" />
         </div>
     @endif
-    
-    <p style="margin-top: 30px; font-size: 12px; color: #666;">
+
+    <p style="margin-top: 20px; font-size: 12px; color: #666;">
         Generated on: {{ date('Y-m-d H:i:s') }}
     </p>
+    <div class="footer-note">
+        {{ $footerNote ?? 'This is auto-generated. Do not reply.' }}
+    </div>
 </body>
 </html>

@@ -77,6 +77,7 @@
                            {{ $employee->is_active === false ? 'readonly disabled' : '' }}>
                     <datalist id="designation-list">
                         <option value="Project Manager">
+                        <option value="Assistant Project Manager">
                         <option value="Person in Charge">
                         <option value="Document Controller">
                         <option value="PC Secretary">

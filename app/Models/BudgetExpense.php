@@ -13,6 +13,14 @@ class BudgetExpense extends Model
         'expense_amount',
         'expense_date',
         'description',
+        'is_contracting',
+        'amount_before_vat',
+        'vat_percent',
+        'vat_amount',
+    ];
+
+    protected $casts = [
+        'is_contracting' => 'boolean',
     ];
 
     public function entityBudget()

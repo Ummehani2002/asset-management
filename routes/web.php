@@ -39,6 +39,8 @@ Route::get('/users/{id}/edit', [UserController::class, 'edit'])->name('users.edi
 Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
 Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
 
+use App\Http\Controllers\ActivityLogController;
+Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware(['auth', 'admin'])->name('activity-logs.index');
 
 use App\Http\Controllers\DashboardController;
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
@@ -159,6 +161,9 @@ Route::prefix('asset-transactions')->group(function () {
     Route::post('/maintenance-assign', [AssetTransactionController::class, 'maintenanceAssign'])->name('asset-transactions.maintenance-assign');
     Route::post('/maintenance-approve/{id}', [AssetTransactionController::class, 'maintenanceApprove'])->name('asset-transactions.maintenance-approve');
     Route::post('/maintenance-reject/{id}', [AssetTransactionController::class, 'maintenanceReject'])->name('asset-transactions.maintenance-reject');
+    Route::post('/maintenance-request-approval', [AssetTransactionController::class, 'requestMaintenanceApproval'])->name('asset-transactions.maintenance-request-approval');
+    Route::post('/maintenance-approval-request-approve/{id}', [AssetTransactionController::class, 'approveMaintenanceRequest'])->name('asset-transactions.maintenance-approval-request-approve');
+    Route::post('/maintenance-approval-request-reject/{id}', [AssetTransactionController::class, 'rejectMaintenanceRequest'])->name('asset-transactions.maintenance-approval-request-reject');
     Route::post('/store', [AssetTransactionController::class, 'store'])->name('asset-transactions.store');
     Route::get('/{id}/edit', [AssetTransactionController::class, 'edit'])->name('asset-transactions.edit');
     Route::put('/{id}', [AssetTransactionController::class, 'update'])->name('asset-transactions.update');
@@ -220,6 +225,8 @@ use App\Http\Controllers\BudgetExpenseController;
 Route::get('/budget-expenses/create', [BudgetExpenseController::class, 'create'])->name('budget-expenses.create');
 Route::post('/budget-expenses/store', [BudgetExpenseController::class, 'store'])->name('budget-expenses.store');
 Route::get('/budget-expenses/get-details', [BudgetExpenseController::class, 'getBudgetDetails'])->name('budget-expenses.get-details');
+Route::get('/budget-expenses/{id}/edit', [BudgetExpenseController::class, 'edit'])->name('budget-expenses.edit');
+Route::put('/budget-expenses/{id}', [BudgetExpenseController::class, 'update'])->name('budget-expenses.update');
 Route::get('/budget-expenses/{id}/print', [BudgetExpenseController::class, 'printExpense'])->name('budget-expenses.print');
 
 use App\Http\Controllers\TimeManagementController;

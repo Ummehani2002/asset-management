@@ -57,8 +57,13 @@
 
         <div class="row mt-3">
             <div class="col-md-4">
-                <label>System Code</label>
-                <input type="text" name="system_code" class="form-control">
+                <label>Serial Number (Asset)</label>
+                <div class="position-relative">
+                    <input type="text" name="system_code" id="system_code" class="form-control" placeholder="Type to search asset serial..."
+                           autocomplete="off">
+                    <div id="serial-dropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 200px; overflow-y: auto;"></div>
+                </div>
+                <small class="text-muted">Select from assets by typing serial number</small>
             </div>
 
             <div class="col-md-4">
@@ -146,6 +151,44 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('entity').value = '';
             document.getElementById('location').value = '';
         }
+    });
+
+    // Serial number (asset) autocomplete
+    const systemCodeInput = document.getElementById('system_code');
+    const serialDropdown = document.getElementById('serial-dropdown');
+    let serialFetchTimer;
+    systemCodeInput.addEventListener('input', function() {
+        const q = this.value.trim();
+        clearTimeout(serialFetchTimer);
+        serialDropdown.style.display = 'none';
+        serialDropdown.innerHTML = '';
+        if (q.length < 2) return;
+        serialFetchTimer = setTimeout(function() {
+            fetch('{{ url("assets/autocomplete-serial") }}?term=' + encodeURIComponent(q))
+                .then(function(res) { return res.json(); })
+                .then(function(arr) {
+                    serialDropdown.innerHTML = '';
+                    if (arr && arr.length) {
+                        arr.forEach(function(serial) {
+                            const a = document.createElement('a');
+                            a.href = '#';
+                            a.className = 'list-group-item list-group-item-action';
+                            a.textContent = serial;
+                            a.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                systemCodeInput.value = serial;
+                                serialDropdown.style.display = 'none';
+                            });
+                            serialDropdown.appendChild(a);
+                        });
+                        serialDropdown.style.display = 'block';
+                    }
+                })
+                .catch(function() {});
+        }, 200);
+    });
+    systemCodeInput.addEventListener('blur', function() {
+        setTimeout(function() { serialDropdown.style.display = 'none'; }, 150);
     });
 
     // Function to resize canvas for signature pad

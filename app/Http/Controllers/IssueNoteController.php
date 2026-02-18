@@ -382,7 +382,7 @@ class IssueNoteController extends Controller
             // Headers
             fputcsv($file, [
                 '#', 'Type', 'Employee', 'Department', 'Entity', 'Location', 
-                'System Code', 'Printer Code', 'Issued Date', 'Return Date', 
+                'Serial Number', 'Printer Code', 'Issued Date', 'Return Date', 
                 'Items', 'Software Installed'
             ]);
 
@@ -415,7 +415,25 @@ class IssueNoteController extends Controller
     public function downloadForm($id)
     {
         $issueNote = IssueNote::with('employee')->findOrFail($id);
-        $pdf = \PDF::loadView('issue-note.download-form', compact('issueNote'));
+        // Embed signatures as base64 (DomPDF needs no whitespace in data URI)
+        $userSigBase64 = null;
+        $managerSigBase64 = null;
+        if ($issueNote->user_signature) {
+            $p = storage_path('app/public/' . $issueNote->user_signature);
+            if (file_exists($p)) {
+                $raw = base64_encode(file_get_contents($p));
+                $userSigBase64 = preg_replace('/\s+/', '', $raw);
+            }
+        }
+        if ($issueNote->manager_signature) {
+            $p = storage_path('app/public/' . $issueNote->manager_signature);
+            if (file_exists($p)) {
+                $raw = base64_encode(file_get_contents($p));
+                $managerSigBase64 = preg_replace('/\s+/', '', $raw);
+            }
+        }
+        $footerNote = 'This is auto-generated. Do not reply.';
+        $pdf = \PDF::loadView('issue-note.download-form', compact('issueNote', 'userSigBase64', 'managerSigBase64', 'footerNote'));
         return $pdf->download('issue-note-' . $issueNote->id . '-' . date('Y-m-d') . '.pdf');
     }
 }

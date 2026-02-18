@@ -73,7 +73,7 @@
 
         <div class="row mt-3">
             <div class="col-md-4">
-                <label>System Code</label>
+                <label>Serial Number (Asset)</label>
                 <input type="text" id="system_code" name="system_code" class="form-control" readonly>
             </div>
 

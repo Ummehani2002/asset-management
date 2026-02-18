@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\Entity;
 use App\Models\Location;
 use App\Models\MaintenanceAssignment;
+use App\Models\MaintenanceApprovalRequest;
 use App\Models\Project;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
@@ -739,10 +740,21 @@ class AssetTransactionController extends Controller
         };
         $pendingApprovals->each($enrichAssignment);
         $allPendingAssignments->each($enrichAssignment);
+
+        // Pending maintenance approval requests (someone requested approval; current user is the AM who must approve)
+        $pendingMaintenanceRequests = collect([]);
+        if (auth()->user()?->employee_id) {
+            $pendingMaintenanceRequests = MaintenanceApprovalRequest::with(['asset.assetCategory', 'requestedByUser'])
+                ->where('assigned_to_employee_id', auth()->user()->employee_id)
+                ->where('status', 'pending')
+                ->orderByDesc('created_at')
+                ->get();
+        }
+
         // Only asset managers (assigned in Entity Master) can delegate to another AM when busy
         $currentUserIsAssetManager = auth()->user()?->employee_id && $assetManagers->contains('id', auth()->user()->employee_id);
         $canDelegateToOthers = $currentUserIsAssetManager && $assetManagers->where('id', '!=', auth()->user()->employee_id)->isNotEmpty();
-        return view('asset_transactions.maintenance', compact('categories', 'entities', 'assetManagers', 'pendingApprovals', 'allPendingAssignments', 'canDelegateToOthers'));
+        return view('asset_transactions.maintenance', compact('categories', 'entities', 'assetManagers', 'pendingApprovals', 'allPendingAssignments', 'pendingMaintenanceRequests', 'canDelegateToOthers'));
     }
 
     public function maintenanceStore(Request $request)
@@ -764,6 +776,34 @@ class AssetTransactionController extends Controller
         if ($asset->status !== 'assigned') {
             throw ValidationException::withMessages([
                 'asset_id' => 'Only assigned assets can be sent for maintenance. Current status: ' . ucfirst($asset->status ?? 'unknown'),
+            ]);
+        }
+
+        // Only the asset manager for this asset (or user with an approved request) can save maintenance
+        $currentUserEmployeeId = auth()->user()?->employee_id;
+        $assetManagerId = null;
+        $entityName = null;
+        if ($latest && $latest->location_id) {
+            $location = Location::find($latest->location_id);
+            $entityName = $location && !empty(trim($location->location_entity ?? '')) ? trim($location->location_entity) : null;
+        }
+        if (!$entityName && $latest && $latest->employee_id) {
+            $entityName = $latest->employee?->entity_name ?? null;
+        }
+        if ($entityName) {
+            $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower($entityName)])->with('assetManager')->first()
+                ?? Entity::whereRaw('LOWER(name) LIKE ?', [strtolower($entityName) . '%'])->with('assetManager')->orderBy('name')->first();
+            $assetManagerId = $entity?->asset_manager_id;
+        }
+        $isAssetManager = $currentUserEmployeeId && $assetManagerId && (int) $assetManagerId === (int) $currentUserEmployeeId;
+        // Requester can save after the entity's AM approved their request
+        $hasApprovedRequest = auth()->id() && MaintenanceApprovalRequest::where('asset_id', $asset->id)
+            ->where('requested_by_user_id', auth()->id())
+            ->where('status', 'approved')
+            ->exists();
+        if ($assetManagerId && !$isAssetManager && !$hasApprovedRequest) {
+            throw ValidationException::withMessages([
+                'asset_id' => 'You are not the asset manager for this asset. Request approval from the asset manager first, or wait for them to approve your request.',
             ]);
         }
 
@@ -1106,6 +1146,106 @@ class AssetTransactionController extends Controller
 
         return redirect()->route('asset-transactions.maintenance')
             ->with('success', 'Assignment rejected.');
+    }
+
+    /**
+     * Non–asset manager requests approval to send an asset for maintenance. Notifies the asset manager.
+     */
+    public function requestMaintenanceApproval(Request $request)
+    {
+        $request->validate(['asset_id' => 'required|exists:assets,id', 'request_notes' => 'nullable|string|max:500']);
+
+        $asset = Asset::with('assetCategory')->findOrFail($request->asset_id);
+        if ($asset->status !== 'assigned') {
+            return redirect()->back()->with('error', 'Only assigned assets can be sent for maintenance.');
+        }
+
+        $latestTransaction = $asset->latestTransaction;
+        if (!$latestTransaction) {
+            return redirect()->back()->with('error', 'Asset has no assignment. Cannot request maintenance.');
+        }
+
+        $location = $latestTransaction->location_id
+            ? Location::find($latestTransaction->location_id)
+            : null;
+        $entityName = null;
+        if ($location && !empty(trim($location->location_entity ?? ''))) {
+            $entityName = trim($location->location_entity);
+        }
+        if (!$entityName && $latestTransaction->employee_id) {
+            $entityName = $latestTransaction->employee?->entity_name ?? null;
+        }
+        if (!$entityName) {
+            return redirect()->back()->with('error', 'Could not determine entity for this asset. Assign asset manager in Entity Master.');
+        }
+
+        $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower($entityName)])->with('assetManager')->first()
+            ?? Entity::whereRaw('LOWER(name) LIKE ?', [strtolower($entityName) . '%'])->with('assetManager')->orderBy('name')->first()
+            ?? Entity::whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($entityName) . '%'])->with('assetManager')->orderBy('name')->first();
+
+        if (!$entity || !$entity->asset_manager_id) {
+            return redirect()->back()->with('error', 'No asset manager assigned for this entity. Assign in Asset Manager / Entity Master first.');
+        }
+
+        $existing = MaintenanceApprovalRequest::where('asset_id', $asset->id)
+            ->where('assigned_to_employee_id', $entity->asset_manager_id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->exists();
+        if ($existing) {
+            return redirect()->back()->with('error', 'A request for this asset is already pending or approved.');
+        }
+
+        MaintenanceApprovalRequest::create([
+            'asset_id' => $asset->id,
+            'requested_by_user_id' => auth()->id(),
+            'assigned_to_employee_id' => $entity->asset_manager_id,
+            'status' => 'pending',
+            'request_notes' => $request->request_notes,
+        ]);
+
+        $amName = $entity->assetManager?->name ?? $entity->assetManager?->entity_name ?? 'Asset Manager';
+        return redirect()->route('asset-transactions.maintenance')
+            ->with('success', 'Approval request sent to ' . $amName . '. They will be able to approve and then fill maintenance details.');
+    }
+
+    /**
+     * Asset manager approves a maintenance approval request. After this, they can fill and save maintenance for that asset.
+     */
+    public function approveMaintenanceRequest($id)
+    {
+        $req = MaintenanceApprovalRequest::with('asset.assetCategory', 'requestedByUser', 'assignedToEmployee')->findOrFail($id);
+        $user = auth()->user();
+        if (!$user || $user->employee_id != $req->assigned_to_employee_id) {
+            return redirect()->back()->with('error', 'You are not the asset manager for this request.');
+        }
+        if ($req->status !== 'pending') {
+            return redirect()->back()->with('error', 'This request has already been processed.');
+        }
+
+        $req->update(['status' => 'approved', 'approved_at' => now()]);
+
+        return redirect()->route('asset-transactions.maintenance')
+            ->with('success', 'Request approved. Go to "Send for Maintenance" tab, select asset ' . ($req->asset->serial_number ?? $req->asset->asset_id ?? '') . ', and fill the maintenance details to save.');
+    }
+
+    /**
+     * Asset manager rejects a maintenance approval request.
+     */
+    public function rejectMaintenanceRequest($id)
+    {
+        $req = MaintenanceApprovalRequest::findOrFail($id);
+        $user = auth()->user();
+        if (!$user || $user->employee_id != $req->assigned_to_employee_id) {
+            return redirect()->back()->with('error', 'You are not authorized to reject this request.');
+        }
+        if ($req->status !== 'pending') {
+            return redirect()->back()->with('error', 'This request has already been processed.');
+        }
+
+        $req->update(['status' => 'rejected', 'rejected_at' => now()]);
+
+        return redirect()->route('asset-transactions.maintenance')
+            ->with('success', 'Request rejected.');
     }
 
     public function edit($id)
@@ -1717,6 +1857,23 @@ private function sendAssetEmail($transaction)
                     $data['location_entity'] = $location->location_entity ?? null;
                     $data['location_country'] = $location->location_country ?? null;
                 }
+            }
+        }
+
+        // For System Maintenance: can current user fill maintenance details? (only asset manager or after approval)
+        $currentUserEmployeeId = auth()->user()?->employee_id;
+        $data['is_current_user_asset_manager'] = false;
+        $data['has_approved_request'] = false;
+        $data['can_fill_maintenance'] = true;
+        if ($status === 'assigned' && $asset) {
+            if (!empty($data['asset_manager_id'])) {
+                $data['is_current_user_asset_manager'] = $currentUserEmployeeId && (int) $data['asset_manager_id'] === (int) $currentUserEmployeeId;
+                // Requester (e.g. second asset manager) can fill only after the entity's AM approves their request
+                $data['has_approved_request'] = auth()->id() && MaintenanceApprovalRequest::where('asset_id', $asset->id)
+                    ->where('requested_by_user_id', auth()->id())
+                    ->where('status', 'approved')
+                    ->exists();
+                $data['can_fill_maintenance'] = $data['is_current_user_asset_manager'] || $data['has_approved_request'];
             }
         }
 

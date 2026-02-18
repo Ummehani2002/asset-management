@@ -299,14 +299,23 @@ public function autocompleteSerialNumber(Request $request)
     }
 }
 
-   public function assetsByCategory($id)
+   public function assetsByCategory(Request $request, $id)
 {
     $category = AssetCategory::findOrFail($id);
-    $assets = Asset::with('category', 'brand')
-                ->where('asset_category_id', $id)
-                ->get();
+    $query = Asset::with('category', 'brand', 'location')
+                ->where('asset_category_id', $id);
 
-    return view('assets.by_category', compact('category', 'assets'));
+    $selectedEntity = null;
+    if ($request->filled('entity') && Schema::hasTable('entities')) {
+        $selectedEntity = \App\Models\Entity::find($request->entity);
+        if ($selectedEntity && Schema::hasTable('locations')) {
+            $locationIds = \App\Models\Location::where('location_entity', $selectedEntity->name)->pluck('id');
+            $query->whereIn('location_id', $locationIds);
+        }
+    }
+
+    $assets = $query->get();
+    return view('assets.by_category', compact('category', 'assets', 'selectedEntity'));
 }
 
 public function getSerialNumbersApi(Request $request)
@@ -396,10 +405,18 @@ public function getAssetsByCategoryApi($id)
 public function exportByCategory($id, Request $request)
 {
     $category = AssetCategory::findOrFail($id);
-    $assets = Asset::with('category', 'brand')
-                ->where('asset_category_id', $id)
-                ->get();
+    $query = Asset::with('category', 'brand')
+                ->where('asset_category_id', $id);
 
+    if ($request->filled('entity') && Schema::hasTable('entities') && Schema::hasTable('locations')) {
+        $entity = \App\Models\Entity::find($request->entity);
+        if ($entity) {
+            $locationIds = \App\Models\Location::where('location_entity', $entity->name)->pluck('id');
+            $query->whereIn('location_id', $locationIds);
+        }
+    }
+
+    $assets = $query->get();
     $format = $request->get('format', 'pdf');
 
     if ($format === 'excel' || $format === 'csv') {
@@ -597,12 +614,28 @@ public function store(Request $request)
             'status' => 'available', // Set default status
         ];
 
-        // Laptop-only manual fields
-        if (Schema::hasColumn('assets', 'os_license_key')) {
-            $assetData['os_license_key'] = $request->os_license_key;
-            $assetData['antivirus_license_version'] = $request->antivirus_license_version;
-            $assetData['patch_management_software'] = $request->patch_management_software;
-            $assetData['autocad_license_key'] = $request->autocad_license_key;
+        // Laptop-only: Patch / Antivirus / AutoCAD = Yes/No; OS / MS Office / On-Screen Takeoff = value when Yes
+        $category = AssetCategory::find($request->asset_category_id);
+        $isLaptop = $category && strtolower(trim($category->category_name ?? '')) === 'laptop';
+        if ($isLaptop) {
+            if (Schema::hasColumn('assets', 'patch_management_software')) {
+                $assetData['patch_management_software'] = $request->get('patch_management_software'); // Yes or No
+            }
+            if (Schema::hasColumn('assets', 'antivirus_license_version')) {
+                $assetData['antivirus_license_version'] = $request->get('antivirus_license_version'); // Yes or No
+            }
+            if (Schema::hasColumn('assets', 'autocad_license_key')) {
+                $assetData['autocad_license_key'] = $request->get('autocad_license_key'); // Yes or No
+            }
+            if (Schema::hasColumn('assets', 'os_license_key')) {
+                $assetData['os_license_key'] = $request->filled('os_license_key') ? $request->os_license_key : null;
+            }
+            if (Schema::hasColumn('assets', 'ms_office_license_key')) {
+                $assetData['ms_office_license_key'] = $request->filled('ms_office_license_key') ? $request->ms_office_license_key : null;
+            }
+            if (Schema::hasColumn('assets', 'on_screen_takeoff_key')) {
+                $assetData['on_screen_takeoff_key'] = $request->filled('on_screen_takeoff_key') ? $request->on_screen_takeoff_key : null;
+            }
         }
 
         if ($invoicePath) {

@@ -146,7 +146,9 @@ class ProjectController extends Controller
                     $projectManagers = Employee::select('id','name','entity_name','designation')
                         ->where(function ($q) {
                             $q->where('designation', 'like', '%Project Manager%')
-                              ->orWhere('designation', 'like', '%project manager%');
+                              ->orWhere('designation', 'like', '%project manager%')
+                              ->orWhere('designation', 'like', '%Assistant Project Manager%')
+                              ->orWhere('designation', 'like', '%assistant project manager%');
                         })
                         ->orderBy('name')->orderBy('entity_name')
                         ->get();
@@ -293,7 +295,9 @@ class ProjectController extends Controller
         $projectManagers = Employee::select('id','name','entity_name','designation')
             ->where(function ($q) {
                 $q->where('designation', 'like', '%Project Manager%')
-                  ->orWhere('designation', 'like', '%project manager%');
+                  ->orWhere('designation', 'like', '%project manager%')
+                  ->orWhere('designation', 'like', '%Assistant Project Manager%')
+                  ->orWhere('designation', 'like', '%assistant project manager%');
             })
             ->orderBy('name')->orderBy('entity_name')
             ->get();

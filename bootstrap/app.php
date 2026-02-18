@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
         ]);
+        $middleware->appendToGroup('web', [
+            \App\Http\Middleware\LogUserActivity::class,
+        ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
         // Check for delayed tasks every 5 minutes for immediate alerts when time is exceeded

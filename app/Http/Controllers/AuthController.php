@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
+use App\Models\ActivityLog;
 
 class AuthController extends Controller
 {
@@ -37,9 +38,11 @@ class AuthController extends Controller
         // If user found, verify password
         if ($user && Hash::check($password, $user->password)) {
             Auth::login($user);
+            ActivityLog::log('login', 'Logged in', null, null, ['username' => $user->username ?? $user->email]);
             return redirect()->route('dashboard');
         }
 
+        ActivityLog::log('login_failed', 'Failed login attempt', null, null, ['username' => $username]);
         return back()->withErrors(['username' => 'Invalid username or password.']);
     }
 
@@ -114,9 +117,15 @@ class AuthController extends Controller
         }
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
+        $user = auth()->user();
+        if ($user) {
+            ActivityLog::log('logout', 'Logged out', null, null, ['username' => $user->username ?? $user->email]);
+        }
         Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
         return redirect()->route('login');
     }
 }

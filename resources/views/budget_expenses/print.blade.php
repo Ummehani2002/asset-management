@@ -48,6 +48,13 @@
                     <td>{{ $row['description'] }}</td>
                     <td>{{ $row['balance_after'] }}</td>
                 </tr>
+                @if(!empty($row['amount_before_vat']))
+                <tr class="vat-breakdown" style="background-color: #f9f9f9;">
+                    <td colspan="4" style="border: none; padding-left: 24px;"><strong>VAT breakdown:</strong></td>
+                    <td style="border: none;">Amount (excl. VAT): {{ $row['amount_before_vat'] }} | VAT ({{ $row['vat_percent'] }}%): {{ $row['vat_amount'] }} | Total: {{ $row['expense_amount'] }}</td>
+                    <td colspan="2" style="border: none;"></td>
+                </tr>
+                @endif
             @empty
                 <tr><td colspan="7" class="text-center">No expenses</td></tr>
             @endforelse

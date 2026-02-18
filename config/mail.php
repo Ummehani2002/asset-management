@@ -75,6 +75,18 @@ return [
             'channel' => env('MAIL_LOG_CHANNEL'),
         ],
 
+        'microsoft-graph' => [
+            'transport' => 'microsoft-graph',
+            'client_id' => env('MICROSOFT_GRAPH_CLIENT_ID'),
+            'client_secret' => env('MICROSOFT_GRAPH_CLIENT_SECRET'),
+            'tenant_id' => env('MICROSOFT_GRAPH_TENANT_ID'),
+            'from' => [
+                'address' => env('MAIL_FROM_ADDRESS', 'helpdesk@tanseeqinvestment.com'),
+                'name' => env('MAIL_FROM_NAME', 'Tanseeq Asset Management'),
+            ],
+            'save_to_sent_items' => env('MAIL_SAVE_TO_SENT_ITEMS', false),
+        ],
+
         'array' => [
             'transport' => 'array',
         ],
@@ -111,8 +123,8 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', 'Example'),
+        'address' => env('MAIL_FROM_ADDRESS', 'helpdesk@tanseeqinvestmet.com'),
+        'name' => env('MAIL_FROM_NAME', 'Tanseeq Helpdesk'),
     ],
 
 ];

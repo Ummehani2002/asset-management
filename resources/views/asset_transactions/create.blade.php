@@ -141,9 +141,9 @@
             
             <div class="mb-3 mt-3">
                 <label for="assign_image" class="form-label">
-                    <i class="bi bi-camera me-2"></i>Upload Asset Image <span class="text-danger">*</span>
+                    <i class="bi bi-camera me-2"></i>Upload Asset Image
                 </label>
-                <input type="file" name="assign_image" id="assign_image" class="form-control" accept="image/*" required>
+                <input type="file" name="assign_image" id="assign_image" class="form-control" accept="image/*">
                 <small class="text-muted">Upload an image of the asset during assignment (Max: 5MB, Formats: JPG, PNG, GIF)</small>
                 @if(isset($transaction) && $transaction->assign_image)
                     <div class="mt-2">
@@ -476,13 +476,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show fields based on category
         if (categoryLower === 'laptop' && txType === 'assign') {
-            // Auto-fill employee if available
-            if (data.current_employee_id) {
-                document.getElementById('employee_id').value = data.current_employee_id;
-                if (employeeSearch) employeeSearch.value = data.current_employee_name || 'Previous employee';
-                employeeAutoFillInfo.textContent = `Auto-filled: ${data.current_employee_name || 'Previous employee'}`;
-                employeeAutoFillInfo.className = 'text-success';
-            }
+            // No auto-fill: user types and selects from dropdown
+            document.getElementById('employee_id').value = '';
+            if (employeeSearch) employeeSearch.value = '';
+            employeeAutoFillInfo.textContent = 'Type letters to search and select an employee from the dropdown';
+            employeeAutoFillInfo.className = 'text-muted';
         } else if (categoryLower === 'printer') {
             if (data.current_project_name && txType === 'assign') {
                 document.getElementById('project_name').value = data.current_project_name;
@@ -661,9 +659,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const assignImage = document.getElementById('assign_image');
             
             if (txType === 'assign') {
-                // For assign, make sure assign fields are required
+                // For assign, make sure assign fields are required (image is optional)
                 if (issueDate) issueDate.required = true;
-                if (assignImage) assignImage.required = true;
+                if (assignImage) assignImage.required = false;
                 // Remove required from return fields
                 if (returnDate) returnDate.required = false;
             } else if (txType === 'return') {

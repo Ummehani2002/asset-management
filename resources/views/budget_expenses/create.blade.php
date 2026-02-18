@@ -69,14 +69,30 @@
 
         <input type="hidden" id="entity_budget_id" name="entity_budget_id">
 
+        <div class="mb-3">
+            <label class="d-flex align-items-center gap-2">
+                <input type="checkbox" id="is_contracting" name="is_contracting" value="1" class="form-check-input">
+                <span>Contracting company (15% VAT)</span>
+            </label>
+            <small class="text-muted">If unchecked, 5% VAT applies.</small>
+        </div>
+
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label for="expense_amount">Expense Amount</label>
-                <input type="number" step="0.01" id="expense_amount" name="expense_amount" class="form-control" required>
+                <label for="expense_amount">Amount (before VAT)</label>
+                <input type="number" step="0.01" id="expense_amount" name="expense_amount" class="form-control" required placeholder="Amount excluding VAT">
             </div>
             <div class="col-md-6 mb-3">
                 <label for="expense_date">Expense Date</label>
                 <input type="date" id="expense_date" name="expense_date" class="form-control" required>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <p class="mb-0"><strong>VAT (<span id="vat_percent_label">5</span>%):</strong> <span id="vat_amount_preview">0.00</span></p>
+            </div>
+            <div class="col-md-4">
+                <p class="mb-0"><strong>Total (deducted from balance):</strong> <span id="total_with_vat_preview">0.00</span></p>
             </div>
         </div>
 
@@ -94,17 +110,18 @@
     </form>
 
     <div class="mt-4">
-        <h4>Previous Expenses</h4>
+        <h4>Latest Expense</h4>
         <table class="table table-striped" id="expenses_table">
             <thead>
                 <tr>
                     <th>Date</th>
-            <th>Entity</th>
-            <th>Cost Head</th>
-            <th>Expense Type</th>
-            <th>Amount</th>
-            <th>Description</th>
-            <th>Balance After</th>
+                    <th>Entity</th>
+                    <th>Cost Head</th>
+                    <th>Expense Type</th>
+                    <th>Amount (incl. VAT)</th>
+                    <th>Description</th>
+                    <th>Balance After</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -134,6 +151,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const newExpenseEl = document.getElementById('new_expense');
     const tbody = document.querySelector('#expenses_table tbody');
     const form = document.getElementById('expenseForm');
+    const isContractingCheck = document.getElementById('is_contracting');
+    const vatPercentLabel = document.getElementById('vat_percent_label');
+    const vatAmountPreview = document.getElementById('vat_amount_preview');
+    const totalWithVatPreview = document.getElementById('total_with_vat_preview');
     const detailsUrl = "{{ route('budget-expenses.get-details') }}";
     const storeUrl = form.action;
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_token"]').value;
@@ -175,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 budgetAmountEl.textContent = '0';
                 totalExpensesEl.textContent = '0';
                 availableBalanceEl.textContent = '0';
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">' + (data.message || 'No budget found') + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">' + (data.message || 'No budget found') + '</td></tr>';
                 updateBalance();
                 console.log('Budget not found:', data.message || 'Unknown error');
                 return null;
@@ -194,19 +215,22 @@ document.addEventListener('DOMContentLoaded', function() {
             budgetAmountEl.textContent = '0';
             totalExpensesEl.textContent = '0';
             availableBalanceEl.textContent = '0';
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading budget details</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading budget details</td></tr>';
             updateBalance();
             return null;
         }
     }
 
+    const editExpenseBase = "{{ url('budget-expenses') }}";
     function renderExpenses(expenses, meta = {}) {
         tbody.innerHTML = '';
         if (!expenses || expenses.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No expenses found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">No expenses found</td></tr>';
             return;
         }
         expenses.forEach(exp => {
+            const editUrl = exp.id ? (editExpenseBase + '/' + exp.id + '/edit') : '#';
+            const printUrl = exp.id ? (editExpenseBase + '/' + exp.id + '/print') : '#';
             tbody.innerHTML += `
                 <tr>
                     <td>${exp.expense_date}</td>
@@ -216,17 +240,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${exp.expense_amount}</td>
                     <td>${exp.description ?? '-'}</td>
                     <td>${exp.balance_after}</td>
+                    <td>${exp.id ? `<a href="${editUrl}" class="btn btn-sm btn-outline-primary me-1">Edit</a><a href="${printUrl}" target="_blank" class="btn btn-sm btn-outline-secondary">Print</a>` : ''}</td>
                 </tr>
             `;
         });
     }
 
+    function getVatPercent() { return isContractingCheck.checked ? 15 : 5; }
+    function getTotalWithVat() {
+        const amount = parseFloat(expenseAmount.value) || 0;
+        const vatPct = getVatPercent();
+        return Math.round((amount * (1 + vatPct / 100)) * 100) / 100;
+    }
+
+    function updateVatPreview() {
+        const amount = parseFloat(expenseAmount.value) || 0;
+        const vatPct = getVatPercent();
+        const vatAmount = Math.round(amount * vatPct / 100 * 100) / 100;
+        const total = amount + vatAmount;
+        vatPercentLabel.textContent = vatPct;
+        vatAmountPreview.textContent = vatAmount.toFixed(2);
+        totalWithVatPreview.textContent = total.toFixed(2);
+    }
+
     function updateBalance() {
-        const newExpense = parseFloat(expenseAmount.value) || 0;
+        const totalNewExpense = getTotalWithVat();
         const budgetAmount = parseFloat(String(budgetAmountEl.textContent).replace(/[,]/g, '')) || 0;
         const totalExpenses = parseFloat(String(totalExpensesEl.textContent).replace(/[,]/g, '')) || 0;
-        newExpenseEl.textContent = newExpense.toFixed(2);
-        availableBalanceEl.textContent = (budgetAmount - totalExpenses - newExpense).toFixed(2);
+        newExpenseEl.textContent = totalNewExpense.toFixed(2);
+        availableBalanceEl.textContent = (budgetAmount - totalExpenses - totalNewExpense).toFixed(2);
+        updateVatPreview();
     }
 
     function populateCostHeads() {
@@ -251,6 +294,8 @@ document.addEventListener('DOMContentLoaded', function() {
     entitySelect.addEventListener('change', fetchDetails);
     costHeadSelect.addEventListener('change', fetchDetails);
     expenseAmount.addEventListener('input', updateBalance);
+    isContractingCheck.addEventListener('change', updateBalance);
+    updateVatPreview();
 
     // submit via AJAX so we can show success and update table without redirect
     form.addEventListener('submit', async function(e) {
@@ -264,6 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData(form);
         formData.set('entity_budget_id', entityBudgetId.value);
+        formData.set('is_contracting', isContractingCheck.checked ? '1' : '0');
 
         try {
             const res = await fetch(storeUrl, {
@@ -287,6 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 expenseAmount.value = '';
                 document.getElementById('expense_date').value = '';
                 document.getElementById('description').value = '';
+                isContractingCheck.checked = false;
 
                 updateBalance();
                 renderFlash('Expense saved successfully.', 'success', data.print_url || null);
