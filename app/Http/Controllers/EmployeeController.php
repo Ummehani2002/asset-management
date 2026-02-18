@@ -191,7 +191,9 @@ public function edit($id)
     $employee->phone = $request->input('phone');
     $employee->entity_name = $request->input('entity_name');
     $employee->department_name = $request->input('department_name');
-    $employee->designation = $request->input('designation');
+    if (Schema::hasColumn('employees', 'designation')) {
+        $employee->designation = $request->input('designation');
+    }
     $employee->save();
     return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
 }
