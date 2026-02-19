@@ -73,9 +73,4 @@ public function featureValues()
 {
     return $this->hasMany(CategoryFeatureValue::class, 'asset_id');
 }
-
-
-
-
-
 }

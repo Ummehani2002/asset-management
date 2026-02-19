@@ -73,8 +73,8 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Designation</label>
                     <input type="text" name="designation" list="designation-list" class="form-control" autocomplete="off"
-                           value="{{ old('designation', $employee->designation ?? '') }}" placeholder="Type or select (e.g. Project Manager, PC Secretary)" maxlength="100"
-                           {{ $employee->is_active === false ? 'readonly disabled' : '' }}>
+                           value="{{ old('designation', $employee->designation ?? '') }}" placeholder="Type or select (e.g. Project Manager, PC Secretary)" maxlength="100">
+                    <small class="text-muted">Editable even for non-active employees (e.g. if missing from import).</small>
                     <datalist id="designation-list">
                         <option value="Project Manager">
                         <option value="Assistant Project Manager">
@@ -86,11 +86,9 @@
             </div>
 
             <div class="text-end mt-3">
-                @if($employee->is_active !== false)
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle me-2"></i>Update
-                    </button>
-                @endif
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-2"></i>Update
+                </button>
                 <button type="button" class="btn btn-secondary ms-2" onclick="window.location.href='{{ route('employees.index') }}'">
                     <i class="bi bi-x-circle me-2"></i>Cancel
                 </button>

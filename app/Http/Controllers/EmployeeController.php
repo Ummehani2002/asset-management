@@ -175,10 +175,7 @@ public function edit($id)
 {
     try {
         $employee = Employee::findOrFail($id);
-
-        if (Schema::hasColumn('employees', 'is_active') && $employee->is_active === false) {
-            return redirect()->route('employees.index')->with('error', 'Cannot update inactive employee. Employee details are locked after returning all assets.');
-        }
+        $isInactive = Schema::hasColumn('employees', 'is_active') && $employee->is_active === false;
 
         $request->validate([
             'email'           => 'nullable|email|max:100',
@@ -188,13 +185,18 @@ public function edit($id)
             'designation'     => 'nullable|string|max:100',
         ]);
 
-        $employee->email = $request->input('email');
-        $employee->phone = $request->input('phone');
-        $employee->entity_name = $request->input('entity_name') ?: null;
-        $employee->department_name = $request->input('department_name') ?: null;
+        // Designation is always editable (e.g. when missing from Excel import)
         if (Schema::hasColumn('employees', 'designation')) {
             $employee->designation = $request->input('designation');
         }
+
+        if (!$isInactive) {
+            $employee->email = $request->input('email');
+            $employee->phone = $request->input('phone');
+            $employee->entity_name = $request->input('entity_name') ?: null;
+            $employee->department_name = $request->input('department_name') ?: null;
+        }
+
         $employee->save();
         return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
     } catch (\Illuminate\Validation\ValidationException $e) {
