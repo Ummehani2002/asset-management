@@ -58,7 +58,6 @@
                             <th>Action</th>
                             <th>Description</th>
                             <th>URL / Method</th>
-                            <th>IP</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -78,11 +77,10 @@
                                 <td>
                                     <small>{{ $log->method }} {{ Str::limit($log->url, 50) }}</small>
                                 </td>
-                                <td><small>{{ $log->ip }}</small></td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No activity logs found.</td>
+                                <td colspan="5" class="text-center text-muted py-4">No activity logs found.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -143,7 +143,35 @@ php artisan db:seed --class=EntitySeeder --force
 
 ---
 
-### Step 5: Test the Pages
+### Step 5: Set admin in production
+
+After deployment, give at least one user the **admin** role so they can access admin-only pages (e.g. Users, Activity Logs).
+
+**If the user already exists** (e.g. they registered):
+
+1. In **Laravel Cloud** → your site → **main** → open **Console** / **Commands** (or SSH into the server and `cd` to the app).
+2. List users to get email or username:
+   ```bash
+   php artisan user:list
+   ```
+3. Set one or more users as admin by **email** or **username**:
+   ```bash
+   php artisan user:set-admins "admin@yourcompany.com"
+   ```
+   Or by username:
+   ```bash
+   php artisan user:set-admins "admin"
+   ```
+   Multiple users:
+   ```bash
+   php artisan user:set-admins "admin@company.com" "manager" "second@company.com"
+   ```
+
+**If no user exists yet:** have someone register via the app (Register page), then run `php artisan user:list` and `php artisan user:set-admins "their_email_or_username"` as above.
+
+---
+
+### Step 6: Test the Pages
 
 1. **Test `/location-master`:**
    - Go to: `https://asset-mgmt.laravel.cloud/location-master`
@@ -207,6 +235,7 @@ php artisan db:seed --class=EntitySeeder --force
 - [ ] Caches cleared (`php artisan optimize:clear`)
 - [ ] Migrations verified (`php artisan migrate:status`)
 - [ ] Entities seeded (`php artisan db:seed --class=EntitySeeder --force`)
+- [ ] **Admin set** (`php artisan user:list` then `php artisan user:set-admins "email_or_username"`)
 - [ ] `/location-master` page loads without 500 error
 - [ ] `/location-assets` page loads without 500 error
 - [ ] Error messages display correctly (if any)

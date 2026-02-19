@@ -48,7 +48,7 @@
                 <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>User</option>
                 <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
             </select>
-            <small class="text-muted d-block mt-1">Asset managers are appointed in Entity Master (Asset Manager menu), not here.</small>
+          
            
         </div>
 

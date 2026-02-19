@@ -185,6 +185,57 @@
                                 $tableFeatures = $isSetValuesMode ? $setValuesFeatures : $brand->features;
                                 $tableSetValuesByFeature = $isSetValuesMode ? $setValuesByFeature : collect([]);
                             @endphp
+                            @if($isSetValuesMode)
+                                <div class="border rounded p-3 mb-3 border-primary">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>Set values for model &ldquo;{{ $setValuesModel->model_number }}&rdquo;</strong>
+                                        @php $closeParams = array_filter(array_merge(request()->only('category_id'), ['category_id' => $selectedCategoryId ?? null, 'brand_id' => $selectedBrandId ?? null])); @endphp
+                                        <a href="{{ route('categories.manage', $closeParams) }}#content-panel" class="btn btn-sm btn-outline-secondary">Close</a>
+                                    </div>
+                                    <form action="{{ route('brand-models.update-feature-values', $setValuesModel->id) }}" method="POST" autocomplete="off">
+                                        @csrf
+                                        @if(isset($selectedCategoryId) && $selectedCategoryId)
+                                            <input type="hidden" name="category_id" value="{{ $selectedCategoryId }}">
+                                        @endif
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-sm mb-0">
+                                                <thead class="table-light">
+                                                    <tr><th>Feature</th><th>Value(s)</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    @forelse($tableFeatures as $feature)
+                                                        @php
+                                                            $fv = $tableSetValuesByFeature->get($feature->id);
+                                                            $val = $fv ? $fv->feature_value : null;
+                                                            $subVals = $fv && $feature->sub_fields ? @json_decode($fv->feature_value, true) : [];
+                                                            $subVals = is_array($subVals) ? $subVals : [];
+                                                            $isModelNumber = strtolower($feature->feature_name ?? '') === 'model number';
+                                                            $modelNumVal = $setValuesModel->model_number ?? '';
+                                                        @endphp
+                                                        <tr>
+                                                            <td class="fw-semibold align-middle" style="width: 30%;">{{ $feature->feature_name }}</td>
+                                                            <td class="align-middle">
+                                                                @if($feature->sub_fields && count($feature->sub_fields) > 0)
+                                                                    <div class="d-flex flex-wrap gap-2">
+                                                                        @foreach($feature->sub_fields as $subField)
+                                                                            <input type="text" name="features_{{ $feature->id }}_{{ $subField }}" class="form-control form-control-sm" style="width: 140px;" value="{{ $subVals[$subField] ?? '' }}" placeholder="{{ $subField }}">
+                                                                        @endforeach
+                                                                    </div>
+                                                                @else
+                                                                    <input type="text" name="features_{{ $feature->id }}" class="form-control form-control-sm" value="{{ $isModelNumber ? $modelNumVal : ($val ?? '') }}" {{ $isModelNumber ? 'readonly' : '' }} placeholder="{{ $feature->feature_name }}">
+                                                                @endif
+                                                            </td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr><td colspan="2" class="text-muted text-center py-2">No features yet. Add a feature below, then set values.</td></tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="mt-2"><button type="submit" class="btn btn-primary btn-sm" {{ $tableFeatures->isEmpty() ? 'disabled' : '' }}><i class="bi bi-check-lg me-1"></i>Save feature values</button></div>
+                                    </form>
+                                </div>
+                            @endif
                     <div class="border rounded p-3 mb-3">
                         <h6 class="mb-2">Features</h6>
                         <div class="d-flex flex-wrap gap-2 align-items-center">
