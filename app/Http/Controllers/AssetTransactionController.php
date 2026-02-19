@@ -503,7 +503,7 @@ class AssetTransactionController extends Controller
             // Headers
             fputcsv($file, [
                 '#', 'Transaction ID', 'Asset ID', 'Serial Number', 'Category', 'Transaction Type', 
-                'Status', 'Employee/Project', 'Location', 'Issue Date', 'Return Date', 
+                'Status', 'Employee/Project', 'Entity', 'Location', 'Issue Date', 'Return Date', 
                 'Receive Date', 'Delivery Date', 'Created At'
             ]);
 
@@ -511,7 +511,10 @@ class AssetTransactionController extends Controller
             foreach ($transactions as $index => $t) {
                 $assignedTo = $t->employee->name ?? $t->project_name ?? 'N/A';
                 $status = $t->asset->status ?? 'N/A';
-                
+                $entityDisplay = trim(optional($t->location)->location_entity ?? $t->employee->entity_name ?? '') ?: 'N/A';
+                if ($entityDisplay !== 'N/A') {
+                    $entityDisplay = ucwords($entityDisplay);
+                }
                 fputcsv($file, [
                     $index + 1,
                     $t->id,
@@ -521,6 +524,7 @@ class AssetTransactionController extends Controller
                     ucfirst(str_replace('_', ' ', $t->transaction_type)),
                     $status,
                     $assignedTo,
+                    $entityDisplay,
                     $t->location->location_name ?? 'N/A',
                     $t->issue_date ?? 'N/A',
                     $t->return_date ?? 'N/A',
@@ -1276,22 +1280,27 @@ class AssetTransactionController extends Controller
         return view('asset_transactions.create', compact('transaction', 'categories', 'assets', 'employees', 'locations', 'projects', 'entities', 'entitiesData', 'categoriesUseProjectName'));
     }
 
-    public function getAssetsByCategory($categoryId)
+    public function getAssetsByCategory(Request $request, $categoryId)
     {
-        $assets = Asset::with('assetCategory')
-            ->where('asset_category_id', $categoryId)
-            ->get()
+        $query = Asset::with('assetCategory')->where('asset_category_id', $categoryId);
+        $search = trim($request->get('q', ''));
+        if ($search !== '') {
+            $like = '%' . addcslashes($search, '%_\\') . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('serial_number', 'LIKE', $like)
+                  ->orWhere('asset_id', 'LIKE', $like);
+            });
+        }
+        $assets = $query->get()
             ->map(function ($asset) {
                 $originalStatus = $asset->status ?? 'available';
-                // Display "available" instead of "returned" for UI, but keep original for logic
                 $displayStatus = ($originalStatus === 'returned') ? 'available' : $originalStatus;
-                
                 return [
                     'id' => $asset->id,
                     'asset_id' => $asset->asset_id,
                     'serial_number' => $asset->serial_number,
-                    'status' => $displayStatus, // Display status (available instead of returned)
-                    'original_status' => $originalStatus, // Original status for logic
+                    'status' => $displayStatus,
+                    'original_status' => $originalStatus,
                     'category_name' => $asset->assetCategory->category_name ?? 'N/A'
                 ];
             });

@@ -68,7 +68,9 @@ class DashboardController extends Controller
                             $q->whereIn('status', ['available', 'returned']);
                             $this->scopeAssetsByEntity($q, $entityName);
                         }
-                    ])->get();
+                    ])->get()
+                    ->filter(fn ($c) => ($c->assets_count ?? 0) > 0)
+                    ->values();
                 } catch (\Exception $e) {
                     Log::warning('Error loading asset categories: ' . $e->getMessage());
                     $categoryCounts = AssetCategory::all()->map(function ($category) {

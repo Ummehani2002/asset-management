@@ -89,233 +89,136 @@
                 </div>
             </div>
             <div class="card-body">
-                {{-- Add New Brand (for this category only — no category dropdown) --}}
-                <div class="mb-4">
-                    <h6 class="mb-2">Add New Brand to {{ $category->category_name }}</h6>
-                    <form action="{{ route('brands.store') }}" method="POST" class="row g-2 align-items-end" autocomplete="off">
-                        @csrf
-                        <input type="hidden" name="asset_category_id" value="{{ $category->id }}">
-                        <div class="col-md-6">
-                            <label class="form-label small">Brand Name</label>
-                            <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Lenovo" required>
-                        </div>
-                        <div class="col-md-6">
-                            <button type="submit" class="btn btn-success btn-sm">
-                                <i class="bi bi-plus-circle me-1"></i>Add Brand
-                            </button>
-                            <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="resetForm(this)">Cancel</button>
-                        </div>
-                    </form>
-                </div>
-
-                {{-- Select brand: only one brand displayed at a time --}}
                 @php
                     $categoryBrands = $category->brands;
-                    $baseParams = array_merge(request()->only(['category_id', 'set_values']), ['category_id' => $category->id]);
+                    $brandsToShow = isset($selectedBrandId) ? $categoryBrands->where('id', $selectedBrandId) : collect();
+                    $baseManageUrl = route('categories.manage', array_filter(array_merge(request()->only(['category_id', 'set_values']), ['category_id' => $category->id])));
                 @endphp
-                <div class="mb-3">
-                    <label class="form-label">Select brand</label>
-                    <select class="form-control select-brand-dropdown" style="max-width: 320px;" data-base-url="{{ route('categories.manage', array_filter(array_merge(request()->only(['category_id', 'set_values']), ['category_id' => $category->id]))) }}">
-                        <option value="">-- Select brand --</option>
-                        @foreach($categoryBrands as $b)
-                            <option value="{{ $b->id }}" {{ (isset($selectedBrandId) && $selectedBrandId == $b->id) ? 'selected' : '' }}>{{ $b->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
+                <div class="row g-4">
+                    {{-- LEFT: Selection only --}}
+                    <div class="col-lg-4 col-md-5">
+                        <div class="border rounded p-3 bg-light">
+                            <h6 class="mb-3"><i class="bi bi-funnel me-2"></i>Select</h6>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Brand</label>
+                                <select class="form-control form-control-sm select-brand-dropdown" data-base-url="{{ $baseManageUrl }}">
+                                    <option value="">-- Select brand --</option>
+                                    @foreach($categoryBrands as $b)
+                                        <option value="{{ $b->id }}" {{ (isset($selectedBrandId) && $selectedBrandId == $b->id) ? 'selected' : '' }}>{{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @if($brandsToShow->isNotEmpty())
+                                @php $selBrand = $brandsToShow->first(); @endphp
+                                <div>
+                                    <label class="form-label small fw-semibold">Model (set values)</label>
+                                    @if($selBrand->models && $selBrand->models->count() > 0)
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach($selBrand->models as $bModel)
+                                                @php $setValuesParams = ['set_values' => $bModel->id, 'category_id' => $category->id, 'brand_id' => $selBrand->id]; @endphp
+                                                <a href="{{ route('categories.manage', $setValuesParams) }}#content-panel" class="badge {{ (isset($setValuesModel) && $setValuesModel->id == $bModel->id) ? 'bg-primary' : 'bg-secondary' }} text-decoration-none">{{ $bModel->model_number }}</a>
+                                            @endforeach
+                                        </div>
+                                        <small class="text-muted">Click model to set values</small>
+                                    @else
+                                        <p class="text-muted small mb-0">No models. Add one on the right.</p>
+                                    @endif
+                                </div>
+                            @else
+                                <p class="text-muted small mb-0">Select a brand first.</p>
+                            @endif
+                        </div>
+                    </div>
+                    {{-- RIGHT: Add brand, model, features and table --}}
+                    <div class="col-lg-8 col-md-7" id="content-panel">
                 @if($categoryBrands->isEmpty())
-                    <p class="text-muted">No brands yet. Add a brand above.</p>
+                    <div class="border rounded p-4">
+                        <h6 class="mb-3">Add brand name</h6>
+                        <form action="{{ route('brands.store') }}" method="POST" autocomplete="off">
+                            @csrf
+                            <input type="hidden" name="asset_category_id" value="{{ $category->id }}">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-6">
+                                    <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Lenovo" required>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Brand</button>
+                                </div>
+                            </div>
+                        </form>
+                        <p class="text-muted small mt-3 mb-0">No brands yet. Add one above, then select it on the left.</p>
+                    </div>
                 @else
-                    {{-- Show only the selected brand (one at a time) --}}
-                    @php $brandsToShow = isset($selectedBrandId) ? $categoryBrands->where('id', $selectedBrandId) : collect(); @endphp
                     @forelse($brandsToShow as $brand)
-                <div class="border rounded p-3 mb-3" id="brand-block-{{ $brand->id }}">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <strong>{{ $brand->name }}</strong>
+                <div id="brand-{{ $brand->id }}">
+                    <div class="border rounded p-3 mb-3">
+                        <h6 class="mb-2">Add brand name</h6>
+                        <form action="{{ route('brands.store') }}" method="POST" class="row g-2 align-items-end" autocomplete="off">
+                            @csrf
+                            <input type="hidden" name="asset_category_id" value="{{ $category->id }}">
+                            <div class="col-auto"><input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Lenovo" style="min-width: 160px;" required></div>
+                            <div class="col-auto"><button type="submit" class="btn btn-success btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Brand</button></div>
+                        </form>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <h6 class="mb-0">{{ $brand->name }}</h6>
                         <div class="d-flex gap-1">
-                            <a href="{{ route('brands.edit', $brand->id) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i> Edit</a>
-                            <form action="{{ route('brands.destroy', $brand->id) }}" method="POST" class="d-inline-block" onsubmit="return confirm('Delete brand {{ addslashes($brand->name) }}?');">
+                            <a href="{{ route('brands.edit', $brand->id) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i> Edit</a>
+                            <form action="{{ route('brands.destroy', $brand->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete brand {{ addslashes($brand->name) }}?');">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Delete</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
                             </form>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-7">
-                                {{-- Add Model --}}
-                                <div class="mb-2">
-                                    <form action="{{ route('brand-models.store') }}" method="POST" class="d-inline-flex align-items-center gap-2" autocomplete="off">
+                    <div class="border rounded p-3 mb-3">
+                        <h6 class="mb-2">Add model number</h6>
+                        <form action="{{ route('brand-models.store') }}" method="POST" class="d-inline-flex align-items-center gap-2" autocomplete="off">
+                            @csrf
+                            <input type="hidden" name="brand_id" value="{{ $brand->id }}">
+                            <input type="text" name="model_number" class="form-control form-control-sm" placeholder="Model number" style="max-width: 160px;" required>
+                            <button type="submit" class="btn btn-info btn-sm"><i class="bi bi-plus-circle"></i> Add Model</button>
+                        </form>
+                    </div>
+                            @php
+                                $isSetValuesMode = isset($setValuesModel) && $setValuesModel->brand_id == $brand->id;
+                                $tableFeatures = $isSetValuesMode ? $setValuesFeatures : $brand->features;
+                                $tableSetValuesByFeature = $isSetValuesMode ? $setValuesByFeature : collect([]);
+                            @endphp
+                    <div class="border rounded p-3 mb-3">
+                        <h6 class="mb-2">Features</h6>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            @forelse($tableFeatures as $feature)
+                                <div class="d-inline-flex align-items-center gap-1 border rounded px-2 py-1 bg-light">
+                                    <span class="fw-semibold">{{ $feature->feature_name }}</span>
+                                    <a href="{{ route('features.edit', $feature->id) }}" class="btn btn-sm btn-outline-warning py-0 px-1">Edit</a>
+                                    <form action="{{ route('features.destroy', $feature->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this feature?');">
                                         @csrf
-                                        <input type="hidden" name="brand_id" value="{{ $brand->id }}">
-                                        <input type="text" name="model_number" class="form-control form-control-sm" style="max-width: 180px;" placeholder="Model number" required>
-                                        <button type="submit" class="btn btn-sm btn-info"><i class="bi bi-plus-circle"></i> Add Model</button>
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1">Delete</button>
                                     </form>
                                 </div>
-                                @if(isset($brand->models) && $brand->models->count() > 0)
-                                    <div class="mb-2 small">
-                                        @foreach($brand->models as $bModel)
-                                            <span class="badge bg-secondary me-1 mb-1">
-                                                {{ $bModel->model_number }}
-                                                @php $setValuesParams = ['set_values' => $bModel->id, 'category_id' => $category->id, 'brand_id' => $brand->id]; @endphp
-                                                <a href="{{ route('categories.manage', $setValuesParams) }}#brand-{{ $brand->id }}" class="text-white ms-1" title="Set values"><i class="bi bi-pencil-square me-1"></i>Set values</a>
-                                                <form action="{{ route('brand-models.destroy', $bModel->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this model?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-link p-0 ms-1 text-white" style="font-size: 0.7rem;"><i class="bi bi-x-lg"></i></button>
-                                                </form>
-                                            </span>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            {{-- Features table for this brand --}}
-                            @if($brand->features->count())
-                                <table class="table table-sm table-bordered mb-2">
-                                    <thead class="table-light">
-                                        <tr><th>Feature Name</th><th>Sub Fields</th><th>Actions</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($brand->features as $feature)
-                                            <tr>
-                                                <td>{{ $feature->feature_name }}</td>
-                                                <td>{{ $feature->sub_fields && count($feature->sub_fields) > 0 ? implode(', ', $feature->sub_fields) : 'â€”' }}</td>
-                                                <td>
-                                                    <a href="{{ route('features.edit', $feature->id) }}" class="btn btn-xs btn-outline-warning" style="font-size: 0.7rem;">Edit</a>
-                                                    <form action="{{ route('features.destroy', $feature->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this feature?');">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-xs btn-outline-danger" style="font-size: 0.7rem;">Delete</button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            @endif
-                            <form action="{{ route('features.store') }}" method="POST" class="d-flex gap-2" autocomplete="off">
-                                @csrf
-                                <input type="hidden" name="brand_id" value="{{ $brand->id }}">
-                                <input type="text" name="feature_name" class="form-control form-control-sm" style="max-width: 200px;" placeholder="Add feature" required>
-                                <button type="submit" class="btn btn-primary btn-sm">Add feature</button>
-                            </form>
+                            @empty
+                                <span class="text-muted small">No features yet. Add a feature below.</span>
+                            @endforelse
                         </div>
-                        <div class="col-md-5">
-                                {{-- Set values: two-column for Laptop, else one-at-a-time --}}
-                                @if(isset($setValuesModel) && $setValuesModel->brand_id == $brand->id)
-                                    @php
-                                        $isLaptopCategory = $category->category_name && strtolower(trim($category->category_name)) === 'laptop';
-                                    @endphp
-                                    <div id="brand-{{ $brand->id }}" class="set-values-one-at-a-time">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <strong>Set values for model &ldquo;{{ $setValuesModel->model_number }}&rdquo;</strong>
-                                            @php $closeParams = array_filter(array_merge(request()->only('category_id'), ['category_id' => $selectedCategoryId ?? null, 'brand_id' => $selectedBrandId ?? null])); @endphp
-                                            <a href="{{ route('categories.manage', $closeParams) }}" class="btn btn-sm btn-outline-secondary">Close</a>
-                                        </div>
-                                        <form action="{{ route('brand-models.update-feature-values', $setValuesModel->id) }}" method="POST" autocomplete="off">
-                                            @csrf
-                                            @if(isset($selectedCategoryId) && $selectedCategoryId)
-                                                <input type="hidden" name="category_id" value="{{ $selectedCategoryId }}">
-                                            @endif
-                                            @if($isLaptopCategory)
-                                                {{-- Laptop: two-column layout (Field | Value) --}}
-                                                <table class="table table-bordered">
-                                                    <thead class="table-light"><tr><th>Field</th><th>Value</th></tr></thead>
-                                                    <tbody>
-                                                        @foreach($setValuesFeatures as $feature)
-                                                            @php
-                                                                $fv = $setValuesByFeature->get($feature->id);
-                                                                $val = $fv ? $fv->feature_value : null;
-                                                                $subVals = $fv && $feature->sub_fields ? @json_decode($fv->feature_value, true) : [];
-                                                                $subVals = is_array($subVals) ? $subVals : [];
-                                                                $isModelNumber = strtolower($feature->feature_name ?? '') === 'model number';
-                                                            @endphp
-                                                            <tr>
-                                                                <td class="fw-semibold">{{ $feature->feature_name }}</td>
-                                                                <td>
-                                                                    @if($feature->sub_fields && count($feature->sub_fields) > 0)
-                                                                        <div class="d-flex flex-wrap gap-2">
-                                                                            @foreach($feature->sub_fields as $subField)
-                                                                                <input type="text" name="features_{{ $feature->id }}_{{ $subField }}" class="form-control form-control-sm" style="width: 120px;" value="{{ $subVals[$subField] ?? '' }}" placeholder="{{ $subField }}">
-                                                                            @endforeach
-                                                                        </div>
-                                                                    @else
-                                                                        <input type="text" name="features_{{ $feature->id }}" class="form-control form-control-sm" value="{{ $isModelNumber ? ($setValuesModel->model_number ?? '') : ($val ?? '') }}" {{ $isModelNumber ? 'readonly' : '' }} placeholder="{{ $feature->feature_name }}">
-                                                                    @endif
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            @else
-                                                {{-- Non-laptop: one feature at a time (Previous/Next) --}}
-                                                <div class="set-values-steps border rounded bg-white p-3" style="min-height: 100px;">
-                                                    @foreach($setValuesFeatures as $idx => $feature)
-                                                        @php
-                                                            $fv = $setValuesByFeature->get($feature->id);
-                                                            $val = $fv ? $fv->feature_value : null;
-                                                            $subVals = $fv && $feature->sub_fields ? @json_decode($fv->feature_value, true) : [];
-                                                            $subVals = is_array($subVals) ? $subVals : [];
-                                                            $isModelNumber = strtolower($feature->feature_name ?? '') === 'model number';
-                                                        @endphp
-                                                        <div class="set-values-step {{ $idx === 0 ? '' : 'd-none' }}" data-step="{{ $idx }}">
-                                                            <div class="mb-2"><strong>{{ $feature->feature_name }}</strong></div>
-                                                            @if($feature->sub_fields && count($feature->sub_fields) > 0)
-                                                                <div class="d-flex flex-wrap gap-2">
-                                                                    @foreach($feature->sub_fields as $subField)
-                                                                        <input type="text" name="features_{{ $feature->id }}_{{ $subField }}" class="form-control form-control-sm" style="width: 120px;" value="{{ $subVals[$subField] ?? '' }}" placeholder="{{ $subField }}">
-                                                                    @endforeach
-                                                                </div>
-                                                            @else
-                                                                <input type="text" name="features_{{ $feature->id }}" class="form-control form-control-sm" value="{{ $isModelNumber ? ($setValuesModel->model_number ?? '') : ($val ?? '') }}" {{ $isModelNumber ? 'readonly' : '' }} placeholder="{{ $feature->feature_name }}">
-                                                            @endif
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center mt-2">
-                                                    @php $totalFeatures = $setValuesFeatures->count(); @endphp
-                                                    <div>
-                                                        <button type="button" class="btn btn-sm btn-outline-secondary set-values-prev" disabled>Previous</button>
-                                                        <span class="mx-2 set-values-counter text-muted small">1 of {{ $totalFeatures }}</span>
-                                                        <button type="button" class="btn btn-sm btn-outline-secondary set-values-next">{{ $totalFeatures > 1 ? 'Next' : '' }}</button>
-                                                    </div>
-                                                </div>
-                                            @endif
-                                            <div class="mt-2">
-                                                <button type="submit" class="btn btn-primary btn-sm">Save feature values</button>
-                                            </div>
-                                        </form>
-                                        @if(!$isLaptopCategory)
-                                            <script>
-                                            (function() {
-                                                var container = document.querySelector('#brand-{{ $brand->id }} .set-values-one-at-a-time');
-                                                if (!container) return;
-                                                var steps = container.querySelectorAll('.set-values-step');
-                                                var total = steps.length;
-                                                var prevBtn = container.querySelector('.set-values-prev');
-                                                var nextBtn = container.querySelector('.set-values-next');
-                                                var counterEl = container.querySelector('.set-values-counter');
-                                                var current = 0;
-                                                function showStep(i) {
-                                                    current = i;
-                                                    steps.forEach(function(s, idx) { s.classList.toggle('d-none', idx !== current); });
-                                                    if (prevBtn) prevBtn.disabled = current === 0;
-                                                    if (nextBtn) { nextBtn.disabled = current === total - 1; nextBtn.textContent = current === total - 1 ? '' : 'Next'; }
-                                                    if (counterEl) counterEl.textContent = (current + 1) + ' of ' + total;
-                                                }
-                                                if (prevBtn) prevBtn.addEventListener('click', function() { if (current > 0) showStep(current - 1); });
-                                                if (nextBtn) nextBtn.addEventListener('click', function() { if (current < total - 1) showStep(current + 1); });
-                                            })();
-                                            </script>
-                                        @endif
-                                    </div>
-                                @endif
-                        </div>
+                    </div>
+                    <div class="border rounded p-3 mb-3">
+                        <h6 class="mb-2">Add feature</h6>
+                        <form action="{{ route('features.store') }}" method="POST" class="d-flex gap-2 align-items-center" autocomplete="off">
+                            @csrf
+                            <input type="hidden" name="brand_id" value="{{ $brand->id }}">
+                            <input type="text" name="feature_name" class="form-control form-control-sm" style="max-width: 200px;" placeholder="Feature name" required>
+                            <button type="submit" class="btn btn-primary btn-sm">Add feature</button>
+                        </form>
                     </div>
                 </div>
                     @empty
-                                <p class="text-muted">Select a brand from the dropdown above to view or edit it.</p>
-                            @endforelse
+                        <p class="text-muted">Select a brand on the left to view or edit it.</p>
+                    @endforelse
                 @endif
+                    </div>
+                </div>
             </div>
         </div>
     @endforeach

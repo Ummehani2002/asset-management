@@ -59,18 +59,18 @@
          
         </div>
 
-        {{-- 3. Asset (Serial Number) – dropdown from Asset Master of that category --}}
+        {{-- 3. Asset (Serial Number) – type to search, dropdown of similar --}}
         <div class="mb-3" id="asset_selection_section" style="display:none;">
-            <label for="asset_id">Asset (Serial Number) <span class="text-danger">*</span></label>
-            <select name="asset_id" id="asset_id" class="form-control" required>
-                <option value="">-- Select Category First --</option>
-                @if($isEdit && $transaction->asset)
-                    <option value="{{ $transaction->asset->id }}" selected>
-                        {{ $transaction->asset->assetCategory->category_name ?? 'N/A' }} - {{ $transaction->asset->serial_number }}
-                    </option>
-                @endif
-            </select>
-            <small class="text-muted" id="asset_status_info">Assets are loaded from Asset Master for the selected category.</small>
+            <label for="asset_search">Asset (Serial Number) <span class="text-danger">*</span></label>
+            <div class="position-relative" id="asset_search_wrap">
+                <input type="text" id="asset_search" class="form-control" placeholder="Type serial number or asset ID..."
+                       value="{{ $isEdit && $transaction->asset ? $transaction->asset->serial_number . ' (' . ($transaction->asset->asset_id ?? '') . ')' : '' }}"
+                       autocomplete="off">
+                <input type="hidden" name="asset_id" id="asset_id" value="{{ old('asset_id', $transaction->asset_id ?? $transaction->asset->id ?? '') }}" required>
+                <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded"
+                     style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
+            </div>
+            <small class="text-muted" id="asset_status_info">Type initial letters of serial number or asset ID to see matching assets.</small>
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}
@@ -126,8 +126,29 @@
             </select>
         </div>
 
-        {{-- Entity (for Laptop - filter locations by entity) --}}
-        <input type="hidden" name="location_id" value="">
+        {{-- Entity & Location (for Assign - link location to entity) --}}
+        <input type="hidden" name="location_id" id="location_id" value="{{ old('location_id', $transaction->location_id ?? '') }}">
+        <div class="mb-3" id="entity_location_section" style="display:none;">
+            <label class="form-label">Entity & Location <span class="text-muted">(for this assignment)</span></label>
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <label for="assign_entity" class="form-label small">Entity</label>
+                    <select id="assign_entity" class="form-control">
+                        <option value="">-- Select Entity --</option>
+                        @foreach($entities ?? [] as $ent)
+                            <option value="{{ $ent->name }}">{{ ucwords($ent->name) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label for="assign_location" class="form-label small">Location</label>
+                    <select id="assign_location" class="form-control">
+                        <option value="">-- Select Entity first --</option>
+                    </select>
+                </div>
+            </div>
+            <small class="text-muted">Select entity then location. Filled automatically when asset is selected.</small>
+        </div>
         <div class="mb-3" id="transaction_type_info_wrapper" style="display:none;">
             <small class="text-muted" id="transaction_type_info"></small>
         </div>
@@ -190,7 +211,10 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const categoryDropdown = document.getElementById('asset_category_id');
-    const assetDropdown = document.getElementById('asset_id');
+    const assetIdInput = document.getElementById('asset_id');
+    const assetSearchInput = document.getElementById('asset_search');
+    const assetDropdownEl = document.getElementById('asset_dropdown');
+    const assetSearchWrap = document.getElementById('asset_search_wrap');
     const employeeSection = document.getElementById('employee_section');
     const employeeDisplaySection = document.getElementById('employee_display_section');
     const projectSection = document.getElementById('project_section');
@@ -286,7 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const txType = this.value;
         categorySection.style.display = txType ? 'block' : 'none';
         assetSelectionSection.style.display = 'none';
-        assetDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
+        if (assetIdInput) assetIdInput.value = '';
+        if (assetSearchInput) assetSearchInput.value = '';
+        if (assetDropdownEl) { assetDropdownEl.innerHTML = ''; assetDropdownEl.style.display = 'none'; }
         if (!txType) {
             categoryDropdown.value = '';
             hideAssignmentFields();
@@ -308,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     })();
 
-    // Step 2: Category change → show Asset dropdown and load assets from Asset Master
+    // Step 2: Category change → show Asset search (text input with autocomplete)
     categoryDropdown.addEventListener('change', function() {
         const categoryId = this.value;
         const selectedOpt = this.options[this.selectedIndex];
@@ -317,83 +343,110 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!categoryId) {
             assetSelectionSection.style.display = 'none';
-            assetDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
+            if (assetIdInput) assetIdInput.value = '';
+            if (assetSearchInput) assetSearchInput.value = '';
+            if (assetDropdownEl) { assetDropdownEl.innerHTML = ''; assetDropdownEl.style.display = 'none'; }
             hideAssignmentFields();
             return;
         }
 
         assetSelectionSection.style.display = 'block';
-        assetDropdown.innerHTML = '<option value="">Loading assets...</option>';
-
-        fetch(`/asset-transactions/get-assets-by-category/${categoryId}`)
-            .then(res => res.json())
-            .then(assets => {
-                assetDropdown.innerHTML = '<option value="">-- Select Asset (Serial Number) --</option>';
-                assets.forEach(asset => {
-                    const option = document.createElement('option');
-                    option.value = asset.id;
-                    option.textContent = `${asset.serial_number} (${asset.asset_id}) - Status: ${asset.status}`;
-                    option.dataset.status = asset.original_status || asset.status;
-                    option.dataset.category = (asset.category_name || '').toLowerCase();
-                    assetDropdown.appendChild(option);
-                });
-                if (assets.length > 0) {
-                    currentCategory = (assets[0].category_name || '').toLowerCase();
-                }
-                var form = document.getElementById('transactionForm');
-                var preselect = form ? form.getAttribute('data-preselect-asset') : '';
-                if (preselect) {
-                    assetDropdown.value = preselect;
-                    assetDropdown.dispatchEvent(new Event('change'));
-                }
-                assetStatusInfo.textContent = 'Assets from Asset Master for this category.';
-            })
-            .catch(err => {
-                console.error('Error loading assets:', err);
-                assetDropdown.innerHTML = '<option value="">Error loading assets</option>';
-                assetStatusInfo.textContent = 'Error loading assets.';
-            });
-    });
-
-    // Handle asset selection
-    assetDropdown.addEventListener('change', function() {
-        const assetId = this.value;
-        
-        if (!assetId) {
-            hideAssignmentFields();
-            return;
-        }
-
-        const selectedOption = this.options[this.selectedIndex];
-        if (selectedOption && selectedOption.dataset.status) {
-            const originalStatus = selectedOption.dataset.status;
-            const category = selectedOption.dataset.category || '';
-            currentCategory = category;
-            
-            // Show "available" instead of "returned" in the UI
-            const displayStatus = originalStatus === 'returned' ? 'available' : originalStatus;
-            assetStatusInfo.textContent = `Current Status: ${displayStatus}`;
-            assetStatusInfo.className = 'text-muted';
-
-            // Fetch asset details including previous transaction info
-            fetch(`/asset-transactions/get-asset-details/${assetId}`)
-                .then(res => res.json())
-                .then(data => {
+        assetStatusInfo.textContent = 'Type serial number or asset ID to see matching assets.';
+        var form = document.getElementById('transactionForm');
+        var preselect = form ? form.getAttribute('data-preselect-asset') : '';
+        if (!preselect) {
+            if (assetIdInput) assetIdInput.value = '';
+            if (assetSearchInput) assetSearchInput.value = '';
+        } else {
+            fetch('/asset-transactions/get-asset-details/' + preselect)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
                     assetDetails = data;
+                    currentCategory = (data.category_name || '').toLowerCase();
                     updateTransactionTypeOptions(data);
-                    showAssignmentFields(data, category);
-                    
-                    // If transaction type is already set to 'assign', ensure all fields are shown
+                    showAssignmentFields(data, currentCategory);
                     if (transactionType.value === 'assign') {
                         assignFields.style.display = 'block';
                         updateEmployeeSectionVisibility();
                     }
                 })
-                .catch(err => {
-                    console.error('Error loading asset details:', err);
-                });
+                .catch(function() {});
         }
     });
+
+    // Asset search: type to get dropdown of similar assets
+    var assetDebounce = null;
+    if (assetSearchInput && assetDropdownEl) {
+        function hideAssetDropdown() {
+            assetDropdownEl.style.display = 'none';
+            assetDropdownEl.innerHTML = '';
+        }
+        function showAssetSuggestions(items) {
+            if (!items || items.length === 0) {
+                assetDropdownEl.innerHTML = '<div class="list-group-item text-muted">No matching assets</div>';
+            } else {
+                assetDropdownEl.innerHTML = items.map(function(asset) {
+                    var text = (asset.serial_number || '') + ' (' + (asset.asset_id || '') + ') - Status: ' + (asset.status || '');
+                    return '<a href="#" class="list-group-item list-group-item-action asset-suggestion" data-id="' + asset.id + '" data-status="' + (asset.original_status || asset.status || '').replace(/"/g, '&quot;') + '" data-category="' + (asset.category_name || '').replace(/"/g, '&quot;') + '">' + text.replace(/</g, '&lt;') + '</a>';
+                }).join('');
+            }
+            assetDropdownEl.style.display = 'block';
+        }
+        assetSearchInput.addEventListener('input', function() {
+            var q = (assetSearchInput.value || '').trim();
+            if (assetIdInput) assetIdInput.value = '';
+            clearTimeout(assetDebounce);
+            hideAssetDropdown();
+            var categoryId = categoryDropdown ? categoryDropdown.value : '';
+            if (!categoryId || q.length < 1) return;
+            assetDebounce = setTimeout(function() {
+                assetDropdownEl.innerHTML = '<div class="list-group-item text-muted">Loading...</div>';
+                assetDropdownEl.style.display = 'block';
+                fetch('/asset-transactions/get-assets-by-category/' + categoryId + '?q=' + encodeURIComponent(q))
+                    .then(function(r) { return r.json(); })
+                    .then(function(assets) {
+                        showAssetSuggestions(assets);
+                    })
+                    .catch(function() {
+                        assetDropdownEl.innerHTML = '<div class="list-group-item text-danger">Error loading assets</div>';
+                    });
+            }, 200);
+        });
+        assetDropdownEl.addEventListener('click', function(e) {
+            var item = e.target.closest('.asset-suggestion');
+            if (item) {
+                e.preventDefault();
+                var id = item.getAttribute('data-id');
+                var status = item.getAttribute('data-status') || '';
+                var category = item.getAttribute('data-category') || '';
+                var displayStatus = status === 'returned' ? 'available' : status;
+                assetSearchInput.value = item.textContent.trim();
+                if (assetIdInput) assetIdInput.value = id;
+                hideAssetDropdown();
+                currentCategory = category.toLowerCase();
+                assetStatusInfo.textContent = 'Current Status: ' + displayStatus;
+                assetStatusInfo.className = 'text-muted';
+                fetch('/asset-transactions/get-asset-details/' + id)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        assetDetails = data;
+                        updateTransactionTypeOptions(data);
+                        showAssignmentFields(data, currentCategory);
+                        if (transactionType.value === 'assign') {
+                            assignFields.style.display = 'block';
+                            updateEmployeeSectionVisibility();
+                        }
+                    })
+                    .catch(function(err) { console.error('Error loading asset details:', err); });
+            }
+        });
+        document.addEventListener('click', function(e) {
+            if (assetSearchWrap && !assetSearchWrap.contains(e.target)) hideAssetDropdown();
+        });
+        assetSearchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') hideAssetDropdown();
+        });
+    }
 
     // Handle transaction type change
     transactionType.addEventListener('change', function() {
@@ -410,9 +463,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (txType === 'assign') {
             assignFields.style.display = 'block';
+            var entityLocSection = document.getElementById('entity_location_section');
+            if (entityLocSection) entityLocSection.style.display = 'block';
             updateEmployeeSectionVisibility();
         } else if (txType === 'return') {
             returnFields.style.display = 'block';
+            var entityLocSection = document.getElementById('entity_location_section');
+            if (entityLocSection) entityLocSection.style.display = 'none';
             employeeSection.style.display = 'none';
             employeeAutoFillInfo.textContent = '';
             updateEmployeeSectionVisibility();
@@ -492,12 +549,61 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update visibility based on transaction type and category
         updateEmployeeSectionVisibility();
         
-        // If transaction type is 'assign', show assign fields (Assigned Date and Asset Image)
+        // If transaction type is 'assign', show assign fields (Assigned Date and Asset Image) and Entity/Location
         if (txType === 'assign') {
             assignFields.style.display = 'block';
+            var entityLocSection = document.getElementById('entity_location_section');
+            if (entityLocSection) entityLocSection.style.display = 'block';
+            // Pre-fill entity & location from asset details when available
+            if (data.location_entity || data.current_location_id) {
+                var assignEntity = document.getElementById('assign_entity');
+                var assignLocation = document.getElementById('assign_location');
+                if (assignEntity && data.location_entity) {
+                    assignEntity.value = data.location_entity;
+                    onAssignEntityChange();
+                    if (assignLocation && data.current_location_id) {
+                        setTimeout(function() {
+                            assignLocation.value = data.current_location_id;
+                            if (document.getElementById('location_id')) document.getElementById('location_id').value = data.current_location_id;
+                        }, 300);
+                    }
+                } else if (data.current_location_id && document.getElementById('location_id')) {
+                    document.getElementById('location_id').value = data.current_location_id;
+                }
+            }
         } else if (txType === 'return') {
             returnFields.style.display = 'block';
+            var entityLocSection = document.getElementById('entity_location_section');
+            if (entityLocSection) entityLocSection.style.display = 'none';
         }
+    }
+    
+    function onAssignEntityChange() {
+        var entity = document.getElementById('assign_entity');
+        var locationSelect = document.getElementById('assign_location');
+        var locationIdInput = document.getElementById('location_id');
+        if (!entity || !locationSelect) return;
+        var entityName = (entity.value || '').trim();
+        locationSelect.innerHTML = '<option value="">Loading...</option>';
+        if (locationIdInput) locationIdInput.value = '';
+        if (!entityName) {
+            locationSelect.innerHTML = '<option value="">-- Select Entity first --</option>';
+            return;
+        }
+        fetch('/get-locations?entity=' + encodeURIComponent(entityName))
+            .then(function(r) { return r.json(); })
+            .then(function(locs) {
+                locationSelect.innerHTML = '<option value="">-- Select Location --</option>';
+                (locs || []).forEach(function(loc) {
+                    var opt = document.createElement('option');
+                    opt.value = loc.id;
+                    opt.textContent = (loc.location_name || '') + (loc.location_entity ? ' (' + loc.location_entity + ')' : '');
+                    locationSelect.appendChild(opt);
+                });
+            })
+            .catch(function() {
+                locationSelect.innerHTML = '<option value="">Error loading locations</option>';
+            });
     }
     
     function updateEmployeeSectionVisibility() {
@@ -581,6 +687,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (transactionTypeInfoWrapper) transactionTypeInfoWrapper.style.display = 'none';
         assignFields.style.display = 'none';
         returnFields.style.display = 'none';
+        var entityLocSection = document.getElementById('entity_location_section');
+        if (entityLocSection) entityLocSection.style.display = 'none';
     }
 
     function hideAllFields() {
@@ -743,13 +851,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Entity & Location: when entity changes load locations; when location changes set hidden location_id
+    var assignEntityEl = document.getElementById('assign_entity');
+    var assignLocationEl = document.getElementById('assign_location');
+    if (assignEntityEl) assignEntityEl.addEventListener('change', onAssignEntityChange);
+    if (assignLocationEl) assignLocationEl.addEventListener('change', function() {
+        var locId = document.getElementById('assign_location') ? document.getElementById('assign_location').value : '';
+        if (document.getElementById('location_id')) document.getElementById('location_id').value = locId || '';
+    });
+
     // Initialize on page load
     if (categoryDropdown.value) {
         categoryDropdown.dispatchEvent(new Event('change'));
-    }
-    // If location is pre-selected (edit mode or old input), trigger entity display
-    if (locationSelect && locationSelect.value) {
-        onLocationChange();
     }
     
     // Final test - make sure form can submit

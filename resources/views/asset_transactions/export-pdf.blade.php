@@ -29,6 +29,7 @@
                 <th>Transaction Type</th>
                 <th>Status</th>
                 <th>Employee/Project</th>
+                <th>Entity</th>
                 <th>Location</th>
                 <th>Issue Date</th>
                 <th>Return Date</th>
@@ -48,6 +49,7 @@
                     <td>{{ ucfirst(str_replace('_', ' ', $t->transaction_type)) }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $t->asset->status ?? 'N/A')) }}</td>
                     <td>{{ $t->employee->name ?? $t->project_name ?? 'N/A' }}</td>
+                    <td>{{ ucwords(trim(optional($t->location)->location_entity ?? $t->employee->entity_name ?? '')) ?: 'N/A' }}</td>
                     <td>{{ $t->location->location_name ?? 'N/A' }}</td>
                     <td>{{ $t->issue_date ?? 'N/A' }}</td>
                     <td>{{ $t->return_date ?? 'N/A' }}</td>

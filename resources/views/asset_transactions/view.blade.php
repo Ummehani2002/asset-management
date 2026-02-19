@@ -75,6 +75,7 @@
                                 <th>Type</th>
                                 <th>Status</th>
                                 <th>Assigned To</th>
+                                <th>Entity</th>
                                 <th>Location</th>
                                 <th>Date</th>
                                 <th>Image</th>
@@ -118,6 +119,7 @@
                                             {{ $t->employee->name ?? $t->project_name ?? 'N/A' }}
                                         @endif
                                     </td>
+                                    <td>{{ ucwords(trim(optional($t->location)->location_entity ?? $t->employee->entity_name ?? '')) ?: 'N/A' }}</td>
                                     <td>{{ $t->location->location_name ?? 'N/A' }}</td>
                                     <td>
                                         @if($t->transaction_type == 'system_maintenance')
