@@ -193,8 +193,15 @@ public function edit($id)
         if (!$isInactive) {
             $employee->email = $request->input('email');
             $employee->phone = $request->input('phone');
-            $employee->entity_name = $request->input('entity_name') ?: null;
-            $employee->department_name = $request->input('department_name') ?: null;
+            $entityInput = trim($request->input('entity_name', ''));
+            $deptInput = trim($request->input('department_name', ''));
+            // Don't overwrite with empty when columns are NOT NULL (avoid DB error)
+            if ($entityInput !== '') {
+                $employee->entity_name = $entityInput;
+            }
+            if ($deptInput !== '') {
+                $employee->department_name = $deptInput;
+            }
         }
 
         $employee->save();
