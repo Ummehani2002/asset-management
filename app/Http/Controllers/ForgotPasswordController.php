@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 
 class ForgotPasswordController extends Controller
@@ -17,11 +18,25 @@ class ForgotPasswordController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        $status = Password::sendResetLink($request->only('email'));
+        try {
+            $status = Password::sendResetLink($request->only('email'));
 
-        return $status === Password::RESET_LINK_SENT
-            ? back()->with(['status' => __($status)])
-            : back()->withErrors(['email' => __($status)]);
+            if ($status === Password::RESET_LINK_SENT) {
+                return back()->with(['status' => __($status)]);
+            }
+
+            return back()->withErrors(['email' => __($status)]);
+        } catch (\Throwable $e) {
+            Log::error('Password reset link failed', [
+                'email' => $request->email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->withErrors([
+                'email' => 'Unable to send reset link. Please contact your administrator or try again later.',
+            ])->withInput($request->only('email'));
+        }
     }
 
     // Show reset form
