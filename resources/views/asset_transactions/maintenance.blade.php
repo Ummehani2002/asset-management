@@ -186,10 +186,13 @@
                         </div>
 
                         <div class="col-md-6 mb-3" id="asset_selection_section" style="display:none;">
-                            <label for="asset_id">Asset (Serial Number) <span class="text-danger">*</span></label>
-                            <select name="asset_id" id="asset_id" class="form-control" required>
-                                <option value="">Select Category First</option>
-                            </select>
+                            <label for="asset_search_input">Asset (Serial Number) <span class="text-danger">*</span></label>
+                            <div class="position-relative" id="asset_search_wrap">
+                                <input type="text" id="asset_search_input" class="form-control" placeholder="Select Asset" autocomplete="off">
+                                <input type="hidden" name="asset_id" id="asset_id" value="" required>
+                                <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
+                            </div>
+                            <small class="text-muted d-block mt-1">Type serial number or asset ID to search</small>
                             <small class="text-muted d-block mt-1" id="asset_status_info"></small>
                             <small class="text-danger" id="asset_error_info"></small>
                         </div>
@@ -331,10 +334,13 @@
                             </select>
                         </div>
                         <div class="col-md-6 mb-3" id="assign_asset_section" style="display:none;">
-                            <label for="assign_asset_id">Asset Under Maintenance <span class="text-danger">*</span></label>
-                            <select name="asset_id" id="assign_asset_id" class="form-control" required>
-                                <option value="">Select Category First</option>
-                            </select>
+                            <label for="assign_asset_search_input">Asset Under Maintenance <span class="text-danger">*</span></label>
+                            <div class="position-relative" id="assign_asset_search_wrap">
+                                <input type="text" id="assign_asset_search_input" class="form-control" placeholder="Select Asset" autocomplete="off">
+                                <input type="hidden" name="asset_id" id="assign_asset_id" value="" required>
+                                <div id="assign_asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
+                            </div>
+                            <small class="text-muted d-block mt-1">Type serial number or asset ID to search</small>
                             <input type="hidden" name="asset_transaction_id" id="assign_asset_transaction_id">
                             <small class="text-muted d-block mt-1" id="assign_asset_info"></small>
                         </div>
@@ -407,10 +413,13 @@
                         </div>
 
                         <div class="col-md-6 mb-3" id="reassign_asset_section" style="display:none;">
-                            <label for="reassign_asset_id">Asset (Serial Number) <span class="text-danger">*</span></label>
-                            <select name="asset_id" id="reassign_asset_id" class="form-control" required>
-                                <option value="">Select Category First</option>
-                            </select>
+                            <label for="reassign_asset_search_input">Asset (Serial Number) <span class="text-danger">*</span></label>
+                            <div class="position-relative" id="reassign_asset_search_wrap">
+                                <input type="text" id="reassign_asset_search_input" class="form-control" placeholder="Select Asset" autocomplete="off">
+                                <input type="hidden" name="asset_id" id="reassign_asset_id" value="" required>
+                                <div id="reassign_asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
+                            </div>
+                            <small class="text-muted d-block mt-1">Type serial number or asset ID to search</small>
                             <small class="text-muted d-block mt-1" id="reassign_status_info"></small>
                             <small class="text-danger" id="reassign_error_info"></small>
                         </div>
@@ -607,7 +616,7 @@ $(document).ready(function() {
     $('#assign_entity_id').on('change', function() { updateAssetManagerDisplay('#assign_entity_id', '#assign_entity_asset_manager_display'); });
     $('#reassign_entity_id').on('change', function() { updateAssetManagerDisplay('#reassign_entity_id', '#reassign_entity_asset_manager_display'); });
 
-    // Handle category change
+    // Handle category change - show asset type-to-search (no longer populate select)
     $('#asset_category_id').on('change', function() {
         const categoryId = $(this).val();
         
@@ -618,23 +627,57 @@ $(document).ready(function() {
         }
 
         $('#asset_selection_section').show();
-        $('#asset_id').html('<option value="">Loading assets...</option>');
-
-        $.get(`/asset-transactions/get-assets-by-category/${categoryId}`, function(assets) {
-            $('#asset_id').html('<option value="">Select Asset</option>');
-            assets.forEach(function(asset) {
-                // Only show assigned assets for maintenance
-                if (asset.original_status === 'assigned') {
-                    $('#asset_id').append(
-                        $('<option></option>')
-                            .val(asset.id)
-                            .text(`${asset.serial_number} (${asset.asset_id}) - Assigned`)
-                            .data('status', asset.original_status)
-                    );
-                }
-            });
-        });
+        $('#asset_id').val('');
+        $('#asset_search_input').val('');
+        $('#asset_dropdown').hide().empty();
     });
+
+    // Send tab: type-to-search asset (serial number)
+    (function() {
+        let assetSendDebounce;
+        $('#asset_search_input').on('input', function() {
+            const q = $(this).val().trim();
+            const categoryId = $('#asset_category_id').val();
+            $('#asset_id').val('');
+            clearTimeout(assetSendDebounce);
+            $('#asset_dropdown').hide().empty();
+            if (!categoryId || q.length < 1) return;
+            assetSendDebounce = setTimeout(function() {
+                $('#asset_dropdown').html('<div class="list-group-item text-muted">Loading...</div>').show();
+                $.get(`/asset-transactions/get-assets-by-category/${categoryId}`, { q: q }, function(assets) {
+                    const assigned = (assets || []).filter(function(a) { return a.original_status === 'assigned'; });
+                    if (assigned.length === 0) {
+                        $('#asset_dropdown').html('<div class="list-group-item text-muted">No matching assets</div>').show();
+                    } else {
+                        const html = assigned.map(function(a) {
+                            const text = `${a.serial_number} (${a.asset_id}) - Assigned`;
+                            return `<a href="#" class="list-group-item list-group-item-action asset-send-item" data-id="${a.id}" data-status="${(a.original_status || '').replace(/"/g, '&quot;')}">${text.replace(/</g, '&lt;')}</a>`;
+                        }).join('');
+                        $('#asset_dropdown').html(html).show();
+                    }
+                }).fail(function() {
+                    $('#asset_dropdown').html('<div class="list-group-item text-danger">Error loading assets</div>').show();
+                });
+            }, 200);
+        });
+        $('#asset_search_input').on('focus', function() {
+            const q = $(this).val().trim();
+            if (q.length >= 1 && $('#asset_dropdown').children().length) $('#asset_dropdown').show();
+        });
+        $(document).on('click', '#asset_dropdown .asset-send-item', function(e) {
+            e.preventDefault();
+            const id = $(this).data('id');
+            const text = $(this).text();
+            $('#asset_id').val(id);
+            $('#asset_search_input').val(text);
+            $('#asset_dropdown').hide().empty();
+            $('#asset_id').trigger('change');
+        });
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#asset_search_wrap').length) $('#asset_dropdown').hide();
+        });
+        $('#asset_search_input').on('keydown', function(e) { if (e.key === 'Escape') $('#asset_dropdown').hide(); });
+    })();
 
     // Handle asset selection - auto-fill entity & asset manager from location (Location Master)
     $('#asset_id').on('change', function() {
@@ -721,7 +764,7 @@ $(document).ready(function() {
         $('#submitBtn').html('<i class="bi bi-hourglass-split me-2"></i>Processing...');
     });
 
-    // Assign Tab - Handle category change
+    // Assign Tab - Handle category change (show type-to-search, do not populate select)
     $('#assign_category_id').on('change', function() {
         const categoryId = $(this).val();
         if (!categoryId) {
@@ -731,25 +774,63 @@ $(document).ready(function() {
             return;
         }
         $('#assign_asset_section').show();
-        $('#assign_asset_id').html('<option value="">Loading...</option>');
+        $('#assign_asset_id').val('');
+        $('#assign_asset_search_input').val('');
         $('#assign_asset_transaction_id').val('');
+        $('#assign_asset_dropdown').hide().empty();
         $('#assign_manager_section').hide();
         $('#assignBtn').prop('disabled', true);
-
-        $.get(`/asset-transactions/get-maintenance-assets-by-category/${categoryId}`, function(assets) {
-            $('#assign_asset_id').html('<option value="">Select Asset</option>');
-            assets.forEach(function(asset) {
-                if (asset.transaction_id) {
-                    $('#assign_asset_id').append(
-                        $('<option></option>')
-                            .val(asset.id)
-                            .text(`${asset.serial_number} (${asset.asset_id}) - Under Maintenance`)
-                            .data('transactionId', asset.transaction_id)
-                    );
-                }
-            });
-        });
     });
+
+    // Assign tab: type-to-search asset under maintenance
+    (function() {
+        let assignDebounce;
+        $('#assign_asset_search_input').on('input', function() {
+            const q = $(this).val().trim();
+            const categoryId = $('#assign_category_id').val();
+            $('#assign_asset_id').val('');
+            $('#assign_asset_transaction_id').val('');
+            clearTimeout(assignDebounce);
+            $('#assign_asset_dropdown').hide().empty();
+            if (!categoryId || q.length < 1) return;
+            assignDebounce = setTimeout(function() {
+                $('#assign_asset_dropdown').html('<div class="list-group-item text-muted">Loading...</div>').show();
+                $.get(`/asset-transactions/get-maintenance-assets-by-category/${categoryId}`, { q: q }, function(assets) {
+                    const list = (assets || []).filter(function(a) { return a.transaction_id; });
+                    if (list.length === 0) {
+                        $('#assign_asset_dropdown').html('<div class="list-group-item text-muted">No matching assets under maintenance</div>').show();
+                    } else {
+                        const html = list.map(function(a) {
+                            const text = `${a.serial_number} (${a.asset_id}) - Under Maintenance`;
+                            return `<a href="#" class="list-group-item list-group-item-action assign-asset-item" data-id="${a.id}" data-transaction-id="${a.transaction_id || ''}">${text.replace(/</g, '&lt;')}</a>`;
+                        }).join('');
+                        $('#assign_asset_dropdown').html(html).show();
+                    }
+                }).fail(function() {
+                    $('#assign_asset_dropdown').html('<div class="list-group-item text-danger">Error loading assets</div>').show();
+                });
+            }, 200);
+        });
+        $('#assign_asset_search_input').on('focus', function() {
+            const q = $(this).val().trim();
+            if (q.length >= 1 && $('#assign_asset_dropdown').children().length) $('#assign_asset_dropdown').show();
+        });
+        $(document).on('click', '#assign_asset_dropdown .assign-asset-item', function(e) {
+            e.preventDefault();
+            const id = $(this).data('id');
+            const txnId = $(this).data('transaction-id');
+            const text = $(this).text();
+            $('#assign_asset_id').val(id);
+            $('#assign_asset_transaction_id').val(txnId || '');
+            $('#assign_asset_search_input').val(text);
+            $('#assign_asset_dropdown').hide().empty();
+            $('#assign_asset_id').trigger('change');
+        });
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#assign_asset_search_wrap').length) $('#assign_asset_dropdown').hide();
+        });
+        $('#assign_asset_search_input').on('keydown', function(e) { if (e.key === 'Escape') $('#assign_asset_dropdown').hide(); });
+    })();
 
     $('#assign_asset_id').on('change', function() {
         const assetId = $(this).val();
@@ -779,7 +860,7 @@ $(document).ready(function() {
         }
     });
 
-    // Reassign Tab - Handle category change
+    // Reassign Tab - Handle category change (show type-to-search)
     $('#reassign_category_id').on('change', function() {
         const categoryId = $(this).val();
         
@@ -790,23 +871,57 @@ $(document).ready(function() {
         }
 
         $('#reassign_asset_section').show();
-        $('#reassign_asset_id').html('<option value="">Loading assets...</option>');
-
-        $.get(`/asset-transactions/get-assets-by-category/${categoryId}`, function(assets) {
-            $('#reassign_asset_id').html('<option value="">Select Asset</option>');
-            assets.forEach(function(asset) {
-                // Only show assets under maintenance
-                if (asset.original_status === 'under_maintenance') {
-                    $('#reassign_asset_id').append(
-                        $('<option></option>')
-                            .val(asset.id)
-                            .text(`${asset.serial_number} (${asset.asset_id}) - Under Maintenance`)
-                            .data('status', asset.original_status)
-                    );
-                }
-            });
-        });
+        $('#reassign_asset_id').val('');
+        $('#reassign_asset_search_input').val('');
+        $('#reassign_asset_dropdown').hide().empty();
     });
+
+    // Reassign tab: type-to-search asset under maintenance
+    (function() {
+        let reassignDebounce;
+        $('#reassign_asset_search_input').on('input', function() {
+            const q = $(this).val().trim();
+            const categoryId = $('#reassign_category_id').val();
+            $('#reassign_asset_id').val('');
+            clearTimeout(reassignDebounce);
+            $('#reassign_asset_dropdown').hide().empty();
+            if (!categoryId || q.length < 1) return;
+            reassignDebounce = setTimeout(function() {
+                $('#reassign_asset_dropdown').html('<div class="list-group-item text-muted">Loading...</div>').show();
+                $.get(`/asset-transactions/get-assets-by-category/${categoryId}`, { q: q }, function(assets) {
+                    const underMaint = (assets || []).filter(function(a) { return a.original_status === 'under_maintenance'; });
+                    if (underMaint.length === 0) {
+                        $('#reassign_asset_dropdown').html('<div class="list-group-item text-muted">No matching assets under maintenance</div>').show();
+                    } else {
+                        const html = underMaint.map(function(a) {
+                            const text = `${a.serial_number} (${a.asset_id}) - Under Maintenance`;
+                            return `<a href="#" class="list-group-item list-group-item-action reassign-asset-item" data-id="${a.id}" data-status="${(a.original_status || '').replace(/"/g, '&quot;')}">${text.replace(/</g, '&lt;')}</a>`;
+                        }).join('');
+                        $('#reassign_asset_dropdown').html(html).show();
+                    }
+                }).fail(function() {
+                    $('#reassign_asset_dropdown').html('<div class="list-group-item text-danger">Error loading assets</div>').show();
+                });
+            }, 200);
+        });
+        $('#reassign_asset_search_input').on('focus', function() {
+            const q = $(this).val().trim();
+            if (q.length >= 1 && $('#reassign_asset_dropdown').children().length) $('#reassign_asset_dropdown').show();
+        });
+        $(document).on('click', '#reassign_asset_dropdown .reassign-asset-item', function(e) {
+            e.preventDefault();
+            const id = $(this).data('id');
+            const text = $(this).text();
+            $('#reassign_asset_id').val(id);
+            $('#reassign_asset_search_input').val(text);
+            $('#reassign_asset_dropdown').hide().empty();
+            $('#reassign_asset_id').trigger('change');
+        });
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#reassign_asset_search_wrap').length) $('#reassign_asset_dropdown').hide();
+        });
+        $('#reassign_asset_search_input').on('keydown', function(e) { if (e.key === 'Escape') $('#reassign_asset_dropdown').hide(); });
+    })();
 
     // Reassign Tab - Handle asset selection (auto-fill entity from location)
     $('#reassign_asset_id').on('change', function() {

@@ -1318,12 +1318,20 @@ class AssetTransactionController extends Controller
         return response()->json($locations);
     }
 
-    public function getMaintenanceAssetsByCategory($categoryId)
+    public function getMaintenanceAssetsByCategory(Request $request, $categoryId)
     {
-        $assets = Asset::with('assetCategory')
+        $query = Asset::with('assetCategory')
             ->where('asset_category_id', $categoryId)
-            ->where('status', 'under_maintenance')
-            ->get()
+            ->where('status', 'under_maintenance');
+        $search = trim($request->get('q', ''));
+        if ($search !== '') {
+            $like = '%' . addcslashes($search, '%_\\') . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('serial_number', 'LIKE', $like)
+                  ->orWhere('asset_id', 'LIKE', $like);
+            });
+        }
+        $assets = $query->get()
             ->map(function ($asset) {
                 $latest = $asset->latestTransaction;
                 $txnId = $latest && $latest->transaction_type === 'system_maintenance' ? $latest->id : null;
