@@ -14,6 +14,8 @@ use App\Models\Project;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use App\Mail\AssetAssigned;
+use App\Mail\MaintenanceApprovalRequestMail;
+use App\Models\User;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
@@ -1161,12 +1163,16 @@ class AssetTransactionController extends Controller
 
         $asset = Asset::with('assetCategory')->findOrFail($request->asset_id);
         if ($asset->status !== 'assigned') {
-            return redirect()->back()->with('error', 'Only assigned assets can be sent for maintenance.');
+            $msg = 'Only assigned assets can be sent for maintenance.';
+            if ($request->expectsJson()) return response()->json(['message' => $msg], 422);
+            return redirect()->back()->with('error', $msg);
         }
 
         $latestTransaction = $asset->latestTransaction;
         if (!$latestTransaction) {
-            return redirect()->back()->with('error', 'Asset has no assignment. Cannot request maintenance.');
+            $msg = 'Asset has no assignment. Cannot request maintenance.';
+            if ($request->expectsJson()) return response()->json(['message' => $msg], 422);
+            return redirect()->back()->with('error', $msg);
         }
 
         $location = $latestTransaction->location_id
@@ -1180,7 +1186,9 @@ class AssetTransactionController extends Controller
             $entityName = $latestTransaction->employee?->entity_name ?? null;
         }
         if (!$entityName) {
-            return redirect()->back()->with('error', 'Could not determine entity for this asset. Assign asset manager in Entity Master.');
+            $msg = 'Could not determine entity for this asset. Assign asset manager in Entity Master.';
+            if ($request->expectsJson()) return response()->json(['message' => $msg], 422);
+            return redirect()->back()->with('error', $msg);
         }
 
         $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower($entityName)])->with('assetManager')->first()
@@ -1188,7 +1196,9 @@ class AssetTransactionController extends Controller
             ?? Entity::whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($entityName) . '%'])->with('assetManager')->orderBy('name')->first();
 
         if (!$entity || !$entity->asset_manager_id) {
-            return redirect()->back()->with('error', 'No asset manager assigned for this entity. Assign in Asset Manager / Entity Master first.');
+            $msg = 'No asset manager assigned for this entity. Assign in Asset Manager / Entity Master first.';
+            if ($request->expectsJson()) return response()->json(['message' => $msg], 422);
+            return redirect()->back()->with('error', $msg);
         }
 
         $existing = MaintenanceApprovalRequest::where('asset_id', $asset->id)
@@ -1196,10 +1206,13 @@ class AssetTransactionController extends Controller
             ->whereIn('status', ['pending', 'approved'])
             ->exists();
         if ($existing) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'A request for this asset is already pending or approved.'], 422);
+            }
             return redirect()->back()->with('error', 'A request for this asset is already pending or approved.');
         }
 
-        MaintenanceApprovalRequest::create([
+        $approvalRequest = MaintenanceApprovalRequest::create([
             'asset_id' => $asset->id,
             'requested_by_user_id' => auth()->id(),
             'assigned_to_employee_id' => $entity->asset_manager_id,
@@ -1208,8 +1221,96 @@ class AssetTransactionController extends Controller
         ]);
 
         $amName = $entity->assetManager?->name ?? $entity->assetManager?->entity_name ?? 'Asset Manager';
+
+        // Send email to asset manager (user linked to employee, or employee email). Fallback to from-address so email always goes somewhere.
+        $assetManagerEmail = User::where('employee_id', $entity->asset_manager_id)->value('email')
+            ?? Employee::find($entity->asset_manager_id)?->email
+            ?? config('mail.from.address');
+        $emailSent = false;
+        if (!empty($assetManagerEmail)) {
+            try {
+                $approvalRequest->load(['asset.assetCategory', 'requestedByUser']);
+                Mail::to($assetManagerEmail)->send(new MaintenanceApprovalRequestMail($approvalRequest));
+                $emailSent = true;
+                Log::info('Maintenance approval email sent to ' . $assetManagerEmail . ' for asset_id=' . $asset->id);
+            } catch (\Throwable $e) {
+                Log::error('Maintenance approval request email failed', [
+                    'to' => $assetManagerEmail,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message' => 'Request saved but email could not be sent. Asset manager can approve from System Maintenance. Error: ' . $e->getMessage(),
+                    ], 200);
+                }
+                return redirect()->route('asset-transactions.maintenance')
+                    ->with('warning', 'Request saved but email failed to send. Asset manager can approve from System Maintenance.');
+            }
+        } else {
+            Log::warning('Maintenance approval request created but no asset manager email found. asset_id=' . $asset->id . ', assigned_to_employee_id=' . $entity->asset_manager_id);
+        }
+
+        $successMsg = $emailSent
+            ? 'Approval request sent to ' . $amName . '. They will receive an email and can approve so you can fill maintenance details.'
+            : 'Approval request saved. No email was sent (asset manager has no email). They can approve from System Maintenance → pending requests.';
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $successMsg]);
+        }
         return redirect()->route('asset-transactions.maintenance')
-            ->with('success', 'Approval request sent to ' . $amName . '. They will be able to approve and then fill maintenance details.');
+            ->with($emailSent ? 'success' : 'warning', $successMsg);
+    }
+
+    /**
+     * Show the maintenance approval request page (linked from email). Asset manager can approve or reject.
+     */
+    public function showMaintenanceApprovalRequest($id)
+    {
+        $req = MaintenanceApprovalRequest::with('asset.assetCategory', 'requestedByUser', 'assignedToEmployee')->findOrFail($id);
+        $user = auth()->user();
+        if (!$user || $user->employee_id != $req->assigned_to_employee_id) {
+            return redirect()->route('asset-transactions.maintenance')->with('error', 'You are not the asset manager for this request.');
+        }
+        if ($req->status !== 'pending') {
+            return redirect()->route('asset-transactions.maintenance')->with('error', 'This request has already been processed.');
+        }
+        return view('asset_transactions.maintenance_approval_request', ['request' => $req]);
+    }
+
+    /**
+     * Approve a maintenance request via signed link (from email). No login required.
+     */
+    public function approveMaintenanceRequestSigned(Request $request, $id)
+    {
+        if (!$request->hasValidSignature()) {
+            return redirect()->route('login')->with('error', 'This link is invalid or has expired.');
+        }
+        $req = MaintenanceApprovalRequest::with('asset.assetCategory')->findOrFail($id);
+        if ($req->status !== 'pending') {
+            return redirect()->route('login')->with('error', 'This request has already been processed.');
+        }
+        $req->update(['status' => 'approved', 'approved_at' => now()]);
+        $assetLabel = $req->asset ? ($req->asset->serial_number . ' (' . ($req->asset->asset_id ?? '') . ')') : 'Asset';
+        return redirect()->route('asset-transactions.maintenance')
+            ->with('success', 'Request approved. The person who requested can now open System Maintenance, select asset ' . $assetLabel . ', and fill the maintenance form.');
+    }
+
+    /**
+     * Reject a maintenance request via signed link (from email). No login required.
+     */
+    public function rejectMaintenanceRequestSigned(Request $request, $id)
+    {
+        if (!$request->hasValidSignature()) {
+            return redirect()->route('login')->with('error', 'This link is invalid or has expired.');
+        }
+        $req = MaintenanceApprovalRequest::findOrFail($id);
+        if ($req->status !== 'pending') {
+            return redirect()->route('login')->with('error', 'This request has already been processed.');
+        }
+        $req->update(['status' => 'rejected', 'rejected_at' => now()]);
+        return redirect()->route('asset-transactions.maintenance')
+            ->with('success', 'Request rejected.');
     }
 
     /**
@@ -1229,7 +1330,7 @@ class AssetTransactionController extends Controller
         $req->update(['status' => 'approved', 'approved_at' => now()]);
 
         return redirect()->route('asset-transactions.maintenance')
-            ->with('success', 'Request approved. Go to "Send for Maintenance" tab, select asset ' . ($req->asset->serial_number ?? $req->asset->asset_id ?? '') . ', and fill the maintenance details to save.');
+            ->with('success', 'Request approved. The requester can now fill the maintenance details and submit. You can also go to "Send for Maintenance", select asset ' . ($req->asset->serial_number ?? $req->asset->asset_id ?? '') . ', and fill the details yourself.');
     }
 
     /**

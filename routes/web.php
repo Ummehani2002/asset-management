@@ -162,6 +162,9 @@ Route::prefix('asset-transactions')->group(function () {
     Route::post('/maintenance-approve/{id}', [AssetTransactionController::class, 'maintenanceApprove'])->name('asset-transactions.maintenance-approve');
     Route::post('/maintenance-reject/{id}', [AssetTransactionController::class, 'maintenanceReject'])->name('asset-transactions.maintenance-reject');
     Route::post('/maintenance-request-approval', [AssetTransactionController::class, 'requestMaintenanceApproval'])->name('asset-transactions.maintenance-request-approval');
+    Route::get('/maintenance-approval-request/{id}', [AssetTransactionController::class, 'showMaintenanceApprovalRequest'])->name('asset-transactions.maintenance-approval-show')->middleware('auth');
+    Route::get('/maintenance-approval/approve/{id}', [AssetTransactionController::class, 'approveMaintenanceRequestSigned'])->name('asset-transactions.maintenance-approval-approve-signed');
+    Route::get('/maintenance-approval/reject/{id}', [AssetTransactionController::class, 'rejectMaintenanceRequestSigned'])->name('asset-transactions.maintenance-approval-reject-signed');
     Route::post('/maintenance-approval-request-approve/{id}', [AssetTransactionController::class, 'approveMaintenanceRequest'])->name('asset-transactions.maintenance-approval-request-approve');
     Route::post('/maintenance-approval-request-reject/{id}', [AssetTransactionController::class, 'rejectMaintenanceRequest'])->name('asset-transactions.maintenance-approval-request-reject');
     Route::post('/store', [AssetTransactionController::class, 'store'])->name('asset-transactions.store');

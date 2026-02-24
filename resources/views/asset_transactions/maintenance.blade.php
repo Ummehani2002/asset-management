@@ -20,6 +20,18 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
+    @if(session('warning'))
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {{ session('warning') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
     @if($errors->any())
         <div class="alert alert-danger">
@@ -220,17 +232,16 @@
             <h5 class="mb-3"><i class="bi bi-person-check me-2"></i>Request Approval</h5>
             <p class="text-muted mb-3">You are not the asset manager for this asset. Maintenance details are disabled until the asset manager approves your request.</p>
             <p class="mb-2"><strong>Asset Manager:</strong> <span id="request_am_name">-</span></p>
-            <form method="POST" action="{{ route('asset-transactions.maintenance-request-approval') }}" id="requestApprovalForm">
-                @csrf
-                <input type="hidden" name="asset_id" id="request_approval_asset_id" value="">
+            <div id="requestApprovalForm">
+                <input type="hidden" id="request_approval_asset_id" value="">
                 <div class="mb-3">
                     <label for="request_notes" class="form-label">Notes (optional)</label>
                     <textarea name="request_notes" id="request_notes" class="form-control" rows="2" placeholder="e.g. Employee dropped off laptop for repair"></textarea>
                 </div>
-                <button type="submit" class="btn btn-warning">
+                <button type="button" class="btn btn-warning" id="requestApprovalBtn">
                     <i class="bi bi-send me-2"></i>Request for Approval
                 </button>
-            </form>
+            </div>
         </div>
 
         {{-- Maintenance Details (shown only when user is asset manager or has approved request) --}}
@@ -762,6 +773,31 @@ $(document).ready(function() {
     $('#maintenanceForm').on('submit', function(e) {
         $('#submitBtn').prop('disabled', true);
         $('#submitBtn').html('<i class="bi bi-hourglass-split me-2"></i>Processing...');
+    });
+
+    // Request Approval button (no longer a nested form - submit via JS)
+    $('#requestApprovalBtn').on('click', function() {
+        const assetId = $('#request_approval_asset_id').val();
+        const notes = $('#request_notes').val();
+        const token = $('input[name="_token"]').first().val();
+        if (!assetId) return;
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-2"></i>Sending...');
+        $.ajax({
+            url: '{{ route("asset-transactions.maintenance-request-approval") }}',
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            data: { _token: token, asset_id: assetId, request_notes: notes },
+            success: function(data) {
+                alert(data.message || 'Request sent. The asset manager will receive an email. Once they approve, you can fill and submit the maintenance form.');
+                window.location.reload();
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false).html('<i class="bi bi-send me-2"></i>Request for Approval');
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (xhr.statusText || 'Request failed. Please try again.');
+                alert(msg);
+            }
+        });
     });
 
     // Assign Tab - Handle category change (show type-to-search, do not populate select)
