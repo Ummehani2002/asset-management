@@ -504,4 +504,19 @@ class BudgetExpenseController extends Controller
             'autoPrint' => $autoPrint,
         ]);
     }
+
+    /**
+     * Delete a budget expense.
+     */
+    public function destroy($id)
+    {
+        try {
+            $expense = BudgetExpense::findOrFail($id);
+            $expense->delete();
+            return redirect()->back()->with('success', 'Expense deleted successfully.');
+        } catch (\Exception $e) {
+            Log::error('BudgetExpense delete error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to delete expense.');
+        }
+    }
 }

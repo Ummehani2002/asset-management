@@ -238,6 +238,7 @@ Route::get('/budget-expenses/get-details', [BudgetExpenseController::class, 'get
 Route::get('/budget-expenses/{id}/edit', [BudgetExpenseController::class, 'edit'])->name('budget-expenses.edit');
 Route::put('/budget-expenses/{id}', [BudgetExpenseController::class, 'update'])->name('budget-expenses.update');
 Route::get('/budget-expenses/{id}/print', [BudgetExpenseController::class, 'printExpense'])->name('budget-expenses.print');
+Route::delete('/budget-expenses/{id}', [BudgetExpenseController::class, 'destroy'])->name('budget-expenses.destroy');
 
 use App\Http\Controllers\TimeManagementController;
 // Time Management - All authenticated users

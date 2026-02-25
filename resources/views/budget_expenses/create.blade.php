@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${exp.expense_amount}</td>
                     <td>${exp.description ?? '-'}</td>
                     <td>${exp.balance_after}</td>
-                    <td>${exp.id ? `<a href="${editUrl}" class="btn btn-sm btn-outline-primary me-1">Edit</a><a href="${printUrl}" target="_blank" class="btn btn-sm btn-outline-secondary">Print</a>` : ''}</td>
+                    <td>${exp.id ? `<a href="${editUrl}" class="btn btn-sm btn-outline-primary me-1">Edit</a><a href="${printUrl}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Print</a><button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${exp.id})">Delete</button>` : ''}</td>
                 </tr>
             `;
         });
@@ -366,6 +366,31 @@ document.addEventListener('DOMContentLoaded', function() {
             renderFlash('Error saving expense', 'danger');
         }
     });
+
+    // Delete expense function
+    window.deleteExpense = async function(expenseId) {
+        if (!confirm('Are you sure you want to delete this expense?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/budget-expenses/${expenseId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                },
+            });
+            if (response.ok) {
+                renderFlash('Expense deleted successfully.', 'success');
+                fetchBudgetInfo(); // Refresh the table
+            } else {
+                renderFlash('Failed to delete expense.', 'danger');
+            }
+        } catch (err) {
+            console.error(err);
+            renderFlash('Error deleting expense.', 'danger');
+        }
+    };
 });
 </script>
 @endsection

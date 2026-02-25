@@ -108,7 +108,12 @@
                                     <td>{{ Str::limit($e->description ?? '—', 50) }}</td>
                                     <td class="no-print">
                                         <a href="{{ route('budget-expenses.edit', $e->id) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
-                                        <a href="{{ route('budget-expenses.print', $e->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary">Print</a>
+                                        <a href="{{ route('budget-expenses.print', $e->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Print</a>
+                                        <form action="{{ route('budget-expenses.destroy', $e->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this expense?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                        </form>
                                     </td>
                                 </tr>
                             @empty
