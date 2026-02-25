@@ -9,55 +9,49 @@
         th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
         th { background-color: #1F2A44; color: white; }
         .summary { margin-bottom: 20px; }
-        .summary p { margin: 4px 0; }
+        .summary p { margin: 5px 0; }
+        .summary-grid { display: flex; flex-wrap: wrap; gap: 10px 30px; }
+        .summary-item { min-width: 200px; }
     </style>
 </head>
 <body>
     <h2>Budget Expense</h2>
 
     <div class="summary">
-        <p><strong>Entity:</strong> {{ $entity_name }}</p>
-        <p><strong>Expense Type:</strong> {{ $expense_type }}</p>
-        <p><strong>Cost Head:</strong> {{ $cost_head }}</p>
-        <p><strong>Budget Amount:</strong> {{ $budget_amount }}</p>
-        <p><strong>Total Expenses:</strong> {{ $total_expenses }}</p>
-        <p><strong>Available Balance:</strong> {{ $available_balance }}</p>
+        <div class="summary-grid">
+            <div class="summary-item"><p><strong>Entity:</strong> {{ $entity_name }}</p></div>
+            <div class="summary-item"><p><strong>Expense Type:</strong> {{ $expense_type }}</p></div>
+            <div class="summary-item"><p><strong>Cost Head:</strong> {{ $cost_head }}</p></div>
+            <div class="summary-item"><p><strong>Budget Amount:</strong> {{ $budget_amount }}</p></div>
+            <div class="summary-item"><p><strong>Total Expenses:</strong> {{ $total_expenses }}</p></div>
+            <div class="summary-item"><p><strong>Available Balance:</strong> {{ $available_balance }}</p></div>
+        </div>
     </div>
 
-    <h3>Expenses</h3>
+    <h3>Expense Details</h3>
     <table>
         <thead>
             <tr>
                 <th>Date</th>
-                <th>Entity</th>
-                <th>Cost Head</th>
-                <th>Expense Type</th>
-                <th>Amount</th>
+                <th>Amount (excl. VAT)</th>
+                <th>VAT</th>
+                <th>Total Amount</th>
                 <th>Description</th>
-                <th>Balance After</th>
             </tr>
         </thead>
         <tbody>
-            @forelse($rows as $row)
+            @if(count($rows) > 0)
+                @php $row = $rows[0]; @endphp
                 <tr>
                     <td>{{ $row['expense_date'] }}</td>
-                    <td>{{ $row['entity_name'] }}</td>
-                    <td>{{ $row['cost_head'] }}</td>
-                    <td>{{ $row['expense_type'] }}</td>
+                    <td>{{ $row['amount_before_vat'] ?? $row['expense_amount'] }}</td>
+                    <td>{{ $row['vat_amount'] ?? '0.00' }}</td>
                     <td>{{ $row['expense_amount'] }}</td>
                     <td>{{ $row['description'] }}</td>
-                    <td>{{ $row['balance_after'] }}</td>
                 </tr>
-                @if(!empty($row['amount_before_vat']))
-                <tr class="vat-breakdown" style="background-color: #f9f9f9;">
-                    <td colspan="4" style="border: none; padding-left: 24px;"><strong>VAT breakdown:</strong></td>
-                    <td style="border: none;">Amount (excl. VAT): {{ $row['amount_before_vat'] }} | VAT ({{ $row['vat_percent'] }}%): {{ $row['vat_amount'] }} | Total: {{ $row['expense_amount'] }}</td>
-                    <td colspan="2" style="border: none;"></td>
-                </tr>
-                @endif
-            @empty
-                <tr><td colspan="7" class="text-center">No expenses</td></tr>
-            @endforelse
+            @else
+                <tr><td colspan="5" class="text-center">No expense</td></tr>
+            @endif
         </tbody>
     </table>
 
