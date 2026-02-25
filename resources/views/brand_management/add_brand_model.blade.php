@@ -12,6 +12,21 @@
         </div>
     @endif
 
+    {{-- Add New Category --}}
+    <div class="master-form-card mb-4">
+        <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i>Add New Category</h5>
+        <form action="{{ route('categories.store') }}" method="POST" class="row g-3 align-items-end" autocomplete="off">
+            @csrf
+            <div class="col-md-4">
+                <label class="form-label">Category Name</label>
+                <input type="text" name="category_name" class="form-control" placeholder="e.g. Laptop, Printer" required>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-circle me-1"></i>Add Category</button>
+            </div>
+        </form>
+    </div>
+
     {{-- Step 1: Select category — when selected, show details below --}}
     <div class="master-form-card mb-4">
         <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Select category</h5>
@@ -115,6 +130,9 @@
                             </div>
                         </div>
                         <div class="small">
+                            <strong>Category:</strong> <span class="badge bg-info">{{ optional($category)->category_name ?? 'N/A' }}</span>
+                        </div>
+                        <div class="small mt-1">
                             <strong>Models:</strong>
                             @if($brand->models->isEmpty())
                                 <span class="text-muted">None</span>

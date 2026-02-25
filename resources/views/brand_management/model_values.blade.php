@@ -65,10 +65,11 @@
     @endif
 
     @if($model && $selectedModelId)
+        @php $selectedCategory = $categories->firstWhere('id', $selectedCategoryId); @endphp
         {{-- Step 4: Add/edit model feature values — only shown when model selected --}}
         <div class="master-table-card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0" style="color: white;"><i class="bi bi-list-check me-2"></i>Set values for model &ldquo;{{ $model->model_number }}&rdquo; ({{ $model->brand->name ?? '' }})</h5>
+                <h5 class="mb-0" style="color: white;"><i class="bi bi-list-check me-2"></i>Set values for model &ldquo;{{ $model->model_number }}&rdquo; ({{ $model->brand->name ?? '' }}) — <span class="badge bg-info">{{ $selectedCategory->category_name ?? 'N/A' }}</span></h5>
             </div>
             <div class="card-body p-0">
                 <form action="{{ route('brand-models.update-feature-values', $model->id) }}" method="POST" autocomplete="off">

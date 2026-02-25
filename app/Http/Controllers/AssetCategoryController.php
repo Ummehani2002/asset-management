@@ -162,6 +162,11 @@ class AssetCategoryController extends Controller
                     ->withErrors(['error' => 'Failed to save category. Please try again.']);
             }
             
+            // If coming from brand-management page, redirect there with new category selected
+            if ($request->headers->get('referer') && str_contains($request->headers->get('referer'), 'brand-management')) {
+                return redirect()->route('brand-management.add-brand-model', ['category_id' => $category->id])
+                    ->with('success', 'Category "' . $category->category_name . '" added successfully!');
+            }
             return redirect()->back()->with('success', 'Category added successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;

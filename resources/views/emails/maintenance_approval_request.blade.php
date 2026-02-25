@@ -36,7 +36,7 @@
                 </tr>
                 <tr>
                     <td>Requested by</td>
-                    <td>{{ $approvalRequest->requestedByUser->name ?? 'User' }} ({{ $approvalRequest->requestedByUser->email ?? '' }})</td>
+                    <td>{{ $approvalRequest->requestedByUser->employee->name ?? $approvalRequest->requestedByUser->name ?? 'N/A' }} ({{ $approvalRequest->requestedByUser->email ?? '' }})</td>
                 </tr>
                 @if($approvalRequest->request_notes)
                 <tr>

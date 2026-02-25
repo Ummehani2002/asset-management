@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use App\Mail\AssetAssigned;
 use App\Mail\MaintenanceApprovalRequestMail;
+use App\Mail\MaintenanceApprovedNotificationMail;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Schema;
@@ -1286,11 +1287,22 @@ class AssetTransactionController extends Controller
         if (!$request->hasValidSignature()) {
             return redirect()->route('login')->with('error', 'This link is invalid or has expired.');
         }
-        $req = MaintenanceApprovalRequest::with('asset.assetCategory')->findOrFail($id);
+        $req = MaintenanceApprovalRequest::with('asset.assetCategory', 'requestedByUser', 'assignedToEmployee')->findOrFail($id);
         if ($req->status !== 'pending') {
             return redirect()->route('login')->with('error', 'This request has already been processed.');
         }
         $req->update(['status' => 'approved', 'approved_at' => now()]);
+
+        // Send email notification to the requester
+        $approverName = $req->assignedToEmployee->name ?? 'Asset Manager';
+        if ($req->requestedByUser && $req->requestedByUser->email) {
+            try {
+                Mail::to($req->requestedByUser->email)->send(new MaintenanceApprovedNotificationMail($req, $approverName));
+            } catch (\Exception $e) {
+                Log::warning('Failed to send maintenance approval notification email: ' . $e->getMessage());
+            }
+        }
+
         $assetLabel = $req->asset ? ($req->asset->serial_number . ' (' . ($req->asset->asset_id ?? '') . ')') : 'Asset';
         return redirect()->route('asset-transactions.maintenance')
             ->with('success', 'Request approved. The person who requested can now open System Maintenance, select asset ' . $assetLabel . ', and fill the maintenance form.');
@@ -1328,6 +1340,16 @@ class AssetTransactionController extends Controller
         }
 
         $req->update(['status' => 'approved', 'approved_at' => now()]);
+
+        // Send email notification to the requester
+        $approverName = $req->assignedToEmployee->name ?? $user->name ?? 'Asset Manager';
+        if ($req->requestedByUser && $req->requestedByUser->email) {
+            try {
+                Mail::to($req->requestedByUser->email)->send(new MaintenanceApprovedNotificationMail($req, $approverName));
+            } catch (\Exception $e) {
+                Log::warning('Failed to send maintenance approval notification email: ' . $e->getMessage());
+            }
+        }
 
         return redirect()->route('asset-transactions.maintenance')
             ->with('success', 'Request approved. The requester can now fill the maintenance details and submit. You can also go to "Send for Maintenance", select asset ' . ($req->asset->serial_number ?? $req->asset->asset_id ?? '') . ', and fill the details yourself.');
