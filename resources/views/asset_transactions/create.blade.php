@@ -590,9 +590,26 @@ document.addEventListener('DOMContentLoaded', function() {
             locationSelect.innerHTML = '<option value="">-- Select Entity first --</option>';
             return;
         }
-        fetch('/get-locations?entity=' + encodeURIComponent(entityName))
-            .then(function(r) { return r.json(); })
+        var url = '/asset-transactions/get-locations?entity=' + encodeURIComponent(entityName);
+        console.log('Fetching locations for entity:', entityName, '| URL:', url);
+        fetch(url, {
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(function(r) {
+                if (!r.ok) {
+                    throw new Error('HTTP ' + r.status);
+                }
+                return r.json();
+            })
             .then(function(locs) {
+                if (!locs || locs.length === 0) {
+                    locationSelect.innerHTML = '<option value="">No locations found for this entity</option>';
+                    return;
+                }
                 locationSelect.innerHTML = '<option value="">-- Select Location --</option>';
                 (locs || []).forEach(function(loc) {
                     var opt = document.createElement('option');
@@ -601,7 +618,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     locationSelect.appendChild(opt);
                 });
             })
-            .catch(function() {
+            .catch(function(err) {
+                console.error('Error loading locations:', err);
                 locationSelect.innerHTML = '<option value="">Error loading locations</option>';
             });
     }

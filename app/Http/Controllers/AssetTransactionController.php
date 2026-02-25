@@ -1433,12 +1433,20 @@ class AssetTransactionController extends Controller
 
     public function getLocations(Request $request)
     {
-        $query = Location::query();
-        if ($request->filled('entity')) {
-            $query->whereRaw('LOWER(location_entity) = ?', [strtolower(trim($request->entity))]);
+        try {
+            $query = Location::query();
+            $entityFilter = null;
+            if ($request->filled('entity')) {
+                $entityFilter = strtolower(trim($request->entity));
+                $query->whereRaw('LOWER(location_entity) = ?', [$entityFilter]);
+            }
+            $locations = $query->orderBy('location_name')->get(['id', 'location_name', 'location_entity', 'location_country']);
+            \Log::info('getLocations called', ['entity' => $entityFilter, 'count' => $locations->count()]);
+            return response()->json($locations);
+        } catch (\Exception $e) {
+            \Log::error('getLocations error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-        $locations = $query->orderBy('location_name')->get(['id', 'location_name', 'location_entity', 'location_country']);
-        return response()->json($locations);
     }
 
     public function getMaintenanceAssetsByCategory(Request $request, $categoryId)
