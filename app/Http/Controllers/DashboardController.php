@@ -67,6 +67,10 @@ class DashboardController extends Controller
                         'assets as available_count' => function ($q) use ($entityName) {
                             $q->whereIn('status', ['available', 'returned']);
                             $this->scopeAssetsByEntity($q, $entityName);
+                        },
+                        'assets as assigned_count' => function ($q) use ($entityName) {
+                            $q->where('status', 'assigned');
+                            $this->scopeAssetsByEntity($q, $entityName);
                         }
                     ])->get()
                     ->filter(fn ($c) => ($c->assets_count ?? 0) > 0)
@@ -76,6 +80,7 @@ class DashboardController extends Controller
                     $categoryCounts = AssetCategory::all()->map(function ($category) {
                         $category->assets_count = 0;
                         $category->available_count = 0;
+                        $category->assigned_count = 0;
                         return $category;
                     });
                 }

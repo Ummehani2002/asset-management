@@ -110,7 +110,10 @@
     </form>
 
     <div class="mt-4">
-        <h4>Latest Expense</h4>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <h4 class="mb-0">Recent Expenses</h4>
+            <a href="#" id="viewHistoryLink" class="btn btn-sm btn-outline-primary" style="display: none;"><i class="bi bi-clock-history me-1"></i>View history</a>
+        </div>
         <table class="table table-striped" id="expenses_table">
             <thead>
                 <tr>
@@ -170,10 +173,25 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => flashPlaceholder.innerHTML = '', 8000);
     }
 
+    const viewHistoryLink = document.getElementById('viewHistoryLink');
+    const historyBaseUrl = "{{ route('budget-expenses.history') }}";
+    function updateViewHistoryLink() {
+        const entity_id = entitySelect.value;
+        const cost_head = costHeadSelect.value;
+        const expense_type = expenseTypeSelect.value;
+        if (entity_id && cost_head && expense_type) {
+            viewHistoryLink.href = historyBaseUrl + '?entity_id=' + encodeURIComponent(entity_id) + '&cost_head=' + encodeURIComponent(cost_head) + '&expense_type=' + encodeURIComponent(expense_type);
+            viewHistoryLink.style.display = '';
+        } else {
+            viewHistoryLink.style.display = 'none';
+        }
+    }
+
     async function fetchDetails() {
         const entity_id = entitySelect.value;
         const cost_head = costHeadSelect.value;
         const expense_type = expenseTypeSelect.value;
+        updateViewHistoryLink();
 
         if (!entity_id || !cost_head || !expense_type) {
             entityBudgetId.value = '';
@@ -289,10 +307,12 @@ document.addEventListener('DOMContentLoaded', function() {
     expenseTypeSelect.addEventListener('change', function() {
         populateCostHeads();
         costHeadSelect.value = '';
+        updateViewHistoryLink();
         fetchDetails();
     });
     entitySelect.addEventListener('change', fetchDetails);
     costHeadSelect.addEventListener('change', fetchDetails);
+    updateViewHistoryLink();
     expenseAmount.addEventListener('input', updateBalance);
     isContractingCheck.addEventListener('change', updateBalance);
     updateVatPreview();

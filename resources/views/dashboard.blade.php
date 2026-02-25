@@ -46,6 +46,7 @@
                             <th>Category</th>
                             <th class="text-center">Total Assets</th>
                             <th class="text-center">Available</th>
+                            <th class="text-center">Assigned</th>
                             <th class="text-center">Action</th>
                         </tr>
                     </thead>
@@ -69,6 +70,12 @@
                                 </td>
 
                                 <td class="text-center">
+                                    <span class="badge bg-primary">
+                                        {{ $category->assigned_count ?? 0 }}
+                                    </span>
+                                </td>
+
+                                <td class="text-center">
                                     <a href="{{ route('assets.byCategory', $category->id) }}{{ isset($selectedEntityId) ? '?entity=' . $selectedEntityId : '' }}"
                                        class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i> View Assets
@@ -79,7 +86,7 @@
 
                         @if($categoryCounts->isEmpty())
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
+                                <td colspan="5" class="text-center text-muted py-4">
                                     No categories found
                                 </td>
                             </tr>

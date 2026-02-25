@@ -37,16 +37,18 @@ DB_DATABASE=...
 DB_USERNAME=...
 DB_PASSWORD=...
 
-# Mail (optional - for job delay alerts, notifications)
+# Mail (required for maintenance approval emails – see MAIL_PRODUCTION.md)
 MAIL_MAILER=smtp
-MAIL_HOST=...
+MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
-MAIL_USERNAME=...
-MAIL_PASSWORD=...
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD="your app password"
 MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=noreply@yourdomain.com
+MAIL_FROM_ADDRESS=your-email@gmail.com
 MAIL_FROM_NAME="${APP_NAME}"
 ```
+
+See **MAIL_PRODUCTION.md** for a full checklist and troubleshooting (Gmail App Password, testing, logs).
 
 **Important:** Create a new `APP_KEY` for this deployment:
 ```bash

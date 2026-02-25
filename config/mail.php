@@ -123,8 +123,8 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'haniumme698@gmail.com'),
-        'name' => env('MAIL_FROM_NAME', 'Asset Management'),
+        'address' => env('MAIL_FROM_ADDRESS', 'helpdesk@tanseeqinvestment.com'),
+        'name' => env('MAIL_FROM_NAME', 'Tanseeq Asset Management'),
     ],
 
 ];

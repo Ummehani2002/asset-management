@@ -28,35 +28,32 @@ class TestMailCommand extends Command
 
         $to = $this->option('to');
         if (!$to) {
-            if ($this->confirm('Send a test email? (You can check the From header in the received email or in the log)', true)) {
-                $to = $this->ask('Enter email address to send test to');
+            $this->line('Usage: php artisan mail:test --to=your@email.com');
+            $this->line('(Production: run in Console with your email to verify mail is sent.)');
+            if ($mailer === 'log') {
+                $this->warn('Current mailer is "log" - no real email is sent. Set MAIL_MAILER=smtp and MAIL_* in .env for production.');
             }
+            return 0;
         }
 
-        if ($to) {
-            try {
-                Mail::raw(
-                    "This is a test email from your application.\n\nSent at: " . now()->toDateTimeString() . "\nFrom: {$fromName} <{$fromAddress}>",
-                    function ($message) use ($to, $fromAddress, $fromName) {
-                        $message->to($to)
-                            ->subject('Test email - check From address');
-                    }
-                );
-                $this->info('Test email sent to: ' . $to);
-                if ($mailer === 'log') {
-                    $this->warn('Mailer is "log". Check storage/logs/laravel.log for the full message (search for "From:" to see the sender).');
-                } else {
-                    $this->info('Check your inbox (and spam). The From field should show: ' . $fromName . ' <' . $fromAddress . '>');
+        try {
+            Mail::raw(
+                "This is a test email from your application.\n\nSent at: " . now()->toDateTimeString() . "\nFrom: {$fromName} <{$fromAddress}>\n\nIf you receive this, production mail is working.",
+                function ($message) use ($to, $fromAddress, $fromName) {
+                    $message->to($to)
+                        ->subject('Test email - Asset Management');
                 }
-            } catch (\Throwable $e) {
-                $this->error('Failed to send: ' . $e->getMessage());
-                return 1;
-            }
-        } else {
-            $this->line('To test sending: php artisan mail:test --to=your@email.com');
+            );
+            $this->info('Test email sent to: ' . $to);
             if ($mailer === 'log') {
-                $this->warn('Current mailer is "log" - emails are written to storage/logs/laravel.log only.');
+                $this->warn('Mailer is "log". Check storage/logs/laravel.log for the message (no real email sent).');
+            } else {
+                $this->info('Check inbox and spam. From: ' . $fromName . ' <' . $fromAddress . '>');
             }
+        } catch (\Throwable $e) {
+            $this->error('Failed to send: ' . $e->getMessage());
+            $this->line('Fix MAIL_* in production Environment. See MAIL_PRODUCTION.md for checklist.');
+            return 1;
         }
 
         return 0;

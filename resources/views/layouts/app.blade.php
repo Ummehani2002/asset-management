@@ -941,8 +941,11 @@
     <span class="chevron">▾</span>
 </button>
 <div class="sidebar-dropdown-menu">
-    <a href="{{ route('categories.manage') }}">
-        <i class="bi bi-tags"></i> Brand Management
+    <a href="{{ route('brand-management.add-brand-model') }}" class="{{ request()->routeIs('brand-management.add-brand-model') ? 'active' : '' }}">
+        <i class="bi bi-plus-circle"></i> Add Brand & Model
+    </a>
+    <a href="{{ route('brand-management.model-values') }}" class="{{ request()->routeIs('brand-management.model-values') ? 'active' : '' }}">
+        <i class="bi bi-list-check"></i> Model Values
     </a>
     <a href="{{ route('assets.create') }}">
         <i class="bi bi-pc-display"></i> Asset Master
@@ -996,6 +999,9 @@
 <div class="sidebar-dropdown-menu">
     <a href="{{ route('entity_budget.create') }}">
         <i class="bi bi-plus-circle"></i> Entity Budget
+    </a>
+    <a href="{{ route('entity_budget.transaction-history') }}">
+        <i class="bi bi-journal-text"></i> Transaction History
     </a>
     <a href="{{ route('budget-expenses.create') }}">
         <i class="bi bi-cash-coin"></i> Budget Expenses

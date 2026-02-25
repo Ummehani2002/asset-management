@@ -87,6 +87,51 @@ class AssetCategoryController extends Controller
                 ->with('warning', 'Unable to load categories. Please ensure migrations are run: php artisan migrate --force');
         }
     }
+
+    /**
+     * Form 1: Add Brand & Model — select category, then add brand, models, and features.
+     */
+    public function addBrandModelPage(Request $request)
+    {
+        $categories = AssetCategory::orderBy('category_name')->get();
+        $selectedCategoryId = $request->filled('category_id') ? (int) $request->category_id : null;
+        $brands = collect([]);
+        if ($selectedCategoryId) {
+            $brands = Brand::where('asset_category_id', $selectedCategoryId)->with(['models', 'features'])->orderBy('name')->get();
+        }
+        return view('brand_management.add_brand_model', compact('categories', 'selectedCategoryId', 'brands'));
+    }
+
+    /**
+     * Form 2: Model Values — select category → brand → model, then add/edit model feature values. Blank until category selected.
+     */
+    public function modelValuesPage(Request $request)
+    {
+        $categories = AssetCategory::orderBy('category_name')->get();
+        $selectedCategoryId = $request->filled('category_id') ? (int) $request->category_id : null;
+        $selectedBrandId = $request->filled('brand_id') ? (int) $request->brand_id : null;
+        $selectedModelId = $request->filled('model_id') ? (int) $request->model_id : null;
+        $brands = collect([]);
+        $models = collect([]);
+        $model = null;
+        $features = collect([]);
+        $valuesByFeature = collect([]);
+        if ($selectedCategoryId) {
+            $brands = Brand::where('asset_category_id', $selectedCategoryId)->orderBy('name')->get();
+        }
+        if ($selectedBrandId) {
+            $models = BrandModel::where('brand_id', $selectedBrandId)->orderBy('model_number')->get();
+        }
+        if ($selectedModelId) {
+            $model = BrandModel::with(['brand.features', 'featureValues'])->find($selectedModelId);
+            if ($model) {
+                $features = $model->brand->features;
+                $valuesByFeature = $model->featureValues->keyBy('category_feature_id');
+            }
+        }
+        return view('brand_management.model_values', compact('categories', 'selectedCategoryId', 'selectedBrandId', 'selectedModelId', 'brands', 'models', 'model', 'features', 'valuesByFeature'));
+    }
+
     public function storeCategory(Request $request)
     {
         try {
@@ -374,6 +419,10 @@ private function exportCategoryExcel($category)
                 ['brand_model_id' => $model->id, 'category_feature_id' => $feature->id],
                 ['feature_value' => $value]
             );
+        }
+        if (request()->filled('return_to') && request('return_to') === 'model_values') {
+            $params = ['category_id' => request('category_id'), 'brand_id' => $model->brand_id, 'model_id' => $model->id];
+            return redirect()->route('brand-management.model-values', $params)->with('success', 'Model feature values saved.');
         }
         $params = ['set_values' => $model->id];
         if (request()->filled('category_id')) {

@@ -56,12 +56,33 @@
                             <th>Time</th>
                             <th>User</th>
                             <th>Action</th>
+                            <th>Created / Updated / Deleted</th>
                             <th>Description</th>
                             <th>URL / Method</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($logs as $log)
+                            @php
+                                $actionLabel = match(strtolower($log->action ?? '')) {
+                                    'create', 'store', 'add' => 'Created',
+                                    'update', 'patch' => 'Updated',
+                                    'delete', 'destroy' => 'Deleted',
+                                    'login' => 'Login',
+                                    'logout' => 'Logout',
+                                    'login_failed' => 'Login Failed',
+                                    default => ucfirst($log->action ?? '—'),
+                                };
+                                $actionBadge = match(strtolower($log->action ?? '')) {
+                                    'create', 'store', 'add' => 'bg-success',
+                                    'update', 'patch' => 'bg-primary',
+                                    'delete', 'destroy' => 'bg-danger',
+                                    'login' => 'bg-info',
+                                    'logout' => 'bg-secondary',
+                                    'login_failed' => 'bg-warning text-dark',
+                                    default => 'bg-secondary',
+                                };
+                            @endphp
                             <tr>
                                 <td class="text-nowrap">{{ $log->created_at->format('d-M-Y H:i:s') }}</td>
                                 <td>
@@ -73,6 +94,7 @@
                                     @endif
                                 </td>
                                 <td><span class="badge bg-secondary">{{ $log->action }}</span></td>
+                                <td><span class="badge {{ $actionBadge }}">{{ $actionLabel }}</span></td>
                                 <td>{{ Str::limit($log->description, 80) }}</td>
                                 <td>
                                     <small>{{ $log->method }} {{ Str::limit($log->url, 50) }}</small>
@@ -80,7 +102,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">No activity logs found.</td>
+                                <td colspan="6" class="text-center text-muted py-4">No activity logs found.</td>
                             </tr>
                         @endforelse
                     </tbody>

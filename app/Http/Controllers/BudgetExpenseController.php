@@ -331,12 +331,12 @@ class BudgetExpenseController extends Controller
             $yearColumn = 'budget_' . $currentYear;
             $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
 
-            // Get only the latest expense (single record)
+            // Get recent expenses (most recent first)
             $expensesQuery = BudgetExpense::where('entity_budget_id', $budget->id);
             if ($request->filled('cost_head')) {
                 $expensesQuery->whereRaw('LOWER(cost_head) = LOWER(?)', [$request->cost_head]);
             }
-            $expenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->limit(1)->get();
+            $expenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->limit(100)->get();
 
             // Total for this filter (this cost head only when cost_head selected)
             $totalExpensesFiltered = $expenses->sum('expense_amount');
@@ -383,6 +383,71 @@ class BudgetExpenseController extends Controller
                 'message' => 'Error retrieving budget details: ' . $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Full expense history for selected entity + cost head + expense type (all expenses, no limit).
+     */
+    public function expenseHistory(Request $request)
+    {
+        $entities = collect([]);
+        if (Schema::hasTable('employees')) {
+            $uniqueEntityNames = Employee::whereNotNull('entity_name')->where('entity_name', '!=', '')->distinct()->pluck('entity_name')->toArray();
+            $entities = collect($uniqueEntityNames)->map(fn ($n) => Employee::where('entity_name', $n)->first())->filter()->values();
+        }
+        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
+        $costHeadsWithTypes = \App\Http\Controllers\EntityBudgetController::getCostHeadsList();
+        $costHeadsByType = collect($costHeadsWithTypes)->groupBy('expense_type')->map(fn ($g) => $g->pluck('name')->toArray())->toArray();
+
+        $expenses = collect([]);
+        $entityName = null;
+        $costHead = null;
+        $expenseType = null;
+        $budgetAmount = 0;
+        $totalExpensesAll = 0;
+
+        if ($request->filled('entity_id') && $request->filled('cost_head') && $request->filled('expense_type')) {
+            $selectedEmployee = Employee::find($request->entity_id);
+            if ($selectedEmployee) {
+                $employeeIds = Employee::where('entity_name', $selectedEmployee->entity_name)->pluck('id')->toArray();
+                $budget = EntityBudget::with('employee')
+                    ->whereIn('employee_id', $employeeIds)
+                    ->where('expense_type', $request->expense_type)
+                    ->orderByRaw('CASE WHEN cost_head IS NULL THEN 0 ELSE 1 END')
+                    ->first();
+                if ($budget) {
+                    $entityName = $budget->employee->entity_name ?? 'N/A';
+                    $costHead = $request->cost_head;
+                    $expenseType = $budget->expense_type;
+                    $currentYear = (int) date('Y');
+                    $yearColumn = 'budget_' . $currentYear;
+                    $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
+                    $expensesQuery = BudgetExpense::where('entity_budget_id', $budget->id)
+                        ->whereRaw('LOWER(cost_head) = LOWER(?)', [$request->cost_head]);
+                    $allExpenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->get();
+                    $totalExpensesAll = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
+                    $entityName = $budget->employee->entity_name ?? 'N/A';
+                    $costHeadLabel = ucfirst($request->cost_head);
+                    $expenses = $allExpenses->map(function ($expense) use ($budget, $budgetAmount, $entityName, $costHeadLabel) {
+                        $balanceAfter = $budgetAmount - BudgetExpense::where('entity_budget_id', $budget->id)
+                            ->where('created_at', '<=', $expense->created_at)
+                            ->sum('expense_amount');
+                        return [
+                            'id' => $expense->id,
+                            'expense_date' => date('Y-m-d', strtotime($expense->expense_date)),
+                            'expense_amount' => number_format($expense->expense_amount, 2),
+                            'description' => $expense->description ?: '-',
+                            'entity_name' => $entityName,
+                            'cost_head' => $expense->cost_head ? ucfirst($expense->cost_head) : $costHeadLabel,
+                            'expense_type' => $budget->expense_type,
+                            'balance_after' => number_format($balanceAfter, 2),
+                        ];
+                    });
+                }
+            }
+        }
+
+        return view('budget_expenses.history', compact('entities', 'expenseTypes', 'costHeadsByType', 'expenses', 'entityName', 'costHead', 'expenseType', 'budgetAmount', 'totalExpensesAll'));
     }
 
     /**

@@ -52,6 +52,8 @@ Route::get('/db-check', [DatabaseCheckController::class, 'check'])->name('db.che
 
 use App\Http\Controllers\AssetCategoryController;
 Route::get('/manage-categories', [AssetCategoryController::class, 'index'])->name('categories.manage');
+Route::get('/brand-management/add-brand-model', [AssetCategoryController::class, 'addBrandModelPage'])->middleware('auth')->name('brand-management.add-brand-model');
+Route::get('/brand-management/model-values', [AssetCategoryController::class, 'modelValuesPage'])->middleware('auth')->name('brand-management.model-values');
 Route::post('/categories', [AssetCategoryController::class, 'storeCategory'])->name('categories.store');
 Route::get('/categories', [AssetCategoryController::class, 'index'])->name('categories.index');
 
@@ -88,6 +90,7 @@ use App\Http\Controllers\CategoryFeatureController;
 // Features and Categories - Admin only for create/edit, all users can view
 Route::middleware(['auth'])->group(function () {
     Route::get('/brands/by-category/{categoryId}', [BrandController::class, 'getByCategory']);
+    Route::get('/models-by-brand/{brandId}', [BrandController::class, 'getModelsByBrand'])->name('brands.modelsByBrand');
     Route::get('/assets/category/{id}', [AssetController::class, 'assetsByCategory'])->name('assets.byCategory');
     Route::get('/api/assets/by-category/{id}', [AssetController::class, 'getAssetsByCategoryApi'])->name('api.assets.byCategory');
     Route::get('/api/assets/serial-numbers', [AssetController::class, 'getSerialNumbersApi'])->name('api.assets.serialNumbers');
@@ -219,6 +222,9 @@ Route::put('/asset-manager/{id}', [AssetManagerController::class, 'update'])->na
 
 use App\Http\Controllers\EntityBudgetController;
 Route::get('/entity-budget/create', [EntityBudgetController::class, 'create'])->name('entity_budget.create');
+Route::get('/entity-budget/transaction-history', [EntityBudgetController::class, 'transactionHistory'])->name('entity_budget.transaction-history');
+Route::get('/entity-budget/transaction-history/print', [EntityBudgetController::class, 'transactionHistoryPrint'])->name('entity_budget.transaction-history.print');
+Route::get('/entity-budget/transaction-history/download', [EntityBudgetController::class, 'transactionHistoryDownload'])->name('entity_budget.transaction-history.download');
 Route::get('/entity-budget/export', [EntityBudgetController::class, 'export'])->name('entity_budget.export');
 Route::post('/entity-budget/store', [EntityBudgetController::class, 'store'])->name('entity_budget.store');
 Route::get('/entity-budget/{id}/download-form', [EntityBudgetController::class, 'downloadForm'])->name('entity_budget.download-form');
@@ -226,6 +232,7 @@ Route::get('/entity-budget/{id}/print-form', [EntityBudgetController::class, 'pr
 
 use App\Http\Controllers\BudgetExpenseController;
 Route::get('/budget-expenses/create', [BudgetExpenseController::class, 'create'])->name('budget-expenses.create');
+Route::get('/budget-expenses/history', [BudgetExpenseController::class, 'expenseHistory'])->name('budget-expenses.history');
 Route::post('/budget-expenses/store', [BudgetExpenseController::class, 'store'])->name('budget-expenses.store');
 Route::get('/budget-expenses/get-details', [BudgetExpenseController::class, 'getBudgetDetails'])->name('budget-expenses.get-details');
 Route::get('/budget-expenses/{id}/edit', [BudgetExpenseController::class, 'edit'])->name('budget-expenses.edit');

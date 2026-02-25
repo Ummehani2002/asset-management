@@ -34,10 +34,16 @@ public function index()
                 ->with('warning', 'Unable to load brands. Please ensure migrations are run: php artisan migrate --force');
         }
     }
-       public function getByCategory($categoryId)
+    public function getByCategory($categoryId)
     {
         $brands = Brand::where('asset_category_id', $categoryId)->get();
         return response()->json($brands);
+    }
+
+    public function getModelsByBrand($brandId)
+    {
+        $models = \App\Models\BrandModel::where('brand_id', $brandId)->get(['id', 'brand_id', 'model_number']);
+        return response()->json($models);
     }
     public function edit($id)
 {

@@ -1,0 +1,149 @@
+@extends('layouts.app')
+@section('content')
+<div class="container-fluid master-page">
+    <div class="page-header">
+        <h2><i class="bi bi-tags me-2"></i>Add Brand & Model</h2>
+    </div>
+
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    {{-- Step 1: Select category — when selected, show details below --}}
+    <div class="master-form-card mb-4">
+        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Select category</h5>
+        <div class="row align-items-end">
+            <div class="col-md-5">
+                <label for="view_category_id" class="form-label">Category</label>
+                <select id="view_category_id" class="form-select" onchange="window.location.href=this.options[this.selectedIndex].value">
+                    <option value="{{ route('brand-management.add-brand-model') }}">— Select category —</option>
+                    @foreach($categories as $cat)
+                        <option value="{{ route('brand-management.add-brand-model', ['category_id' => $cat->id]) }}" {{ $selectedCategoryId == $cat->id ? 'selected' : '' }}>{{ $cat->category_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @if($selectedCategoryId)
+                <div class="col-md-7">
+                    <p class="text-muted small mb-0">Adding brands, models and features for <strong>{{ $categories->firstWhere('id', $selectedCategoryId)->category_name ?? 'this category' }}</strong>.</p>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    @if($selectedCategoryId)
+        @php $category = $categories->firstWhere('id', $selectedCategoryId); @endphp
+        <div class="master-form-card mb-4">
+            <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i>Add brand to this category</h5>
+            <form action="{{ route('brands.store') }}" method="POST" class="d-flex flex-wrap gap-2 align-items-end" autocomplete="off">
+                @csrf
+                <input type="hidden" name="asset_category_id" value="{{ $selectedCategoryId }}">
+                <div>
+                    <label class="form-label small">Brand name</label>
+                    <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Lenovo" style="min-width: 180px;" required>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Brand</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="master-form-card mb-4">
+            <h5 class="mb-3"><i class="bi bi-cpu me-2"></i>Add model & features</h5>
+            <p class="text-muted small mb-3">Select a brand below, then add model numbers and features for that brand.</p>
+            @if($brands->isEmpty())
+                <p class="text-muted mb-0">No brands yet. Add a brand above first.</p>
+            @else
+                <form action="{{ route('brand-models.store') }}" method="POST" class="d-flex flex-wrap gap-2 align-items-end mb-3" autocomplete="off">
+                    @csrf
+                    <div>
+                        <label class="form-label small">Brand</label>
+                        <select name="brand_id" class="form-select form-select-sm" style="min-width: 160px;" required>
+                            @foreach($brands as $b)
+                                <option value="{{ $b->id }}">{{ $b->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small">Model number</label>
+                        <input type="text" name="model_number" class="form-control form-control-sm" placeholder="Model number" style="min-width: 140px;" required>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-info btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Model</button>
+                    </div>
+                </form>
+                <form action="{{ route('features.store') }}" method="POST" class="d-flex flex-wrap gap-2 align-items-end" autocomplete="off">
+                    @csrf
+                    <div>
+                        <label class="form-label small">Brand</label>
+                        <select name="brand_id" class="form-select form-select-sm" style="min-width: 160px;" required>
+                            @foreach($brands as $b)
+                                <option value="{{ $b->id }}">{{ $b->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small">Feature name</label>
+                        <input type="text" name="feature_name" class="form-control form-control-sm" placeholder="e.g. RAM, Processor" style="min-width: 160px;" required>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Feature</button>
+                    </div>
+                </form>
+            @endif
+        </div>
+
+        {{-- List of brands, models and features for this category --}}
+        <div class="master-table-card">
+            <div class="card-header">
+                <h5 class="mb-0" style="color: white;"><i class="bi bi-list-ul me-2"></i>{{ optional($category)->category_name ?? 'Category' }} — Brands, models & features</h5>
+            </div>
+            <div class="card-body">
+                @forelse($brands as $brand)
+                    <div class="border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                            <h6 class="mb-0">{{ $brand->name }}</h6>
+                            <div class="d-flex gap-1">
+                                <a href="{{ route('brands.edit', $brand->id) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i> Edit</a>
+                                <form action="{{ route('brands.destroy', $brand->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete brand {{ addslashes($brand->name) }}?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="small">
+                            <strong>Models:</strong>
+                            @if($brand->models->isEmpty())
+                                <span class="text-muted">None</span>
+                            @else
+                                @foreach($brand->models as $m)
+                                    <span class="badge bg-secondary me-1">{{ $m->model_number }}</span>
+                                @endforeach
+                            @endif
+                        </div>
+                        <div class="small mt-1">
+                            <strong>Features:</strong>
+                            @if($brand->features->isEmpty())
+                                <span class="text-muted">None</span>
+                            @else
+                                @foreach($brand->features as $f)
+                                    <span class="badge bg-light text-dark border me-1">{{ $f->feature_name }}</span>
+                                @endforeach
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-muted mb-0">No brands in this category yet. Add one above.</p>
+                @endforelse
+            </div>
+        </div>
+    @else
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>Select a category above to add brands, models and features.
+        </div>
+    @endif
+</div>
+@endsection

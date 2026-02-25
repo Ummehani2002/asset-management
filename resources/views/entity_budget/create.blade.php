@@ -25,35 +25,30 @@
         </div>
     @endif
 
-    {{-- Filter by Entity & Year (as before) --}}
+    {{-- Filter: Entity & Expense Type (All = show all) --}}
     <div class="master-form-card mb-4">
-        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Filter by Entity & Year</h5>
-        <form method="GET" action="{{ route('entity_budget.create') }}" id="filterForm" autocomplete="off">
-            <div class="row">
-                <div class="col-md-4">
-                    <label for="filter_entity_id" class="form-label">Select Entity</label>
-                    <select name="entity_id" id="filter_entity_id" class="form-control">
-                        <option value="">-- All Entities --</option>
-                        @foreach($entities as $entity)
-                            <option value="{{ $entity->id }}" {{ request('entity_id') == $entity->id ? 'selected' : '' }}>
-                                {{ $entity->entity_name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="year" class="form-label">Select Year</label>
-                    <select name="year" id="year" class="form-control">
-                        @foreach($availableYears as $year)
-                            <option value="{{ $year }}" {{ $selectedYear == $year ? 'selected' : '' }}>{{ $year }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-search me-1"></i>Apply Filter
-                    </button>
-                </div>
+        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>View budgets</h5>
+        <form method="GET" action="{{ route('entity_budget.create') }}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="filter_entity_id" class="form-label">Entity</label>
+                <select name="entity_id" id="filter_entity_id" class="form-select">
+                    <option value="">All Entities</option>
+                    @foreach($entities as $entity)
+                        <option value="{{ $entity->id }}" {{ request('entity_id') == $entity->id ? 'selected' : '' }}>{{ $entity->entity_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="filter_expense_type" class="form-label">Expense Type</label>
+                <select name="expense_type" id="filter_expense_type" class="form-select">
+                    <option value="">All</option>
+                    @foreach($expenseTypes as $type)
+                        <option value="{{ $type }}" {{ request('expense_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Apply</button>
             </div>
         </form>
     </div>
@@ -120,17 +115,18 @@
         </div>
     </form>
 
-    {{-- Budgets Table (as before) --}}
-    @if(request()->filled('entity_id') || $budgets->count() > 0)
+    {{-- Budgets Table --}}
+    @if(request()->filled('entity_id') || request()->filled('expense_type') || $budgets->count() > 0)
         <div class="master-table-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 style="color: white; margin: 0;">
                     <i class="bi bi-list-ul me-2"></i>Budgets
                     @if(request()->filled('entity_id'))
-                        @php
-                            $selectedEntity = $entities->firstWhere('id', request('entity_id'));
-                        @endphp
-                        - {{ $selectedEntity ? $selectedEntity->entity_name : 'Selected Entity' }}
+                        @php $selectedEntity = $entities->firstWhere('id', request('entity_id')); @endphp
+                        — {{ $selectedEntity ? $selectedEntity->entity_name : 'Entity' }}
+                    @endif
+                    @if(request()->filled('expense_type'))
+                        — {{ request('expense_type') }}
                     @endif
                     ({{ $budgets->count() }})
                 </h5>
@@ -141,10 +137,10 @@
                                 <i class="bi bi-download"></i> Download
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
-                                <li><a class="dropdown-item" href="{{ route('entity_budget.export', array_merge(request()->only(['entity_id', 'year']), ['format' => 'pdf'])) }}">
+                                <li><a class="dropdown-item" href="{{ route('entity_budget.export', array_merge(request()->only(['entity_id', 'expense_type']), ['year' => $selectedYear, 'format' => 'pdf'])) }}">
                                     <i class="bi bi-file-pdf me-2"></i>PDF
                                 </a></li>
-                                <li><a class="dropdown-item" href="{{ route('entity_budget.export', array_merge(request()->only(['entity_id', 'year']), ['format' => 'csv'])) }}">
+                                <li><a class="dropdown-item" href="{{ route('entity_budget.export', array_merge(request()->only(['entity_id', 'expense_type']), ['year' => $selectedYear, 'format' => 'csv'])) }}">
                                     <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
                                 </a></li>
                             </ul>
@@ -186,7 +182,7 @@
                             @empty
                             <tr>
                                 <td colspan="7" class="text-center text-muted py-4">
-                                    No budgets found. Select an entity to filter or add a new budget.
+                                    No budgets found. Try All Entities / All, or add a new budget above.
                                 </td>
                             </tr>
                             @endforelse
@@ -199,7 +195,7 @@
         <div class="alert alert-info text-center">
             <i class="bi bi-info-circle display-4 d-block mb-3"></i>
             <h4>No Budgets Found</h4>
-            <p class="mb-0">Select an entity and year above, then click Apply Filter to view budgets.</p>
+            <p class="mb-0">No budgets for {{ $selectedYear }}. Add a new budget above, or use <a href="{{ route('entity_budget.transaction-history') }}">Transaction History</a> to view expenses by entity and year.</p>
         </div>
     @endif
 </div>
