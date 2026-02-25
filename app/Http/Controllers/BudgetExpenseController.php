@@ -331,12 +331,12 @@ class BudgetExpenseController extends Controller
             $yearColumn = 'budget_' . $currentYear;
             $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
 
-            // Get recent expenses (most recent first)
+            // Get recent expenses (most recent first) - limit to 5 for quick view
             $expensesQuery = BudgetExpense::where('entity_budget_id', $budget->id);
             if ($request->filled('cost_head')) {
                 $expensesQuery->whereRaw('LOWER(cost_head) = LOWER(?)', [$request->cost_head]);
             }
-            $expenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->limit(100)->get();
+            $expenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->limit(5)->get();
 
             // Total for this filter (this cost head only when cost_head selected)
             $totalExpensesFiltered = $expenses->sum('expense_amount');

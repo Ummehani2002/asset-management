@@ -395,29 +395,50 @@ class EntityBudgetController extends Controller
             $uniqueEntityNames = Employee::whereNotNull('entity_name')->where('entity_name', '!=', '')->distinct()->pluck('entity_name')->toArray();
             $entities = collect($uniqueEntityNames)->map(fn ($n) => Employee::where('entity_name', $n)->first())->filter()->values();
         }
+        
+        // Get expense types for filter
+        $expenseTypes = ['Maintenance', 'Capex'];
+        
         $currentYear = (int) date('Y');
         $availableYears = array_reverse(range($currentYear - 5, $currentYear + 2));
         $selectedEntityId = $request->filled('entity_id') ? (int) $request->entity_id : null;
+        $selectedExpenseType = $request->filled('expense_type') ? $request->expense_type : null;
         $selectedYear = $request->filled('year') ? (int) $request->year : $currentYear;
         $expenseRows = collect([]);
         $entityName = null;
 
+        // Build query based on filters
+        $budgetIds = [];
+        
         if ($selectedEntityId) {
+            // Filter by specific entity
             $selectedEmployee = Employee::find($selectedEntityId);
             if ($selectedEmployee) {
                 $entityName = $selectedEmployee->entity_name;
                 $employeeIds = Employee::where('entity_name', $entityName)->pluck('id')->toArray();
-                $budgetIds = EntityBudget::whereIn('employee_id', $employeeIds)->pluck('id')->toArray();
-                if (!empty($budgetIds)) {
-                    $query = BudgetExpense::with('entityBudget.employee')
-                        ->whereIn('entity_budget_id', $budgetIds)
-                        ->whereYear('expense_date', $selectedYear);
-                    $expenseRows = $this->buildTransactionHistoryRows($query, $selectedYear);
+                $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
+                if ($selectedExpenseType) {
+                    $budgetQuery->where('expense_type', $selectedExpenseType);
                 }
+                $budgetIds = $budgetQuery->pluck('id')->toArray();
             }
+        } else {
+            // All entities - get all budget IDs (optionally filtered by expense type)
+            $budgetQuery = EntityBudget::query();
+            if ($selectedExpenseType) {
+                $budgetQuery->where('expense_type', $selectedExpenseType);
+            }
+            $budgetIds = $budgetQuery->pluck('id')->toArray();
         }
 
-        return view('entity_budget.transaction_history', compact('entities', 'availableYears', 'selectedEntityId', 'selectedYear', 'expenseRows', 'entityName'));
+        if (!empty($budgetIds)) {
+            $query = BudgetExpense::with('entityBudget.employee')
+                ->whereIn('entity_budget_id', $budgetIds)
+                ->whereYear('expense_date', $selectedYear);
+            $expenseRows = $this->buildTransactionHistoryRows($query, $selectedYear);
+        }
+
+        return view('entity_budget.transaction_history', compact('entities', 'expenseTypes', 'availableYears', 'selectedEntityId', 'selectedYear', 'expenseRows', 'entityName'));
     }
 
     /**
@@ -426,25 +447,40 @@ class EntityBudgetController extends Controller
     public function transactionHistoryPrint(Request $request)
     {
         $entityId = $request->get('entity_id');
+        $expenseType = $request->get('expense_type');
         $year = (int) $request->get('year', date('Y'));
-        if (!$entityId) {
-            return redirect()->route('entity_budget.transaction-history')->with('error', 'Select entity and year.');
-        }
-        $entityName = 'Unknown';
+        
+        $entityName = $entityId ? 'Unknown' : 'All Entities';
         $expenseRows = collect([]);
-        $selectedEmployee = Employee::find($entityId);
-        if ($selectedEmployee) {
-            $entityName = $selectedEmployee->entity_name;
-            $employeeIds = Employee::where('entity_name', $entityName)->pluck('id')->toArray();
-            $budgetIds = EntityBudget::whereIn('employee_id', $employeeIds)->pluck('id')->toArray();
-            if (!empty($budgetIds)) {
-                $query = BudgetExpense::with('entityBudget.employee')
-                    ->whereIn('entity_budget_id', $budgetIds)
-                    ->whereYear('expense_date', $year);
-                $expenseRows = $this->buildTransactionHistoryRows($query, $year);
+        $budgetIds = [];
+        
+        if ($entityId) {
+            $selectedEmployee = Employee::find($entityId);
+            if ($selectedEmployee) {
+                $entityName = $selectedEmployee->entity_name;
+                $employeeIds = Employee::where('entity_name', $entityName)->pluck('id')->toArray();
+                $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
+                if ($expenseType) {
+                    $budgetQuery->where('expense_type', $expenseType);
+                }
+                $budgetIds = $budgetQuery->pluck('id')->toArray();
             }
+        } else {
+            $budgetQuery = EntityBudget::query();
+            if ($expenseType) {
+                $budgetQuery->where('expense_type', $expenseType);
+            }
+            $budgetIds = $budgetQuery->pluck('id')->toArray();
         }
-        return response()->view('entity_budget.transaction_history_print', compact('expenseRows', 'entityName', 'year'));
+        
+        if (!empty($budgetIds)) {
+            $query = BudgetExpense::with('entityBudget.employee')
+                ->whereIn('entity_budget_id', $budgetIds)
+                ->whereYear('expense_date', $year);
+            $expenseRows = $this->buildTransactionHistoryRows($query, $year);
+        }
+        
+        return response()->view('entity_budget.transaction_history_print', compact('expenseRows', 'entityName', 'year', 'expenseType'));
     }
 
     /**
@@ -453,24 +489,38 @@ class EntityBudgetController extends Controller
     public function transactionHistoryDownload(Request $request)
     {
         $entityId = $request->get('entity_id');
+        $expenseType = $request->get('expense_type');
         $year = (int) $request->get('year', date('Y'));
         $format = $request->get('format', 'pdf');
-        if (!$entityId) {
-            return redirect()->route('entity_budget.transaction-history')->with('error', 'Select entity and year.');
-        }
-        $entityName = 'Unknown';
+        
+        $entityName = $entityId ? 'Unknown' : 'All-Entities';
         $expenseRows = collect([]);
-        $selectedEmployee = Employee::find($entityId);
-        if ($selectedEmployee) {
-            $entityName = $selectedEmployee->entity_name;
-            $employeeIds = Employee::where('entity_name', $entityName)->pluck('id')->toArray();
-            $budgetIds = EntityBudget::whereIn('employee_id', $employeeIds)->pluck('id')->toArray();
-            if (!empty($budgetIds)) {
-                $query = BudgetExpense::with('entityBudget.employee')
-                    ->whereIn('entity_budget_id', $budgetIds)
-                    ->whereYear('expense_date', $year);
-                $expenseRows = $this->buildTransactionHistoryRows($query, $year);
+        $budgetIds = [];
+        
+        if ($entityId) {
+            $selectedEmployee = Employee::find($entityId);
+            if ($selectedEmployee) {
+                $entityName = $selectedEmployee->entity_name;
+                $employeeIds = Employee::where('entity_name', $entityName)->pluck('id')->toArray();
+                $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
+                if ($expenseType) {
+                    $budgetQuery->where('expense_type', $expenseType);
+                }
+                $budgetIds = $budgetQuery->pluck('id')->toArray();
             }
+        } else {
+            $budgetQuery = EntityBudget::query();
+            if ($expenseType) {
+                $budgetQuery->where('expense_type', $expenseType);
+            }
+            $budgetIds = $budgetQuery->pluck('id')->toArray();
+        }
+        
+        if (!empty($budgetIds)) {
+            $query = BudgetExpense::with('entityBudget.employee')
+                ->whereIn('entity_budget_id', $budgetIds)
+                ->whereYear('expense_date', $year);
+            $expenseRows = $this->buildTransactionHistoryRows($query, $year);
         }
         $filename = 'transaction-history-' . preg_replace('/[^a-z0-9-]/i', '-', $entityName) . '-' . $year . '-' . date('Y-m-d');
         if ($format === 'csv') {

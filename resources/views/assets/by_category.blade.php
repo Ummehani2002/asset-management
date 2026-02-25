@@ -42,6 +42,7 @@
                             <tr>
                                 <th>#</th>
                                 <th>Asset ID</th>
+                                <th>Entity</th>
                                 <th>Status</th>
                                 <th>Brand</th>
                                 <th>Purchase Date</th>
@@ -58,6 +59,7 @@
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td>{{ $asset->asset_id }}</td>
+                                    <td>{{ $asset->entity->name ?? ($asset->location->location_entity ?? 'N/A') }}</td>
                                     <td>
                                         @if($asset->status === 'assigned')
                                             <span class="badge bg-primary">Assigned</span>

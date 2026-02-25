@@ -10,6 +10,7 @@ class Asset extends Model
   protected $fillable = [
         'asset_id',
          'location_id',
+        'entity_id',
         'asset_category_id',
         'brand_id',
         'purchase_date',
@@ -45,6 +46,11 @@ class Asset extends Model
 {
     return $this->belongsTo(\App\Models\Location::class, 'location_id', 'id');
 }
+
+    public function entity()
+    {
+        return $this->belongsTo(\App\Models\Entity::class, 'entity_id');
+    }
 
     public function features()
 {

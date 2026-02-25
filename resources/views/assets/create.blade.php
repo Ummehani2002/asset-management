@@ -32,6 +32,18 @@
         @csrf
 
                <div class="mb-3">
+    <label>Entity <span class="text-danger">*</span></label>
+    <select name="entity_id" id="entity" class="form-control" required>
+        <option value="">-- Select Entity --</option>
+        @if(isset($entities))
+        @foreach($entities as $entity)
+            <option value="{{ $entity->id }}">{{ ucwords($entity->name) }}</option>
+        @endforeach
+        @endif
+    </select>
+</div>
+
+               <div class="mb-3">
     <label>Category</label>
     <select name="asset_category_id" id="category" class="form-control" required>
         <option value="" data-category-name="">-- Select Category --</option>

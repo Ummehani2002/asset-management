@@ -13,20 +13,31 @@
         </div>
     @endif
 
-    {{-- Filter: Entity + Year --}}
+    {{-- Filter: Entity + Expense Type + Year --}}
     <div class="master-form-card mb-4">
-        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Select Entity & Year</h5>
+        <h5 class="mb-3"><i class="bi bi-funnel me-2"></i>Filter Transactions</h5>
         <form method="GET" action="{{ route('entity_budget.transaction-history') }}" class="row g-3 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label for="entity_id" class="form-label">Entity</label>
-                <select name="entity_id" id="entity_id" class="form-select" required>
-                    <option value="">-- Select Entity --</option>
+                <select name="entity_id" id="entity_id" class="form-select">
+                    <option value="">All Entities</option>
                     @foreach($entities as $entity)
                         <option value="{{ $entity->id }}" {{ $selectedEntityId == $entity->id ? 'selected' : '' }}>{{ $entity->entity_name }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <label for="expense_type" class="form-label">Expense Type</label>
+                <select name="expense_type" id="expense_type" class="form-select">
+                    <option value="">All</option>
+                    @if(isset($expenseTypes))
+                        @foreach($expenseTypes as $type)
+                            <option value="{{ $type }}" {{ request('expense_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
+                        @endforeach
+                    @endif
+                </select>
+            </div>
+            <div class="col-md-3">
                 <label for="year" class="form-label">Year</label>
                 <select name="year" id="year" class="form-select">
                     @foreach($availableYears as $y)
@@ -34,17 +45,21 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Show List</button>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Apply</button>
             </div>
         </form>
     </div>
 
-    @if($selectedEntityId && $entityName !== null)
+    @if($expenseRows->count() > 0 || request()->hasAny(['entity_id', 'expense_type', 'year']))
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 no-print">
-            <h5 class="mb-0">{{ $entityName }} — {{ $selectedYear }} ({{ $expenseRows->count() }} expense(s))</h5>
+            <h5 class="mb-0">
+                @if($entityName){{ $entityName }}@else All Entities @endif
+                @if(request('expense_type')) — {{ request('expense_type') }}@endif
+                — {{ $selectedYear }} ({{ $expenseRows->count() }} expense(s))
+            </h5>
             <div class="d-flex gap-2">
-                <a href="{{ route('entity_budget.transaction-history.print', ['entity_id' => $selectedEntityId, 'year' => $selectedYear]) }}" target="_blank" class="btn btn-outline-primary">
+                <a href="{{ route('entity_budget.transaction-history.print', array_merge(request()->only(['entity_id', 'expense_type', 'year']))) }}" target="_blank" class="btn btn-outline-primary">
                     <i class="bi bi-printer me-1"></i>Print
                 </a>
                 <div class="dropdown">
@@ -52,8 +67,8 @@
                         <i class="bi bi-download me-1"></i>Download
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{{ route('entity_budget.transaction-history.download', ['entity_id' => $selectedEntityId, 'year' => $selectedYear, 'format' => 'pdf']) }}">PDF</a></li>
-                        <li><a class="dropdown-item" href="{{ route('entity_budget.transaction-history.download', ['entity_id' => $selectedEntityId, 'year' => $selectedYear, 'format' => 'csv']) }}">CSV</a></li>
+                        <li><a class="dropdown-item" href="{{ route('entity_budget.transaction-history.download', array_merge(request()->only(['entity_id', 'expense_type', 'year']), ['format' => 'pdf'])) }}">PDF</a></li>
+                        <li><a class="dropdown-item" href="{{ route('entity_budget.transaction-history.download', array_merge(request()->only(['entity_id', 'expense_type', 'year']), ['format' => 'csv'])) }}">CSV</a></li>
                     </ul>
                 </div>
             </div>

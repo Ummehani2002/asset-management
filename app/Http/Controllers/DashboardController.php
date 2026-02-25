@@ -11,15 +11,26 @@ use Illuminate\Support\Facades\Log;
 class DashboardController extends Controller
 {
     /**
-     * Scope assets query by entity (via location.location_entity = entity name).
+     * Scope assets query by entity (uses entity_id directly, or falls back to location.location_entity).
      */
-    private function scopeAssetsByEntity($query, $entityName)
+    private function scopeAssetsByEntity($query, $entityId, $entityName = null)
     {
-        if (empty($entityName)) {
+        if (empty($entityId) && empty($entityName)) {
             return $query;
         }
-        $locationIds = Location::where('location_entity', $entityName)->pluck('id');
-        return $query->whereIn('location_id', $locationIds);
+        
+        // Use entity_id directly if column exists, otherwise fall back to location-based lookup
+        if (Schema::hasColumn('assets', 'entity_id') && $entityId) {
+            return $query->where('entity_id', $entityId);
+        }
+        
+        // Fallback to location-based lookup for backward compatibility
+        if ($entityName) {
+            $locationIds = Location::where('location_entity', $entityName)->pluck('id');
+            return $query->whereIn('location_id', $locationIds);
+        }
+        
+        return $query;
     }
 
     public function index(Request $request)
@@ -45,11 +56,11 @@ class DashboardController extends Controller
 
             if (Schema::hasTable('assets')) {
                 $assetQuery = Asset::whereIn('status', $relevantStatuses);
-                $this->scopeAssetsByEntity($assetQuery, $entityName);
+                $this->scopeAssetsByEntity($assetQuery, $selectedEntityId, $entityName);
                 $totalAssets = $assetQuery->count();
 
                 $availQuery = Asset::whereIn('status', ['available', 'returned']);
-                $this->scopeAssetsByEntity($availQuery, $entityName);
+                $this->scopeAssetsByEntity($availQuery, $selectedEntityId, $entityName);
                 $availableAssets = $availQuery->count();
             }
 
@@ -60,17 +71,17 @@ class DashboardController extends Controller
             } else {
                 try {
                     $categoryCounts = AssetCategory::withCount([
-                        'assets as assets_count' => function ($q) use ($entityName) {
+                        'assets as assets_count' => function ($q) use ($selectedEntityId, $entityName) {
                             $q->whereIn('status', ['assigned', 'available', 'returned']);
-                            $this->scopeAssetsByEntity($q, $entityName);
+                            $this->scopeAssetsByEntity($q, $selectedEntityId, $entityName);
                         },
-                        'assets as available_count' => function ($q) use ($entityName) {
+                        'assets as available_count' => function ($q) use ($selectedEntityId, $entityName) {
                             $q->whereIn('status', ['available', 'returned']);
-                            $this->scopeAssetsByEntity($q, $entityName);
+                            $this->scopeAssetsByEntity($q, $selectedEntityId, $entityName);
                         },
-                        'assets as assigned_count' => function ($q) use ($entityName) {
+                        'assets as assigned_count' => function ($q) use ($selectedEntityId, $entityName) {
                             $q->where('status', 'assigned');
-                            $this->scopeAssetsByEntity($q, $entityName);
+                            $this->scopeAssetsByEntity($q, $selectedEntityId, $entityName);
                         }
                     ])->get()
                     ->filter(fn ($c) => ($c->assets_count ?? 0) > 0)

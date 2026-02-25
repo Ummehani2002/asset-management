@@ -121,7 +121,17 @@ public function create()
             }
         }
 
-        return view('assets.create', compact('autoAssetId', 'categories'))
+        // Get entities
+        $entities = collect([]);
+        if (Schema::hasTable('entities')) {
+            try {
+                $entities = \App\Models\Entity::orderBy('name')->get();
+            } catch (\Exception $e) {
+                Log::warning('Error loading entities: ' . $e->getMessage());
+            }
+        }
+
+        return view('assets.create', compact('autoAssetId', 'categories', 'entities'))
             ->with('warning', $hasAssetCategories ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
     } catch (\Exception $e) {
         Log::error('Asset create error: ' . $e->getMessage());
@@ -130,7 +140,8 @@ public function create()
         // Return with default values
         $autoAssetId = '';
         $categories = collect([]);
-        return view('assets.create', compact('autoAssetId', 'categories'))
+        $entities = collect([]);
+        return view('assets.create', compact('autoAssetId', 'categories', 'entities'))
             ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
     }
 }
@@ -302,15 +313,20 @@ public function autocompleteSerialNumber(Request $request)
    public function assetsByCategory(Request $request, $id)
 {
     $category = AssetCategory::findOrFail($id);
-    $query = Asset::with('category', 'brand', 'location')
+    $query = Asset::with('category', 'brand', 'location', 'entity')
                 ->where('asset_category_id', $id);
 
     $selectedEntity = null;
     if ($request->filled('entity') && Schema::hasTable('entities')) {
         $selectedEntity = \App\Models\Entity::find($request->entity);
-        if ($selectedEntity && Schema::hasTable('locations')) {
-            $locationIds = \App\Models\Location::where('location_entity', $selectedEntity->name)->pluck('id');
-            $query->whereIn('location_id', $locationIds);
+        if ($selectedEntity) {
+            // Filter by entity_id directly if column exists, otherwise fall back to location
+            if (Schema::hasColumn('assets', 'entity_id')) {
+                $query->where('entity_id', $selectedEntity->id);
+            } elseif (Schema::hasTable('locations')) {
+                $locationIds = \App\Models\Location::where('location_entity', $selectedEntity->name)->pluck('id');
+                $query->whereIn('location_id', $locationIds);
+            }
         }
     }
 
@@ -603,6 +619,7 @@ public function store(Request $request)
             'asset_id' => $request->asset_id,
             'asset_category_id' => $request->asset_category_id,
             'brand_id' => $request->brand_id,
+            'entity_id' => $request->entity_id,
             'purchase_date' => $request->purchase_date,
             'warranty_start' => $request->warranty_start,
             'warranty_years' => $request->warranty_years,
