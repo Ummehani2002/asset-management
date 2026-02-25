@@ -43,7 +43,7 @@
         </div>
 
         {{-- 2. Asset Category (after transaction type) --}}
-        <div class="mb-3" id="category_section" style="display:none;">
+        <div class="mb-3" id="category_section" style="{{ $isEdit ? 'display:block;' : 'display:none;' }}">
             <label for="asset_category_id">Asset Category <span class="text-danger">*</span></label>
             <select name="asset_category_id" id="asset_category_id" class="form-control" required>
                 <option value="">-- Select Category --</option>
@@ -60,7 +60,7 @@
         </div>
 
         {{-- 3. Asset (Serial Number) – type to search, dropdown of similar --}}
-        <div class="mb-3" id="asset_selection_section" style="display:none;">
+        <div class="mb-3" id="asset_selection_section" style="{{ $isEdit ? 'display:block;' : 'display:none;' }}">
             <label for="asset_search">Asset (Serial Number) <span class="text-danger">*</span></label>
             <div class="position-relative" id="asset_search_wrap">
                 <input type="text" id="asset_search" class="form-control" placeholder="Type serial number or asset ID..."
@@ -74,13 +74,18 @@
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}
-        <div class="mb-3" id="employee_section" style="display:none;">
+        @php
+            $editEmployeeId = old('employee_id', $transaction->employee_id ?? '');
+            $editEmployee = $editEmployeeId ? \App\Models\Employee::find($editEmployeeId) : null;
+            $editEmployeeDisplay = $editEmployee ? ($editEmployee->name . ' (' . $editEmployee->employee_id . ')') : old('employee_display', '');
+        @endphp
+        <div class="mb-3" id="employee_section" style="{{ ($isEdit && ($transaction->transaction_type ?? '') == 'assign') ? 'display:block;' : 'display:none;' }}">
             <label for="employee_search">Employee Name or ID <span class="text-danger" id="employee_required">*</span></label>
             <div class="position-relative" id="employee_search_wrap">
                 <input type="text" id="employee_search" class="form-control" placeholder="Type name or employee ID..."
-                       value="{{ old('employee_display') }}"
+                       value="{{ $editEmployeeDisplay }}"
                        autocomplete="off">
-                <input type="hidden" name="employee_id" id="employee_id" value="{{ old('employee_id', $transaction->employee_id ?? '') }}">
+                <input type="hidden" name="employee_id" id="employee_id" value="{{ $editEmployeeId }}">
                 <div id="employee_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" 
                      style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
             </div>
@@ -127,8 +132,19 @@
         </div>
 
         {{-- Entity & Location (for Assign - link location to entity) --}}
-        <input type="hidden" name="location_id" id="location_id" value="{{ old('location_id', $transaction->location_id ?? '') }}">
-        <div class="mb-3" id="entity_location_section" style="display:none;">
+        @php
+            $editLocationId = old('location_id', $transaction->location_id ?? '');
+            $editLocation = $editLocationId ? \App\Models\Location::find($editLocationId) : null;
+            $editEntityName = $editLocation ? $editLocation->location_entity : '';
+            // If no location, try to get entity from employee
+            if (!$editEntityName && isset($transaction) && $transaction->employee) {
+                $editEntityName = $transaction->employee->entity_name ?? '';
+            }
+        @endphp
+        <input type="hidden" name="location_id" id="location_id" value="{{ $editLocationId }}">
+        <input type="hidden" id="edit_entity_name" value="{{ $editEntityName }}">
+        <input type="hidden" id="edit_location_id" value="{{ $editLocationId }}">
+        <div class="mb-3" id="entity_location_section" style="{{ ($isEdit && ($transaction->transaction_type ?? '') == 'assign') ? 'display:block;' : 'display:none;' }}">
             <label class="form-label">Entity & Location <span class="text-muted">(for this assignment)</span></label>
             <div class="row">
                 <div class="col-md-6 mb-2">
@@ -136,7 +152,7 @@
                     <select id="assign_entity" class="form-control">
                         <option value="">-- Select Entity --</option>
                         @foreach($entities ?? [] as $ent)
-                            <option value="{{ $ent->name }}">{{ ucwords($ent->name) }}</option>
+                            <option value="{{ $ent->name }}" @if($editEntityName && strtolower($ent->name) == strtolower($editEntityName)) selected @endif>{{ ucwords($ent->name) }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -155,7 +171,7 @@
 
         {{-- Transaction Specific Fields --}}
         {{-- Assign Fields --}}
-        <div class="mb-3" id="assign_fields" style="display:none;">
+        <div class="mb-3" id="assign_fields" style="{{ ($isEdit && ($transaction->transaction_type ?? '') == 'assign') ? 'display:block;' : 'display:none;' }}">
             <label for="issue_date">Assigned Date <span class="text-danger">*</span></label>
             <input type="date" name="issue_date" id="issue_date" class="form-control" required
                    value="{{ old('issue_date', $transaction->issue_date ?? date('Y-m-d')) }}">
@@ -177,7 +193,7 @@
         </div>
 
         {{-- Return Fields --}}
-        <div class="mb-3" id="return_fields" style="display:none;">
+        <div class="mb-3" id="return_fields" style="{{ ($isEdit && ($transaction->transaction_type ?? '') == 'return') ? 'display:block;' : 'display:none;' }}">
             <label for="return_date">Return Date <span class="text-danger">*</span></label>
             <input type="date" name="return_date" id="return_date" class="form-control" required
                    value="{{ old('return_date', $transaction->return_date ?? date('Y-m-d')) }}">
@@ -578,14 +594,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function onAssignEntityChange() {
+    function onAssignEntityChange(selectLocationId) {
         var entity = document.getElementById('assign_entity');
         var locationSelect = document.getElementById('assign_location');
         var locationIdInput = document.getElementById('location_id');
         if (!entity || !locationSelect) return;
         var entityName = (entity.value || '').trim();
         locationSelect.innerHTML = '<option value="">Loading...</option>';
-        if (locationIdInput) locationIdInput.value = '';
+        if (!selectLocationId && locationIdInput) locationIdInput.value = '';
         if (!entityName) {
             locationSelect.innerHTML = '<option value="">-- Select Entity first --</option>';
             return;
@@ -615,8 +631,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     var opt = document.createElement('option');
                     opt.value = loc.id;
                     opt.textContent = (loc.location_name || '') + (loc.location_entity ? ' (' + loc.location_entity + ')' : '');
+                    if (selectLocationId && loc.id == selectLocationId) {
+                        opt.selected = true;
+                    }
                     locationSelect.appendChild(opt);
                 });
+                if (selectLocationId && locationIdInput) {
+                    locationIdInput.value = selectLocationId;
+                }
             })
             .catch(function(err) {
                 console.error('Error loading locations:', err);
@@ -884,6 +906,84 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Final test - make sure form can submit
+    // Edit mode: pre-fill entity and location, show sections
+    var editEntityNameInput = document.getElementById('edit_entity_name');
+    var editLocationIdInput = document.getElementById('edit_location_id');
+    var assignEntitySelect = document.getElementById('assign_entity');
+    var formEl = document.getElementById('transactionForm');
+    var preselect = formEl ? formEl.getAttribute('data-preselect-asset') : '';
+    console.log('Edit mode check - preselect:', preselect, 'transactionType:', transactionType.value);
+    if (preselect && transactionType.value) {
+        // This is edit mode - show relevant sections
+        categorySection.style.display = 'block';
+        assetSelectionSection.style.display = 'block';
+        if (transactionType.value === 'assign') {
+            assignFields.style.display = 'block';
+            var entityLocSection = document.getElementById('entity_location_section');
+            if (entityLocSection) entityLocSection.style.display = 'block';
+            employeeSection.style.display = 'block';
+            // Load locations for the pre-selected entity with a small delay
+            setTimeout(function() {
+                var entityVal = assignEntitySelect ? assignEntitySelect.value : '';
+                var locationToSelect = editLocationIdInput ? editLocationIdInput.value : '';
+                console.log('Edit mode: Loading locations for entity:', entityVal, 'selecting location:', locationToSelect);
+                if (entityVal) {
+                    loadLocationsForEdit(entityVal, locationToSelect);
+                }
+            }, 100);
+        } else if (transactionType.value === 'return') {
+            returnFields.style.display = 'block';
+        }
+    }
+    
+    // Separate function for edit mode location loading
+    function loadLocationsForEdit(entityName, selectLocationId) {
+        var locationSelect = document.getElementById('assign_location');
+        var locationIdInput = document.getElementById('location_id');
+        if (!locationSelect) return;
+        
+        locationSelect.innerHTML = '<option value="">Loading...</option>';
+        var url = '/asset-transactions/get-locations?entity=' + encodeURIComponent(entityName);
+        console.log('loadLocationsForEdit - URL:', url);
+        
+        fetch(url, {
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function(r) {
+            console.log('loadLocationsForEdit - Response status:', r.status);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(locs) {
+            console.log('loadLocationsForEdit - Locations received:', locs);
+            if (!locs || locs.length === 0) {
+                locationSelect.innerHTML = '<option value="">No locations found</option>';
+                return;
+            }
+            locationSelect.innerHTML = '<option value="">-- Select Location --</option>';
+            locs.forEach(function(loc) {
+                var opt = document.createElement('option');
+                opt.value = loc.id;
+                opt.textContent = (loc.location_name || '') + (loc.location_entity ? ' (' + loc.location_entity + ')' : '');
+                if (selectLocationId && loc.id == selectLocationId) {
+                    opt.selected = true;
+                }
+                locationSelect.appendChild(opt);
+            });
+            if (selectLocationId && locationIdInput) {
+                locationIdInput.value = selectLocationId;
+            }
+        })
+        .catch(function(err) {
+            console.error('loadLocationsForEdit - Error:', err);
+            locationSelect.innerHTML = '<option value="">Error loading locations</option>';
+        });
+    }
+
     console.log('=== FORM SETUP COMPLETE ===');
     console.log('Form found:', !!form);
     console.log('Submit button found:', !!submitBtn);
