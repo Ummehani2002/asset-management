@@ -258,7 +258,7 @@ class IssueNoteController extends Controller
             ->with('location')
             ->latest('issue_date')
             ->first();
-        
+
         $location = 'N/A';
         if ($latestTransaction && $latestTransaction->location) {
             $loc = $latestTransaction->location;
@@ -270,6 +270,22 @@ class IssueNoteController extends Controller
                 $location = $locName;
             } elseif ($locEntity) {
                 $location = $locEntity;
+            }
+        }
+        
+        // If no location from transaction, try to get from locations table based on employee's entity
+        if ($location === 'N/A' && $employee->entity_name) {
+            $entityLocation = \App\Models\Location::where('location_entity', $employee->entity_name)->first();
+            if ($entityLocation) {
+                $locName = trim($entityLocation->location_name ?? '');
+                $locEntity = trim($entityLocation->location_entity ?? '');
+                if ($locName && $locEntity) {
+                    $location = $locName . ' (' . $locEntity . ')';
+                } elseif ($locName) {
+                    $location = $locName;
+                } elseif ($locEntity) {
+                    $location = $locEntity;
+                }
             }
         }
 
