@@ -265,6 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentCategory = '';
     let currentAssignmentType = 'employee'; // 'employee' or 'project' – from category dropdown
     let assetDetails = null;
+    const isEditMode = {{ $isEdit ? 'true' : 'false' }};
 
     // Employee autocomplete - type ID or name to search
     const employeeSearch = document.getElementById('employee_search');
@@ -565,10 +566,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show fields based on category
         if (categoryLower === 'laptop' && txType === 'assign') {
-            // No auto-fill: user types and selects from dropdown
-            document.getElementById('employee_id').value = '';
-            if (employeeSearch) employeeSearch.value = '';
-            employeeAutoFillInfo.textContent = 'Type letters to search and select an employee from the dropdown';
+            // No auto-fill: user types and selects from dropdown (but don't clear in edit mode)
+            if (!isEditMode) {
+                document.getElementById('employee_id').value = '';
+                if (employeeSearch) employeeSearch.value = '';
+            }
+            employeeAutoFillInfo.textContent = isEditMode ? 'Employee cannot be changed during edit.' : 'Type letters to search and select an employee from the dropdown';
             employeeAutoFillInfo.className = 'text-muted';
         } else if (categoryLower === 'printer') {
             if (data.current_project_name && txType === 'assign') {
