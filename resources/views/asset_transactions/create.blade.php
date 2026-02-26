@@ -34,18 +34,20 @@
         {{-- 1. Transaction Type (first) --}}
         <div class="mb-3" id="transaction_type_section">
             <label for="transaction_type">Transaction Type <span class="text-danger">*</span></label>
-            <select name="transaction_type" id="transaction_type" class="form-control" required>
+            <select name="transaction_type" id="transaction_type" class="form-control" required {{ $isEdit ? 'disabled' : '' }}>
                 <option value="">-- Select Transaction Type --</option>
                 <option value="assign" @if(old('transaction_type', $transaction->transaction_type ?? '') == 'assign') selected @endif>Assign</option>
                 <option value="return" @if(old('transaction_type', $transaction->transaction_type ?? '') == 'return') selected @endif>Return</option>
             </select>
-           
+            @if($isEdit)
+                <input type="hidden" name="transaction_type" value="{{ $transaction->transaction_type }}">
+            @endif
         </div>
 
         {{-- 2. Asset Category (after transaction type) --}}
         <div class="mb-3" id="category_section" style="{{ $isEdit ? 'display:block;' : 'display:none;' }}">
             <label for="asset_category_id">Asset Category <span class="text-danger">*</span></label>
-            <select name="asset_category_id" id="asset_category_id" class="form-control" required>
+            <select name="asset_category_id" id="asset_category_id" class="form-control" required {{ $isEdit ? 'disabled' : '' }}>
                 <option value="">-- Select Category --</option>
                 @php $categoriesUseProjectName = $categoriesUseProjectName ?? []; @endphp
                 @foreach($categories as $cat)
@@ -56,7 +58,9 @@
                     </option>
                 @endforeach
             </select>
-         
+            @if($isEdit)
+                <input type="hidden" name="asset_category_id" value="{{ $transaction->asset->asset_category_id ?? '' }}">
+            @endif
         </div>
 
         {{-- 3. Asset (Serial Number) – type to search, dropdown of similar --}}
@@ -65,12 +69,12 @@
             <div class="position-relative" id="asset_search_wrap">
                 <input type="text" id="asset_search" class="form-control" placeholder="Type serial number or asset ID..."
                        value="{{ $isEdit && $transaction->asset ? $transaction->asset->serial_number . ' (' . ($transaction->asset->asset_id ?? '') . ')' : '' }}"
-                       autocomplete="off">
+                       autocomplete="off" {{ $isEdit ? 'disabled' : '' }}>
                 <input type="hidden" name="asset_id" id="asset_id" value="{{ old('asset_id', $transaction->asset_id ?? $transaction->asset->id ?? '') }}" required>
                 <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded"
                      style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
             </div>
-            <small class="text-muted" id="asset_status_info">Type initial letters of serial number or asset ID to see matching assets.</small>
+            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type initial letters of serial number or asset ID to see matching assets.' }}</small>
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}
@@ -84,12 +88,12 @@
             <div class="position-relative" id="employee_search_wrap">
                 <input type="text" id="employee_search" class="form-control" placeholder="Type name or employee ID..."
                        value="{{ $editEmployeeDisplay }}"
-                       autocomplete="off">
+                       autocomplete="off" {{ $isEdit ? 'disabled' : '' }}>
                 <input type="hidden" name="employee_id" id="employee_id" value="{{ $editEmployeeId }}">
                 <div id="employee_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" 
                      style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
             </div>
-            <small class="text-muted" id="employee_auto_fill_info">Type initial letters of name or ID to search</small>
+            <small class="text-muted" id="employee_auto_fill_info">{{ $isEdit ? 'Employee cannot be changed during edit.' : 'Type initial letters of name or ID to search' }}</small>
         </div>
         
         {{-- Hidden employee_id field for return transactions (always included in form) --}}
@@ -174,7 +178,10 @@
         <div class="mb-3" id="assign_fields" style="{{ ($isEdit && ($transaction->transaction_type ?? '') == 'assign') ? 'display:block;' : 'display:none;' }}">
             <label for="issue_date">Assigned Date <span class="text-danger">*</span></label>
             <input type="date" name="issue_date" id="issue_date" class="form-control" required
-                   value="{{ old('issue_date', $transaction->issue_date ?? date('Y-m-d')) }}">
+                   value="{{ old('issue_date', $transaction->issue_date ?? date('Y-m-d')) }}" {{ $isEdit ? 'disabled' : '' }}>
+            @if($isEdit)
+                <input type="hidden" name="issue_date" value="{{ $transaction->issue_date ?? date('Y-m-d') }}">
+            @endif
             
             <div class="mb-3 mt-3">
                 <label for="assign_image" class="form-label">
@@ -196,7 +203,10 @@
         <div class="mb-3" id="return_fields" style="{{ ($isEdit && ($transaction->transaction_type ?? '') == 'return') ? 'display:block;' : 'display:none;' }}">
             <label for="return_date">Return Date <span class="text-danger">*</span></label>
             <input type="date" name="return_date" id="return_date" class="form-control" required
-                   value="{{ old('return_date', $transaction->return_date ?? date('Y-m-d')) }}">
+                   value="{{ old('return_date', $transaction->return_date ?? date('Y-m-d')) }}" {{ $isEdit ? 'disabled' : '' }}>
+            @if($isEdit)
+                <input type="hidden" name="return_date" value="{{ $transaction->return_date ?? date('Y-m-d') }}">
+            @endif
             
             <div class="mb-3 mt-3">
                 <label for="return_image" class="form-label">
