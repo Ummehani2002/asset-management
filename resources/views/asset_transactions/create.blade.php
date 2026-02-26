@@ -80,7 +80,13 @@
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}
         @php
             $editEmployeeId = old('employee_id', $transaction->employee_id ?? '');
-            $editEmployee = $editEmployeeId ? \App\Models\Employee::find($editEmployeeId) : null;
+            // Try to get employee from relationship first, then by ID lookup
+            $editEmployee = null;
+            if (isset($transaction) && $transaction->employee) {
+                $editEmployee = $transaction->employee;
+            } elseif ($editEmployeeId) {
+                $editEmployee = \App\Models\Employee::find($editEmployeeId);
+            }
             $editEmployeeDisplay = $editEmployee ? ($editEmployee->name . ' (' . $editEmployee->employee_id . ')') : old('employee_display', '');
         @endphp
         <div class="mb-3" id="employee_section" style="{{ ($isEdit && ($transaction->transaction_type ?? '') == 'assign') ? 'display:block;' : 'display:none;' }}">
