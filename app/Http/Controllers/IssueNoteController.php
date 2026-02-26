@@ -275,7 +275,8 @@ class IssueNoteController extends Controller
         
         // If no location from transaction, try to get from locations table based on employee's entity
         if ($location === 'N/A' && $employee->entity_name) {
-            $entityLocation = \App\Models\Location::where('location_entity', $employee->entity_name)->first();
+            // Try case-insensitive match for entity
+            $entityLocation = \App\Models\Location::whereRaw('LOWER(location_entity) = ?', [strtolower($employee->entity_name)])->first();
             if ($entityLocation) {
                 $locName = trim($entityLocation->location_name ?? '');
                 $locEntity = trim($entityLocation->location_entity ?? '');
@@ -286,6 +287,9 @@ class IssueNoteController extends Controller
                 } elseif ($locEntity) {
                     $location = $locEntity;
                 }
+            } else {
+                // If still no location found, just show the entity name as location
+                $location = $employee->entity_name . ' (No specific location)';
             }
         }
 
