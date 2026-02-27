@@ -102,6 +102,14 @@
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    // Check if jQuery is loaded
+    if (typeof jQuery === 'undefined') {
+        console.error('jQuery is NOT loaded!');
+        alert('Error: jQuery failed to load. Some features may not work.');
+    } else {
+        console.log('jQuery loaded successfully:', jQuery.fn.jquery);
+    }
+    
     // Store current filter params for download
     let currentFilterParams = { category_id: null, serial_number: null };
     let serialSearchTimeout;
@@ -149,8 +157,11 @@
     function loadFilteredAssets() {
         const categoryId = $('#filter_category').val();
         const serialNumber = $('#filter_serial').val().trim();
+        
+        console.log('loadFilteredAssets called', { categoryId, serialNumber });
 
         if (!categoryId && !serialNumber) {
+            console.log('No category or serial selected');
             $('#assets-section').hide();
             $('#downloadDropdown').hide();
             return;
@@ -161,7 +172,11 @@
         if (categoryId) params.append('category_id', categoryId);
         if (serialNumber) params.append('serial_number', serialNumber);
 
-        $.get(`/api/assets/filter?${params.toString()}`, function(assets) {
+        const url = `/api/assets/filter?${params.toString()}`;
+        console.log('Fetching:', url);
+        
+        $.get(url, function(assets) {
+            console.log('Assets received:', assets);
             let tableBody = $('#assetsTableBody');
             tableBody.empty();
 
@@ -235,14 +250,17 @@
                 $('#assets-section').show();
                 $('#downloadDropdown').hide();
             }
-        }).fail(function() {
+        }).fail(function(xhr, status, error) {
+            console.error('API Error:', status, error, xhr.responseText);
             $('#assets-section').hide();
             $('#downloadDropdown').hide();
+            alert('Error loading assets. Check console for details.');
         });
     }
 
     // Search on button click
     $('#btnSearch').on('click', function() {
+        console.log('Search button clicked');
         $('#serial_suggestions').hide();
         loadFilteredAssets();
     });
