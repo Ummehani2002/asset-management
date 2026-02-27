@@ -138,9 +138,7 @@
     @endif
 
     @if(!$selectedCategoryId)
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>Select a category above to choose brand and model, then add or edit model values.
-        </div>
+      
     @endif
 </div>
 <script>

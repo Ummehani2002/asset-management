@@ -159,9 +159,7 @@
             </div>
         </div>
     @else
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>Select a category above to add brands, models and features.
-        </div>
+      
     @endif
 </div>
 @endsection
