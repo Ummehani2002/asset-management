@@ -95,7 +95,16 @@
                                     </td>
                                     <td>
                                         @if($asset->invoice_path)
-                                            <a href="{{ Storage::disk(config('filesystems.default') === 's3' ? 's3' : 'public')->url($asset->invoice_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            @php
+                                                $disk = config('filesystems.default', 'public');
+                                                $hasS3 = !empty(config('filesystems.disks.s3.key')) && !empty(config('filesystems.disks.s3.bucket'));
+                                                if (($disk === 's3' || $disk === 'object-storage') && $hasS3) {
+                                                    $invoiceLink = Storage::disk($disk)->temporaryUrl($asset->invoice_path, now()->addMinutes(60));
+                                                } else {
+                                                    $invoiceLink = asset('storage/' . $asset->invoice_path);
+                                                }
+                                            @endphp
+                                            <a href="{{ $invoiceLink }}" target="_blank" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-file-earmark-pdf"></i> View
                                             </a>
                                         @else

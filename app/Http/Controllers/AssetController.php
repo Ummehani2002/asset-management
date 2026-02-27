@@ -375,7 +375,8 @@ public function filterAssetsApi(Request $request)
                     $hasS3Config = !empty(config('filesystems.disks.s3.key')) && !empty(config('filesystems.disks.s3.bucket'));
                     
                     if (($disk === 's3' || $disk === 'object-storage') && $hasS3Config) {
-                        $invoiceUrl = Storage::disk($disk)->url($asset->invoice_path);
+                        // Use temporary signed URL for private buckets (valid for 60 minutes)
+                        $invoiceUrl = Storage::disk($disk)->temporaryUrl($asset->invoice_path, now()->addMinutes(60));
                     } else {
                         $invoiceUrl = asset('storage/' . $asset->invoice_path);
                     }
@@ -434,7 +435,8 @@ public function getAssetsByCategoryApi($id)
                                 $hasS3Config = !empty(config('filesystems.disks.s3.key')) && !empty(config('filesystems.disks.s3.bucket'));
                                 
                                 if (($disk === 's3' || $disk === 'object-storage') && $hasS3Config) {
-                                    $invoiceUrl = Storage::disk($disk)->url($asset->invoice_path);
+                                    // Use temporary signed URL for private buckets (valid for 60 minutes)
+                                    $invoiceUrl = Storage::disk($disk)->temporaryUrl($asset->invoice_path, now()->addMinutes(60));
                                 } else {
                                     $invoiceUrl = asset('storage/' . $asset->invoice_path);
                                 }
