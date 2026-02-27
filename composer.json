@@ -13,7 +13,8 @@
         "barryvdh/laravel-dompdf": "^3.1",
         "innoge/laravel-msgraph-mail": "^1.4",
         "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "microsoft/microsoft-graph": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
