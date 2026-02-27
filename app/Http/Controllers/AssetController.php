@@ -350,74 +350,112 @@ public function getSerialNumbersApi(Request $request)
 
 public function filterAssetsApi(Request $request)
 {
-    $query = Asset::with(['category', 'brand', 'featureValues.feature']);
+    try {
+        $query = Asset::with(['category', 'brand', 'featureValues.feature']);
 
-    if ($request->filled('category_id')) {
-        $query->where('asset_category_id', $request->category_id);
-    }
-    if ($request->filled('serial_number')) {
-        $query->where('serial_number', 'LIKE', '%' . $request->serial_number . '%');
-    }
-
-    $assets = $query->get()->map(function($asset) {
-        $features = [];
-        foreach ($asset->featureValues as $fv) {
-            $featureName = $fv->feature->feature_name ?? 'N/A';
-            $featureValue = $fv->feature_value ?? 'N/A';
-            $features[] = $featureName . ': ' . $featureValue;
+        if ($request->filled('category_id')) {
+            $query->where('asset_category_id', $request->category_id);
         }
-        return [
-            'id' => $asset->id,
-            'asset_id' => $asset->asset_id ?? 'N/A',
-            'brand_name' => $asset->brand->name ?? 'N/A',
-            'purchase_date' => $asset->purchase_date ?? 'N/A',
-            'warranty_start' => $asset->warranty_start ?? 'N/A',
-            'expiry_date' => $asset->expiry_date ?? 'N/A',
-            'po_number' => $asset->po_number ?? 'N/A',
-            'vendor_name' => $asset->vendor_name ?? '-',
-            'value' => $asset->value ? number_format($asset->value, 2) : '-',
-            'serial_number' => $asset->serial_number ?? 'N/A',
-            'features' => $features,
-            'invoice_path' => $asset->invoice_path ?? null,
-            'invoice_url' => $asset->invoice_path ? Storage::disk(config('filesystems.default') === 's3' ? 's3' : 'public')->url($asset->invoice_path) : null,
-        ];
-    });
+        if ($request->filled('serial_number')) {
+            $query->where('serial_number', 'LIKE', '%' . $request->serial_number . '%');
+        }
 
-    return response()->json($assets);
+        $assets = $query->get()->map(function($asset) {
+            $features = [];
+            foreach ($asset->featureValues as $fv) {
+                $featureName = $fv->feature->feature_name ?? 'N/A';
+                $featureValue = $fv->feature_value ?? 'N/A';
+                $features[] = $featureName . ': ' . $featureValue;
+            }
+            
+            $invoiceUrl = null;
+            if ($asset->invoice_path) {
+                try {
+                    $disk = config('filesystems.default', 'public');
+                    if ($disk === 's3' || $disk === 'object-storage') {
+                        $invoiceUrl = Storage::disk($disk)->url($asset->invoice_path);
+                    } else {
+                        $invoiceUrl = asset('storage/' . $asset->invoice_path);
+                    }
+                } catch (\Exception $e) {
+                    $invoiceUrl = asset('storage/' . $asset->invoice_path);
+                }
+            }
+            
+            return [
+                'id' => $asset->id,
+                'asset_id' => $asset->asset_id ?? 'N/A',
+                'brand_name' => $asset->brand->name ?? 'N/A',
+                'purchase_date' => $asset->purchase_date ?? 'N/A',
+                'warranty_start' => $asset->warranty_start ?? 'N/A',
+                'expiry_date' => $asset->expiry_date ?? 'N/A',
+                'po_number' => $asset->po_number ?? 'N/A',
+                'vendor_name' => $asset->vendor_name ?? '-',
+                'value' => $asset->value ? number_format($asset->value, 2) : '-',
+                'serial_number' => $asset->serial_number ?? 'N/A',
+                'features' => $features,
+                'invoice_path' => $asset->invoice_path ?? null,
+                'invoice_url' => $invoiceUrl,
+            ];
+        });
+
+        return response()->json($assets);
+    } catch (\Exception $e) {
+        \Log::error('filterAssetsApi error: ' . $e->getMessage());
+        return response()->json(['error' => 'Failed to load assets', 'message' => $e->getMessage()], 500);
+    }
 }
 
 public function getAssetsByCategoryApi($id)
 {
-    $assets = Asset::with(['category', 'brand', 'featureValues.feature'])
-                ->where('asset_category_id', $id)
-                ->get()
-                ->map(function($asset) {
-                    // Format features
-                    $features = [];
-                    foreach ($asset->featureValues as $fv) {
-                        $featureName = $fv->feature->feature_name ?? 'N/A';
-                        $featureValue = $fv->feature_value ?? 'N/A';
-                        $features[] = $featureName . ': ' . $featureValue;
-                    }
-                    
-                    return [
-                        'id' => $asset->id,
-                        'asset_id' => $asset->asset_id ?? 'N/A',
-                        'brand_name' => $asset->brand->name ?? 'N/A',
-                        'purchase_date' => $asset->purchase_date ?? 'N/A',
-                        'warranty_start' => $asset->warranty_start ?? 'N/A',
-                        'expiry_date' => $asset->expiry_date ?? 'N/A',
-                        'po_number' => $asset->po_number ?? 'N/A',
-                        'vendor_name' => $asset->vendor_name ?? '-',
-                        'value' => $asset->value ? number_format($asset->value, 2) : '-',
-                        'serial_number' => $asset->serial_number ?? 'N/A',
-                        'features' => $features,
-                        'invoice_path' => $asset->invoice_path ?? null,
-                        'invoice_url' => $asset->invoice_path ? Storage::disk(config('filesystems.default') === 's3' ? 's3' : 'public')->url($asset->invoice_path) : null,
-                    ];
-                });
+    try {
+        $assets = Asset::with(['category', 'brand', 'featureValues.feature'])
+                    ->where('asset_category_id', $id)
+                    ->get()
+                    ->map(function($asset) {
+                        $features = [];
+                        foreach ($asset->featureValues as $fv) {
+                            $featureName = $fv->feature->feature_name ?? 'N/A';
+                            $featureValue = $fv->feature_value ?? 'N/A';
+                            $features[] = $featureName . ': ' . $featureValue;
+                        }
+                        
+                        $invoiceUrl = null;
+                        if ($asset->invoice_path) {
+                            try {
+                                $disk = config('filesystems.default', 'public');
+                                if ($disk === 's3' || $disk === 'object-storage') {
+                                    $invoiceUrl = Storage::disk($disk)->url($asset->invoice_path);
+                                } else {
+                                    $invoiceUrl = asset('storage/' . $asset->invoice_path);
+                                }
+                            } catch (\Exception $e) {
+                                $invoiceUrl = asset('storage/' . $asset->invoice_path);
+                            }
+                        }
+                        
+                        return [
+                            'id' => $asset->id,
+                            'asset_id' => $asset->asset_id ?? 'N/A',
+                            'brand_name' => $asset->brand->name ?? 'N/A',
+                            'purchase_date' => $asset->purchase_date ?? 'N/A',
+                            'warranty_start' => $asset->warranty_start ?? 'N/A',
+                            'expiry_date' => $asset->expiry_date ?? 'N/A',
+                            'po_number' => $asset->po_number ?? 'N/A',
+                            'vendor_name' => $asset->vendor_name ?? '-',
+                            'value' => $asset->value ? number_format($asset->value, 2) : '-',
+                            'serial_number' => $asset->serial_number ?? 'N/A',
+                            'features' => $features,
+                            'invoice_path' => $asset->invoice_path ?? null,
+                            'invoice_url' => $invoiceUrl,
+                        ];
+                    });
 
-    return response()->json($assets);
+        return response()->json($assets);
+    } catch (\Exception $e) {
+        \Log::error('getAssetsByCategoryApi error: ' . $e->getMessage());
+        return response()->json(['error' => 'Failed to load assets', 'message' => $e->getMessage()], 500);
+    }
 }
 
 public function exportByCategory($id, Request $request)
