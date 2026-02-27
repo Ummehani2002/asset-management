@@ -67,46 +67,72 @@
 
         <div class="master-form-card mb-4">
             <h5 class="mb-3"><i class="bi bi-cpu me-2"></i>Add model & features</h5>
-            <p class="text-muted small mb-3">Select a brand below, then add model numbers and features for that brand.</p>
             @if($brands->isEmpty())
                 <p class="text-muted mb-0">No brands yet. Add a brand above first.</p>
             @else
-                <form action="{{ route('brand-models.store') }}" method="POST" class="d-flex flex-wrap gap-2 align-items-end mb-3" autocomplete="off">
-                    @csrf
-                    <div>
-                        <label class="form-label small">Brand</label>
-                        <select name="brand_id" class="form-select form-select-sm" style="min-width: 160px;" required>
+                {{-- Single Brand Selector --}}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Select Brand</label>
+                        <select id="selected_brand" class="form-select" required>
+                            <option value="">-- Select Brand --</option>
                             @foreach($brands as $b)
                                 <option value="{{ $b->id }}">{{ $b->name }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label class="form-label small">Model number</label>
-                        <input type="text" name="model_number" class="form-control form-control-sm" placeholder="Model number" style="min-width: 140px;" required>
+                </div>
+                
+                {{-- Model and Feature inputs in a row --}}
+                <div class="row g-3" id="model_feature_section" style="display: none;">
+                    {{-- Add Model --}}
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <label class="form-label fw-bold"><i class="bi bi-collection me-1"></i>Add Model</label>
+                            <form action="{{ route('brand-models.store') }}" method="POST" class="d-flex gap-2 align-items-end" autocomplete="off">
+                                @csrf
+                                <input type="hidden" name="brand_id" id="model_brand_id">
+                                <div class="flex-grow-1">
+                                    <input type="text" name="model_number" class="form-control form-control-sm" placeholder="Model number" required>
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn btn-info btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Model</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                    <div>
-                        <button type="submit" class="btn btn-info btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Model</button>
+                    
+                    {{-- Add Feature --}}
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <label class="form-label fw-bold"><i class="bi bi-gear me-1"></i>Add Feature</label>
+                            <form action="{{ route('features.store') }}" method="POST" class="d-flex gap-2 align-items-end" autocomplete="off">
+                                @csrf
+                                <input type="hidden" name="brand_id" id="feature_brand_id">
+                                <div class="flex-grow-1">
+                                    <input type="text" name="feature_name" class="form-control form-control-sm" placeholder="e.g. RAM, Processor" required>
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Feature</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </form>
-                <form action="{{ route('features.store') }}" method="POST" class="d-flex flex-wrap gap-2 align-items-end" autocomplete="off">
-                    @csrf
-                    <div>
-                        <label class="form-label small">Brand</label>
-                        <select name="brand_id" class="form-select form-select-sm" style="min-width: 160px;" required>
-                            @foreach($brands as $b)
-                                <option value="{{ $b->id }}">{{ $b->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label small">Feature name</label>
-                        <input type="text" name="feature_name" class="form-control form-control-sm" placeholder="e.g. RAM, Processor" style="min-width: 160px;" required>
-                    </div>
-                    <div>
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle me-1"></i>Add Feature</button>
-                    </div>
-                </form>
+                </div>
+                
+                <script>
+                    document.getElementById('selected_brand').addEventListener('change', function() {
+                        var brandId = this.value;
+                        var section = document.getElementById('model_feature_section');
+                        if (brandId) {
+                            document.getElementById('model_brand_id').value = brandId;
+                            document.getElementById('feature_brand_id').value = brandId;
+                            section.style.display = 'flex';
+                        } else {
+                            section.style.display = 'none';
+                        }
+                    });
+                </script>
             @endif
         </div>
 
