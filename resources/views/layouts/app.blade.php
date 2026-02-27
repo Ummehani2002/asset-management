@@ -1046,22 +1046,6 @@
 
     {{-- Page Content --}}
     <div class="content">
-        {{-- Global Success/Error Messages --}}
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show auto-dismiss-3s" role="alert" style="margin-bottom: 20px;">
-                <i class="bi bi-check-circle-fill me-2"></i>
-                <strong>Success!</strong> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                <strong>Error!</strong> {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
 
         @if(isset($errors) && $errors->any())
             <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
