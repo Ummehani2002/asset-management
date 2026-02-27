@@ -379,6 +379,7 @@ public function filterAssetsApi(Request $request)
             'serial_number' => $asset->serial_number ?? 'N/A',
             'features' => $features,
             'invoice_path' => $asset->invoice_path ?? null,
+            'invoice_url' => $asset->invoice_path ? Storage::disk(config('filesystems.default') === 's3' ? 's3' : 'public')->url($asset->invoice_path) : null,
         ];
     });
 
@@ -412,6 +413,7 @@ public function getAssetsByCategoryApi($id)
                         'serial_number' => $asset->serial_number ?? 'N/A',
                         'features' => $features,
                         'invoice_path' => $asset->invoice_path ?? null,
+                        'invoice_url' => $asset->invoice_path ? Storage::disk(config('filesystems.default') === 's3' ? 's3' : 'public')->url($asset->invoice_path) : null,
                     ];
                 });
 
@@ -608,10 +610,11 @@ public function store(Request $request)
 
         $request->validate($rules);
 
-        // Save the invoice if provided
+        // Save the invoice if provided (uses S3 in production, public disk locally)
         $invoicePath = null;
         if ($request->hasFile('invoice')) {
-            $invoicePath = $request->file('invoice')->store('invoices', 'public');
+            $disk = config('filesystems.default') === 's3' ? 's3' : 'public';
+            $invoicePath = $request->file('invoice')->store('invoices', $disk);
         }
 
         // Create the asset

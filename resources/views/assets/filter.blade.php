@@ -181,8 +181,8 @@
 
                     // Invoice link
                     let invoiceHtml = 'N/A';
-                    if (asset.invoice_path) {
-                        invoiceHtml = `<a href="/storage/${asset.invoice_path}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    if (asset.invoice_url) {
+                        invoiceHtml = `<a href="${asset.invoice_url}" target="_blank" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-file-pdf"></i> View
                         </a>`;
                     }

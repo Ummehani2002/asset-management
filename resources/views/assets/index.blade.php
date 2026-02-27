@@ -95,7 +95,7 @@
                                     </td>
                                     <td>
                                         @if($asset->invoice_path)
-                                            <a href="{{ asset('storage/' . $asset->invoice_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <a href="{{ Storage::disk(config('filesystems.default') === 's3' ? 's3' : 'public')->url($asset->invoice_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-file-earmark-pdf"></i> View
                                             </a>
                                         @else
