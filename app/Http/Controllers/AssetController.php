@@ -372,7 +372,9 @@ public function filterAssetsApi(Request $request)
             if ($asset->invoice_path) {
                 try {
                     $disk = config('filesystems.default', 'public');
-                    if ($disk === 's3' || $disk === 'object-storage') {
+                    $hasS3Config = !empty(config('filesystems.disks.s3.key')) && !empty(config('filesystems.disks.s3.bucket'));
+                    
+                    if (($disk === 's3' || $disk === 'object-storage') && $hasS3Config) {
                         $invoiceUrl = Storage::disk($disk)->url($asset->invoice_path);
                     } else {
                         $invoiceUrl = asset('storage/' . $asset->invoice_path);
@@ -429,7 +431,9 @@ public function getAssetsByCategoryApi($id)
                         if ($asset->invoice_path) {
                             try {
                                 $disk = config('filesystems.default', 'public');
-                                if ($disk === 's3' || $disk === 'object-storage') {
+                                $hasS3Config = !empty(config('filesystems.disks.s3.key')) && !empty(config('filesystems.disks.s3.bucket'));
+                                
+                                if (($disk === 's3' || $disk === 'object-storage') && $hasS3Config) {
                                     $invoiceUrl = Storage::disk($disk)->url($asset->invoice_path);
                                 } else {
                                     $invoiceUrl = asset('storage/' . $asset->invoice_path);
