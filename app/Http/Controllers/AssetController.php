@@ -401,8 +401,13 @@ public function filterAssetsApi(Request $request)
 
         return response()->json($assets);
     } catch (\Exception $e) {
-        \Log::error('filterAssetsApi error: ' . $e->getMessage());
-        return response()->json(['error' => 'Failed to load assets', 'message' => $e->getMessage()], 500);
+        \Log::error('filterAssetsApi error: ' . $e->getMessage() . ' | File: ' . $e->getFile() . ' | Line: ' . $e->getLine());
+        return response()->json([
+            'error' => 'Failed to load assets', 
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ], 500);
     }
 }
 

@@ -237,7 +237,14 @@
             }
         }).fail(function(xhr, status, error) {
             console.error('API Error:', status, error, xhr.responseText);
-            $('#assetsTableBody').html('<tr><td colspan="14" class="text-center text-danger py-4">Error loading assets. Please try again.</td></tr>');
+            let errorMsg = 'Error loading assets. Please try again.';
+            try {
+                const resp = JSON.parse(xhr.responseText);
+                if (resp.message) {
+                    errorMsg = 'Error: ' + resp.message;
+                }
+            } catch(e) {}
+            $('#assetsTableBody').html('<tr><td colspan="14" class="text-center text-danger py-4">' + errorMsg + '</td></tr>');
             $('#assets-section').show();
             $('#downloadDropdown').hide();
         });
