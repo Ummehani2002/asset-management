@@ -649,7 +649,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 (locs || []).forEach(function(loc) {
                     var opt = document.createElement('option');
                     opt.value = loc.id;
-                    opt.textContent = (loc.location_name || '') + (loc.location_entity ? ' (' + loc.location_entity + ')' : '');
+                    opt.textContent = loc.location_name || '';
                     if (selectLocationId && loc.id == selectLocationId) {
                         opt.selected = true;
                     }
@@ -987,7 +987,7 @@ document.addEventListener('DOMContentLoaded', function() {
             locs.forEach(function(loc) {
                 var opt = document.createElement('option');
                 opt.value = loc.id;
-                opt.textContent = (loc.location_name || '') + (loc.location_entity ? ' (' + loc.location_entity + ')' : '');
+                opt.textContent = loc.location_name || '';
                 if (selectLocationId && loc.id == selectLocationId) {
                     opt.selected = true;
                 }
