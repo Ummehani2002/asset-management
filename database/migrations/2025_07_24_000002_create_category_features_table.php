@@ -15,20 +15,19 @@ return new class extends Migration
             return; // Table already exists, skip creation
         }
         
-        // Check the type of asset_categories.id to match it
+        // Check the type of asset_categories.id / brands.id (MySQL only; SQLite uses bigInteger)
         $useIntegerForCategory = false;
-        if (Schema::hasTable('asset_categories')) {
+        if (Schema::hasTable('asset_categories') && \DB::getDriverName() === 'mysql') {
             $assetCategoryIdType = \DB::select("SHOW COLUMNS FROM asset_categories WHERE Field = 'id'");
-            if (!empty($assetCategoryIdType) && str_contains(strtolower($assetCategoryIdType[0]->Type), 'int') && !str_contains(strtolower($assetCategoryIdType[0]->Type), 'bigint')) {
+            if (!empty($assetCategoryIdType) && str_contains(strtolower($assetCategoryIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($assetCategoryIdType[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForCategory = true;
             }
         }
-        
-        // Check the type of brands.id to match it
+
         $useIntegerForBrand = false;
-        if (Schema::hasTable('brands')) {
+        if (Schema::hasTable('brands') && \DB::getDriverName() === 'mysql') {
             $brandIdType = \DB::select("SHOW COLUMNS FROM brands WHERE Field = 'id'");
-            if (!empty($brandIdType) && str_contains(strtolower($brandIdType[0]->Type), 'int') && !str_contains(strtolower($brandIdType[0]->Type), 'bigint')) {
+            if (!empty($brandIdType) && str_contains(strtolower($brandIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($brandIdType[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForBrand = true;
             }
         }
@@ -82,29 +81,23 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Drop foreign key constraints from dependent tables first
-        // Check if category_feature_values table exists and has foreign key
-        if (Schema::hasTable('category_feature_values')) {
+        if (\DB::getDriverName() === 'mysql' && Schema::hasTable('category_feature_values')) {
             try {
-                Schema::table('category_feature_values', function (Blueprint $table) {
-                    // Try to drop the foreign key if it exists
-                    $foreignKeys = \DB::select("
-                        SELECT CONSTRAINT_NAME 
-                        FROM information_schema.KEY_COLUMN_USAGE 
-                        WHERE TABLE_SCHEMA = DATABASE() 
-                        AND TABLE_NAME = 'category_feature_values' 
-                        AND REFERENCED_TABLE_NAME = 'category_features'
-                    ");
-                    
-                    foreach ($foreignKeys as $fk) {
+                $foreignKeys = \DB::select("
+                    SELECT CONSTRAINT_NAME 
+                    FROM information_schema.KEY_COLUMN_USAGE 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = 'category_feature_values' 
+                    AND REFERENCED_TABLE_NAME = 'category_features'
+                ");
+                foreach ($foreignKeys as $fk) {
+                    try {
                         \DB::statement("ALTER TABLE category_feature_values DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
-                    }
-                });
-            } catch (\Exception $e) {
-                // Foreign key might not exist or already dropped, continue
-            }
+                    } catch (\Exception $e) {}
+                }
+            } catch (\Exception $e) {}
         }
-        
+
         Schema::dropIfExists('category_features');
     }
 };

@@ -15,19 +15,19 @@ return new class extends Migration
             return; // Table already exists, skip creation
         }
 
-        // Check id types of referenced tables to match foreign keys
+        // Check id types of referenced tables (MySQL only; SQLite uses bigInteger)
         $useIntegerForAssetId = false;
-        if (Schema::hasTable('assets')) {
+        if (Schema::hasTable('assets') && \DB::getDriverName() === 'mysql') {
             $assetIdType = \DB::select("SHOW COLUMNS FROM assets WHERE Field = 'id'");
-            if (!empty($assetIdType) && str_contains(strtolower($assetIdType[0]->Type), 'int') && !str_contains(strtolower($assetIdType[0]->Type), 'bigint')) {
+            if (!empty($assetIdType) && str_contains(strtolower($assetIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($assetIdType[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForAssetId = true;
             }
         }
 
         $useIntegerForFeatureId = false;
-        if (Schema::hasTable('category_features')) {
+        if (Schema::hasTable('category_features') && \DB::getDriverName() === 'mysql') {
             $featureIdType = \DB::select("SHOW COLUMNS FROM category_features WHERE Field = 'id'");
-            if (!empty($featureIdType) && str_contains(strtolower($featureIdType[0]->Type), 'int') && !str_contains(strtolower($featureIdType[0]->Type), 'bigint')) {
+            if (!empty($featureIdType) && str_contains(strtolower($featureIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($featureIdType[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForFeatureId = true;
             }
         }

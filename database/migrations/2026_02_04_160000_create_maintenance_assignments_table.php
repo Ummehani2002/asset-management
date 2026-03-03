@@ -13,7 +13,7 @@ return new class extends Migration
         }
 
         $useIntegerForAsset = false;
-        if (Schema::hasTable('assets')) {
+        if (Schema::hasTable('assets') && \DB::getDriverName() === 'mysql') {
             $t = \DB::select("SHOW COLUMNS FROM assets WHERE Field = 'id'");
             if (!empty($t) && str_contains(strtolower($t[0]->Type ?? ''), 'int') && !str_contains(strtolower($t[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForAsset = true;

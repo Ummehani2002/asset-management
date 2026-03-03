@@ -15,21 +15,20 @@ return new class extends Migration
             return; // Table already exists, skip creation
         }
         
-        // Check the type of assets.id to match it
+        // Check the type of assets.id / employees.id (MySQL only; SQLite uses bigInteger)
         $useIntegerForAsset = false;
-        if (Schema::hasTable('assets')) {
+        if (Schema::hasTable('assets') && \DB::getDriverName() === 'mysql') {
             $assetIdType = \DB::select("SHOW COLUMNS FROM assets WHERE Field = 'id'");
-            if (!empty($assetIdType) && str_contains(strtolower($assetIdType[0]->Type), 'int') && !str_contains(strtolower($assetIdType[0]->Type), 'bigint')) {
-                $useIntegerForAsset = true; // assets.id is int
+            if (!empty($assetIdType) && str_contains(strtolower($assetIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($assetIdType[0]->Type ?? ''), 'bigint')) {
+                $useIntegerForAsset = true;
             }
         }
-        
-        // Check the type of employees.id to match it
+
         $useIntegerForEmployee = false;
-        if (Schema::hasTable('employees')) {
+        if (Schema::hasTable('employees') && \DB::getDriverName() === 'mysql') {
             $employeeIdType = \DB::select("SHOW COLUMNS FROM employees WHERE Field = 'id'");
-            if (!empty($employeeIdType) && str_contains(strtolower($employeeIdType[0]->Type), 'int') && !str_contains(strtolower($employeeIdType[0]->Type), 'bigint')) {
-                $useIntegerForEmployee = true; // employees.id is int
+            if (!empty($employeeIdType) && str_contains(strtolower($employeeIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($employeeIdType[0]->Type ?? ''), 'bigint')) {
+                $useIntegerForEmployee = true;
             }
         }
         

@@ -15,11 +15,11 @@ return new class extends Migration
             return; // Table already exists, skip creation
         }
 
-        // Check id type of entity_budgets table to match foreign key
+        // Check id type of entity_budgets (MySQL only; SQLite uses bigInteger)
         $useIntegerForBudgetId = false;
-        if (Schema::hasTable('entity_budgets')) {
+        if (Schema::hasTable('entity_budgets') && \DB::getDriverName() === 'mysql') {
             $budgetIdType = \DB::select("SHOW COLUMNS FROM entity_budgets WHERE Field = 'id'");
-            if (!empty($budgetIdType) && str_contains(strtolower($budgetIdType[0]->Type), 'int') && !str_contains(strtolower($budgetIdType[0]->Type), 'bigint')) {
+            if (!empty($budgetIdType) && str_contains(strtolower($budgetIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($budgetIdType[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForBudgetId = true;
             }
         }

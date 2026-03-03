@@ -14,15 +14,15 @@ return new class extends Migration
 
         $useIntegerForModel = false;
         $useIntegerForFeature = false;
-        if (Schema::hasTable('brand_models')) {
+        if (Schema::hasTable('brand_models') && \DB::getDriverName() === 'mysql') {
             $t = \DB::select("SHOW COLUMNS FROM brand_models WHERE Field = 'id'");
-            if (!empty($t) && str_contains(strtolower($t[0]->Type), 'int') && !str_contains(strtolower($t[0]->Type), 'bigint')) {
+            if (!empty($t) && str_contains(strtolower($t[0]->Type ?? ''), 'int') && !str_contains(strtolower($t[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForModel = true;
             }
         }
-        if (Schema::hasTable('category_features')) {
+        if (Schema::hasTable('category_features') && \DB::getDriverName() === 'mysql') {
             $t = \DB::select("SHOW COLUMNS FROM category_features WHERE Field = 'id'");
-            if (!empty($t) && str_contains(strtolower($t[0]->Type), 'int') && !str_contains(strtolower($t[0]->Type), 'bigint')) {
+            if (!empty($t) && str_contains(strtolower($t[0]->Type ?? ''), 'int') && !str_contains(strtolower($t[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForFeature = true;
             }
         }

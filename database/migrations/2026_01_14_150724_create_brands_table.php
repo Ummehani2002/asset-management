@@ -15,11 +15,11 @@ return new class extends Migration
             return; // Table already exists, skip creation
         }
 
-        // Check if asset_categories table exists and get its id type
+        // Check if asset_categories table exists and get its id type (MySQL only; SQLite uses bigInteger)
         $useIntegerForCategoryId = false;
-        if (Schema::hasTable('asset_categories')) {
+        if (Schema::hasTable('asset_categories') && \DB::getDriverName() === 'mysql') {
             $categoryIdType = \DB::select("SHOW COLUMNS FROM asset_categories WHERE Field = 'id'");
-            if (!empty($categoryIdType) && str_contains(strtolower($categoryIdType[0]->Type), 'int') && !str_contains(strtolower($categoryIdType[0]->Type), 'bigint')) {
+            if (!empty($categoryIdType) && str_contains(strtolower($categoryIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($categoryIdType[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForCategoryId = true;
             }
         }
@@ -57,53 +57,43 @@ return new class extends Migration
         if (!Schema::hasTable('brands')) {
             return;
         }
-        
-        // Drop foreign keys from dependent tables first
-        if (Schema::hasTable('category_features')) {
+
+        // MySQL-only: drop foreign keys before dropping table
+        if (\DB::getDriverName() === 'mysql') {
+            if (Schema::hasTable('category_features')) {
+                try {
+                    $foreignKeys = \DB::select("
+                        SELECT CONSTRAINT_NAME 
+                        FROM information_schema.KEY_COLUMN_USAGE 
+                        WHERE TABLE_SCHEMA = DATABASE() 
+                        AND TABLE_NAME = 'category_features' 
+                        AND COLUMN_NAME = 'brand_id'
+                        AND REFERENCED_TABLE_NAME = 'brands'
+                    ");
+                    foreach ($foreignKeys as $fk) {
+                        try {
+                            \DB::statement("ALTER TABLE category_features DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
+                        } catch (\Exception $e) {}
+                    }
+                } catch (\Exception $e) {}
+            }
             try {
                 $foreignKeys = \DB::select("
                     SELECT CONSTRAINT_NAME 
                     FROM information_schema.KEY_COLUMN_USAGE 
                     WHERE TABLE_SCHEMA = DATABASE() 
-                    AND TABLE_NAME = 'category_features' 
-                    AND COLUMN_NAME = 'brand_id'
-                    AND REFERENCED_TABLE_NAME = 'brands'
+                    AND TABLE_NAME = 'brands' 
+                    AND COLUMN_NAME = 'asset_category_id'
+                    AND REFERENCED_TABLE_NAME = 'asset_categories'
                 ");
-                
                 foreach ($foreignKeys as $fk) {
                     try {
-                        \DB::statement("ALTER TABLE category_features DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
-                    } catch (\Exception $e) {
-                        // Foreign key might not exist, continue
-                    }
+                        \DB::statement("ALTER TABLE brands DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
+                    } catch (\Exception $e) {}
                 }
-            } catch (\Exception $e) {
-                // Continue
-            }
+            } catch (\Exception $e) {}
         }
-        
-        // Drop foreign key from brands table
-        try {
-            $foreignKeys = \DB::select("
-                SELECT CONSTRAINT_NAME 
-                FROM information_schema.KEY_COLUMN_USAGE 
-                WHERE TABLE_SCHEMA = DATABASE() 
-                AND TABLE_NAME = 'brands' 
-                AND COLUMN_NAME = 'asset_category_id'
-                AND REFERENCED_TABLE_NAME = 'asset_categories'
-            ");
-            
-            foreach ($foreignKeys as $fk) {
-                try {
-                    \DB::statement("ALTER TABLE brands DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
-                } catch (\Exception $e) {
-                    // Foreign key might not exist, continue
-                }
-            }
-        } catch (\Exception $e) {
-            // Continue
-        }
-        
+
         Schema::dropIfExists('brands');
     }
 };

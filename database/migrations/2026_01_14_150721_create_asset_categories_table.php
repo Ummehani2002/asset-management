@@ -30,34 +30,30 @@ return new class extends Migration
         if (!Schema::hasTable('asset_categories')) {
             return;
         }
-        
-        // Drop foreign keys from dependent tables first
-        $tablesToCheck = ['brands', 'assets', 'category_features'];
-        foreach ($tablesToCheck as $tableName) {
-            if (Schema::hasTable($tableName)) {
-                try {
-                    $foreignKeys = \DB::select("
-                        SELECT CONSTRAINT_NAME 
-                        FROM information_schema.KEY_COLUMN_USAGE 
-                        WHERE TABLE_SCHEMA = DATABASE() 
-                        AND TABLE_NAME = ? 
-                        AND (COLUMN_NAME = 'asset_category_id' OR REFERENCED_TABLE_NAME = 'asset_categories')
-                        AND REFERENCED_TABLE_NAME = 'asset_categories'
-                    ", [$tableName]);
-                    
-                    foreach ($foreignKeys as $fk) {
-                        try {
-                            \DB::statement("ALTER TABLE {$tableName} DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
-                        } catch (\Exception $e) {
-                            // Foreign key might not exist, continue
+
+        if (\DB::getDriverName() === 'mysql') {
+            $tablesToCheck = ['brands', 'assets', 'category_features'];
+            foreach ($tablesToCheck as $tableName) {
+                if (Schema::hasTable($tableName)) {
+                    try {
+                        $foreignKeys = \DB::select("
+                            SELECT CONSTRAINT_NAME 
+                            FROM information_schema.KEY_COLUMN_USAGE 
+                            WHERE TABLE_SCHEMA = DATABASE() 
+                            AND TABLE_NAME = ? 
+                            AND (COLUMN_NAME = 'asset_category_id' OR REFERENCED_TABLE_NAME = 'asset_categories')
+                            AND REFERENCED_TABLE_NAME = 'asset_categories'
+                        ", [$tableName]);
+                        foreach ($foreignKeys as $fk) {
+                            try {
+                                \DB::statement("ALTER TABLE {$tableName} DROP FOREIGN KEY {$fk->CONSTRAINT_NAME}");
+                            } catch (\Exception $e) {}
                         }
-                    }
-                } catch (\Exception $e) {
-                    // Continue to next table
+                    } catch (\Exception $e) {}
                 }
             }
         }
-        
+
         Schema::dropIfExists('asset_categories');
     }
 };

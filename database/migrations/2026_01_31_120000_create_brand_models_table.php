@@ -13,9 +13,9 @@ return new class extends Migration
         }
 
         $useIntegerForBrand = false;
-        if (Schema::hasTable('brands')) {
+        if (Schema::hasTable('brands') && \DB::getDriverName() === 'mysql') {
             $t = \DB::select("SHOW COLUMNS FROM brands WHERE Field = 'id'");
-            if (!empty($t) && str_contains(strtolower($t[0]->Type), 'int') && !str_contains(strtolower($t[0]->Type), 'bigint')) {
+            if (!empty($t) && str_contains(strtolower($t[0]->Type ?? ''), 'int') && !str_contains(strtolower($t[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForBrand = true;
             }
         }

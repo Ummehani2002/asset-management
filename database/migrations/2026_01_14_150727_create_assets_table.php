@@ -15,19 +15,19 @@ return new class extends Migration
             return; // Table already exists, skip creation
         }
 
-        // Check id types of referenced tables
+        // Check id types of referenced tables (MySQL only; SQLite uses bigInteger)
         $useIntegerForCategoryId = false;
-        if (Schema::hasTable('asset_categories')) {
+        if (Schema::hasTable('asset_categories') && \DB::getDriverName() === 'mysql') {
             $categoryIdType = \DB::select("SHOW COLUMNS FROM asset_categories WHERE Field = 'id'");
-            if (!empty($categoryIdType) && str_contains(strtolower($categoryIdType[0]->Type), 'int') && !str_contains(strtolower($categoryIdType[0]->Type), 'bigint')) {
+            if (!empty($categoryIdType) && str_contains(strtolower($categoryIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($categoryIdType[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForCategoryId = true;
             }
         }
 
         $useIntegerForBrandId = false;
-        if (Schema::hasTable('brands')) {
+        if (Schema::hasTable('brands') && \DB::getDriverName() === 'mysql') {
             $brandIdType = \DB::select("SHOW COLUMNS FROM brands WHERE Field = 'id'");
-            if (!empty($brandIdType) && str_contains(strtolower($brandIdType[0]->Type), 'int') && !str_contains(strtolower($brandIdType[0]->Type), 'bigint')) {
+            if (!empty($brandIdType) && str_contains(strtolower($brandIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($brandIdType[0]->Type ?? ''), 'bigint')) {
                 $useIntegerForBrandId = true;
             }
         }

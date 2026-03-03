@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         $useIntegerForAsset = false;
-        if (Schema::hasTable('assets')) {
+        if (Schema::hasTable('assets') && \DB::getDriverName() === 'mysql') {
             $t = \DB::select("SHOW COLUMNS FROM assets WHERE Field = 'id'");
             $type = isset($t[0]) ? (($t[0]->Type ?? $t[0]->type ?? '') . '') : '';
             $typeLower = strtolower($type);

@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Check the type of employees.id to match it
+        // Check the type of employees.id (MySQL only; SQLite uses bigInteger)
         $useInteger = false;
-        if (Schema::hasTable('employees')) {
+        if (Schema::hasTable('employees') && \DB::getDriverName() === 'mysql') {
             $employeeIdType = \DB::select("SHOW COLUMNS FROM employees WHERE Field = 'id'");
-            if (!empty($employeeIdType) && str_contains(strtolower($employeeIdType[0]->Type), 'int') && !str_contains(strtolower($employeeIdType[0]->Type), 'bigint')) {
-                $useInteger = true; // employees.id is int
+            if (!empty($employeeIdType) && str_contains(strtolower($employeeIdType[0]->Type ?? ''), 'int') && !str_contains(strtolower($employeeIdType[0]->Type ?? ''), 'bigint')) {
+                $useInteger = true;
             }
         }
         
