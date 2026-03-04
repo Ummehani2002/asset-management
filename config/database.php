@@ -112,6 +112,28 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        /*
+         * Old/source database (e.g. UAE) - used only for one-time data copy.
+         * Set OLD_DB_HOST, OLD_DB_DATABASE, OLD_DB_USERNAME, OLD_DB_PASSWORD in env.
+         */
+        'mysql_old' => [
+            'driver' => 'mysql',
+            'host' => env('OLD_DB_HOST'),
+            'port' => env('OLD_DB_PORT', '3306'),
+            'database' => env('OLD_DB_DATABASE'),
+            'username' => env('OLD_DB_USERNAME'),
+            'password' => env('OLD_DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
     ],
 
     /*
