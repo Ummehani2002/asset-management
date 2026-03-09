@@ -53,6 +53,8 @@ Route::get('/db-check', [DatabaseCheckController::class, 'check'])->name('db.che
 use App\Http\Controllers\AssetCategoryController;
 Route::get('/manage-categories', [AssetCategoryController::class, 'index'])->name('categories.manage');
 Route::get('/brand-management/add-brand-model', [AssetCategoryController::class, 'addBrandModelPage'])->middleware('auth')->name('brand-management.add-brand-model');
+Route::get('/brand-management/import', [AssetCategoryController::class, 'showCategoryBrandModelImportForm'])->middleware('auth')->name('brand-management.import.form');
+Route::post('/brand-management/import', [AssetCategoryController::class, 'importCategoryBrandModel'])->middleware('auth')->name('brand-management.import-category-brand-model');
 Route::get('/brand-management/model-values', [AssetCategoryController::class, 'modelValuesPage'])->middleware('auth')->name('brand-management.model-values');
 Route::post('/categories', [AssetCategoryController::class, 'storeCategory'])->name('categories.store');
 Route::get('/categories', [AssetCategoryController::class, 'index'])->name('categories.index');
@@ -82,6 +84,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/model-feature-values/{modelId}', [AssetController::class, 'getModelFeatureValues'])->name('assets.modelFeatureValues');
 });
 Route::get('/assets/create', [AssetController::class, 'create'])->middleware('auth')->name('assets.create');
+Route::get('/assets/import', [AssetController::class, 'showImportForm'])->middleware('auth')->name('assets.import.form');
+Route::post('/assets/import', [AssetController::class, 'import'])->middleware('auth')->name('assets.import');
 Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
 Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
 

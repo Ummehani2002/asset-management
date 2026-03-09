@@ -21,8 +21,8 @@ Your Excel/CSV must have these columns (exact names or close variants):
 
 | Column | Required | Notes |
 |--------|----------|-------|
-| **EmployeeID** | Yes | Unique identifier; rows without it are skipped |
-| **Name** | No | Employee full name |
+| **EmployeeID** or **ERP ID** | Yes | Unique identifier (app accepts "Employee ID" or "ERP ID"); rows without it are skipped |
+| **Name** or **NAME** | No | Employee full name |
 | **Designation** | No | Job title |
 | **Department Name** or **Department** | No | Defaults to "N/A" if empty |
 | **Email** | No | |
@@ -45,12 +45,31 @@ Your Excel/CSV must have these columns (exact names or close variants):
 3. Select your CSV file
 4. Click **Import**
 
+### Spreadsheet column mapping (e.g. from ERP/Excel)
+
+If your sheet uses different headers, the import accepts these aliases:
+
+| Your column   | Maps to (employee import) |
+|---------------|---------------------------|
+| **ERP ID**    | Employee ID               |
+| **NAME**      | Name                      |
+| **Designation** | Designation             |
+| **SERVICE TAG** | Used for assets (serial number); use Asset forms for now |
+
 ### CSV example
 
 ```csv
 EmployeeID,Name,Designation,Department Name,Email,Phone,Entity
 E001,John Doe,Developer,IT,john@company.com,555-1234,Tanseeq
 E002,Jane Smith,Manager,HR,jane@company.com,555-5678,Proscape
+```
+
+Example with ERP-style headers (same import):
+
+```csv
+ERP ID,NAME,Designation,Entity
+22246,AHMAD ABDULRAHIM ABDULLA ANOOHI,SAFETY SUPERVISOR,TANSEEQ INVESTMENT LLC
+27666,HABEEB REHMAN PADINHARE VALAPPIL ABDU,SITE ENGINEER (SLS),TANSEEQ INVESTMENT LLC
 ```
 
 ---

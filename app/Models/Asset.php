@@ -15,6 +15,7 @@ class Asset extends Model
         'brand_id',
         'purchase_date',
         'warranty_start',
+        'warranty_years',
         'expiry_date',
         'po_number',
         'vendor_name',

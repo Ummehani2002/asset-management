@@ -375,7 +375,7 @@ private function mapRowToEmployee(array $data, $defaultEntity)
         return trim($data[$key] ?? '');
     };
 
-    $employeeId = $normalize('EmployeeID') ?: $normalize('Employee ID');
+    $employeeId = $normalize('EmployeeID') ?: $normalize('Employee ID') ?: $normalize('ERP ID') ?: $normalize('ERPID');
     if (empty($employeeId)) return null;
 
     $name = $normalize('Name');

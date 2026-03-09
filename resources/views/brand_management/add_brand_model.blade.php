@@ -1,8 +1,11 @@
 @extends('layouts.app')
 @section('content')
 <div class="container-fluid master-page">
-    <div class="page-header">
-        <h2><i class="bi bi-tags me-2"></i>Add Brand & Model</h2>
+    <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h2 class="mb-0"><i class="bi bi-tags me-2"></i>Add Brand & Model</h2>
+        <a href="{{ route('brand-management.import.form') }}" class="btn btn-outline-primary">
+            <i class="bi bi-upload me-1"></i>Import from CSV (Category, Brand, Model)
+        </a>
     </div>
 
     @if(session('success'))

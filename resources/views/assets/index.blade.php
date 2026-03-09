@@ -3,9 +3,19 @@
 @section('content')
 <div class="container-fluid master-page">
     <!-- Page Header -->
-    <div class="page-header">
-        <h2><i class="bi bi-pc-display me-2"></i>Asset Master</h2>
-        <p>View and manage all assets in the system</p>
+    <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h2><i class="bi bi-pc-display me-2"></i>Asset Master</h2>
+            <p class="mb-0">View and manage all assets in the system</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ route('assets.import.form') }}" class="btn btn-outline-primary">
+                <i class="bi bi-upload me-1"></i>Import Assets
+            </a>
+            <a href="{{ route('assets.create') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>Add Asset
+            </a>
+        </div>
     </div>
 
     @if(session('success'))

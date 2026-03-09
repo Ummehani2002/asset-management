@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use App\Models\Asset;
 use App\Models\AssetTransaction;
 use App\Models\AssetCategory;
+use App\Models\Brand;
+use App\Models\Entity;
 use App\Models\CategoryFeature; // for features
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -281,6 +283,231 @@ public function getNextAssetId($categoryId)
     } catch (\Exception $e) {
         Log::error('Error getting next asset ID: ' . $e->getMessage());
         return response()->json(['error' => 'Error generating asset ID'], 500);
+    }
+}
+
+/**
+ * Show asset import form
+ */
+public function showImportForm()
+{
+    $categories = Schema::hasTable('asset_categories') ? AssetCategory::orderBy('category_name')->get() : collect([]);
+    $entities = Schema::hasTable('entities') ? Entity::orderBy('name')->get() : collect([]);
+    return view('assets.import', compact('categories', 'entities'));
+}
+
+/**
+ * Import assets from CSV (category, entity, serial number, brand, model, purchase date, warranty start/end)
+ */
+public function import(Request $request)
+{
+    $request->validate([
+        'file' => 'required|mimes:csv,txt',
+        'default_entity' => 'nullable|string|max:255',
+    ]);
+
+    $defaultEntityName = trim($request->default_entity ?? '');
+    $file = $request->file('file');
+
+    try {
+        $path = $file->getRealPath();
+        $content = file_get_contents($path);
+        if ($content === false) {
+            throw new \Exception('Could not read file.');
+        }
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+        $tempPath = sys_get_temp_dir() . '/asset_import_' . uniqid() . '.csv';
+        file_put_contents($tempPath, $content);
+
+        $handle = fopen($tempPath, 'r');
+        if (!$handle) {
+            @unlink($tempPath);
+            throw new \Exception('Could not open file.');
+        }
+
+        $headers = [];
+        $imported = 0;
+        $skipped = [];
+        $rowNum = 0;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $rowNum++;
+            if ($rowNum === 1) {
+                $headers = array_map(function ($h) {
+                    return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h));
+                }, $row);
+                continue;
+            }
+
+            $data = array_combine($headers, array_pad($row, count($headers), ''));
+            if (!$data || count(array_filter($row)) === 0) {
+                continue;
+            }
+
+            $result = $this->mapRowToAsset($data, $defaultEntityName);
+            if ($result === null) {
+                continue;
+            }
+            if (isset($result['error'])) {
+                $skipped[] = "Row {$rowNum}: " . $result['error'];
+                continue;
+            }
+
+            try {
+                Asset::create($result['asset']);
+                $imported++;
+            } catch (\Exception $e) {
+                Log::warning("Asset import row {$rowNum}: " . $e->getMessage());
+                $skipped[] = "Row {$rowNum}: " . $e->getMessage();
+            }
+        }
+
+        fclose($handle);
+        @unlink($tempPath);
+
+        $message = "Successfully imported {$imported} asset(s).";
+        if (!empty($skipped)) {
+            $message .= ' Skipped: ' . implode('; ', array_slice($skipped, 0, 5));
+            if (count($skipped) > 5) {
+                $message .= ' (+' . (count($skipped) - 5) . ' more)';
+            }
+        }
+        return back()->with('success', $message);
+    } catch (\Exception $e) {
+        Log::error('Asset import error: ' . $e->getMessage());
+        return back()->with('error', 'Import failed: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Map CSV row to asset data. Returns ['asset' => array] or ['error' => string] or null to skip row.
+ */
+private function mapRowToAsset(array $data, $defaultEntityName)
+{
+    $normalize = function ($key) use ($data) {
+        $keys = array_keys($data);
+        foreach ($keys as $k) {
+            if (str_replace(' ', '', strtolower($k)) === str_replace(' ', '', strtolower($key))) {
+                $v = trim($data[$k] ?? '');
+                return $v === '' ? null : $v;
+            }
+        }
+        $v = trim($data[$key] ?? '');
+        return $v === '' ? null : $v;
+    };
+
+    $serialNumber = $normalize('Serial Number') ?: $normalize('Serial number') ?: $normalize('SERVICE TAG') ?: $normalize('Service Tag');
+    if (empty($serialNumber)) {
+        return null;
+    }
+
+    if (Asset::where('serial_number', $serialNumber)->exists()) {
+        return ['error' => "Serial number already exists: {$serialNumber}"];
+    }
+
+    $categoryName = $normalize('Category') ?: $normalize('CATEGORY');
+    if (empty($categoryName)) {
+        return ['error' => 'Category is required'];
+    }
+    $category = AssetCategory::whereRaw('LOWER(TRIM(category_name)) = ?', [strtolower(trim($categoryName))])->first();
+    if (!$category) {
+        return ['error' => "Category not found: {$categoryName}"];
+    }
+
+    $entityName = $normalize('Entity') ?: $normalize('Entity Name') ?: $normalize('Company') ?: $defaultEntityName;
+    $entityId = null;
+    if (!empty($entityName) && Schema::hasTable('entities')) {
+        $entity = Entity::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($entityName))])->first();
+        if ($entity) {
+            $entityId = $entity->id;
+        }
+    }
+
+    $brandName = $normalize('Brand') ?: $normalize('BRAND');
+    if (empty($brandName)) {
+        return ['error' => 'Brand is required'];
+    }
+    $brand = Brand::where('asset_category_id', $category->id)
+        ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($brandName))])
+        ->first();
+    if (!$brand) {
+        $brand = Brand::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($brandName))])->first();
+    }
+    if (!$brand) {
+        return ['error' => "Brand not found: {$brandName} (for category {$category->category_name})"];
+    }
+
+    $purchaseDate = $this->parseImportDate($normalize('Purchase Date') ?: $normalize('PURCHASE DATE'));
+    $warrantyStart = $this->parseImportDate($normalize('Warranty Start') ?: $normalize('WARRANTY STA') ?: $normalize('WARRANTY START'));
+    $warrantyEnd = $this->parseImportDate($normalize('Warranty End') ?: $normalize('WARRANTY END'));
+    if (!$purchaseDate) {
+        return ['error' => 'Invalid or missing Purchase Date'];
+    }
+    if (!$warrantyStart) {
+        $warrantyStart = $purchaseDate;
+    }
+    $expiryDate = $warrantyEnd;
+
+    $prefix = $this->getCategoryPrefix($category->category_name);
+    $prefixLen = strlen($prefix);
+    $assetsWithPrefix = Asset::where('asset_id', 'like', $prefix . '%')->get();
+    $maxNumber = 0;
+    foreach ($assetsWithPrefix as $a) {
+        $numPart = preg_replace('/[^0-9]/', '', substr($a->asset_id, $prefixLen));
+        $n = intval($numPart ?: 0);
+        if ($n > $maxNumber) {
+            $maxNumber = $n;
+        }
+    }
+    $assetId = $prefix . str_pad($maxNumber + 1, 5, '0', STR_PAD_LEFT);
+
+    $assetData = [
+        'asset_id' => $assetId,
+        'asset_category_id' => $category->id,
+        'brand_id' => $brand->id,
+        'entity_id' => $entityId,
+        'serial_number' => $serialNumber,
+        'purchase_date' => $purchaseDate,
+        'warranty_start' => $warrantyStart,
+        'expiry_date' => $expiryDate,
+        'status' => 'available',
+    ];
+
+    if (Schema::hasColumn('assets', 'warranty_years') && $warrantyStart && $expiryDate) {
+        try {
+            $start = \Carbon\Carbon::parse($warrantyStart);
+            $end = \Carbon\Carbon::parse($expiryDate);
+            $assetData['warranty_years'] = $start->diffInYears($end);
+        } catch (\Exception $e) {
+            // ignore
+        }
+    }
+
+    return ['asset' => $assetData];
+}
+
+/**
+ * Parse date from CSV (DD.MM.YYYY or Y-m-d or similar)
+ */
+private function parseImportDate($value)
+{
+    if (empty($value)) {
+        return null;
+    }
+    $value = trim($value);
+    foreach (['d.m.Y', 'd/m/Y', 'Y-m-d', 'm/d/Y', 'd-m-Y'] as $format) {
+        try {
+            $d = \Carbon\Carbon::createFromFormat($format, $value);
+            return $d->format('Y-m-d');
+        } catch (\Exception $e) {
+            // try next
+        }
+    }
+    try {
+        $d = new \DateTime($value);
+        return $d->format('Y-m-d');
+    } catch (\Exception $e) {
+        return null;
     }
 }
 

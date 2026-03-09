@@ -132,6 +132,131 @@ class AssetCategoryController extends Controller
         return view('brand_management.model_values', compact('categories', 'selectedCategoryId', 'selectedBrandId', 'selectedModelId', 'brands', 'models', 'model', 'features', 'valuesByFeature'));
     }
 
+    /**
+     * Show form to import Category, Brand, Model from CSV (columns: CATEGORY, BRAND, MODEL).
+     */
+    public function showCategoryBrandModelImportForm()
+    {
+        return view('brand_management.import_category_brand_model');
+    }
+
+    /**
+     * Import categories, brands, and models from CSV. Columns: CATEGORY, BRAND, MODEL.
+     * Creates category if missing; then brand under that category if missing; then model under that brand if missing.
+     */
+    public function importCategoryBrandModel(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt',
+        ]);
+
+        $file = $request->file('file');
+        try {
+            $path = $file->getRealPath();
+            $content = file_get_contents($path);
+            if ($content === false) {
+                throw new \Exception('Could not read file.');
+            }
+            $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+            $tempPath = sys_get_temp_dir() . '/cbm_import_' . uniqid() . '.csv';
+            file_put_contents($tempPath, $content);
+
+            $handle = fopen($tempPath, 'r');
+            if (!$handle) {
+                @unlink($tempPath);
+                throw new \Exception('Could not open file.');
+            }
+
+            $headers = [];
+            $rowNum = 0;
+            $createdCategories = 0;
+            $createdBrands = 0;
+            $createdModels = 0;
+            $skipped = [];
+
+            while (($row = fgetcsv($handle)) !== false) {
+                $rowNum++;
+                if ($rowNum === 1) {
+                    $headers = array_map(function ($h) {
+                        return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h));
+                    }, $row);
+                    continue;
+                }
+
+                $data = array_combine($headers, array_pad($row, count($headers), ''));
+                if (!$data || count(array_filter($row)) === 0) {
+                    continue;
+                }
+
+                $normalize = function ($key) use ($data) {
+                    $keys = array_keys($data);
+                    foreach ($keys as $k) {
+                        if (str_replace(' ', '', strtolower($k)) === str_replace(' ', '', strtolower($key))) {
+                            return trim($data[$k] ?? '');
+                        }
+                    }
+                    return trim($data[$key] ?? '');
+                };
+
+                $categoryName = $normalize('CATEGORY') ?: $normalize('Category');
+                $brandName = $normalize('BRAND') ?: $normalize('Brand');
+                $modelName = $normalize('MODEL') ?: $normalize('Model');
+
+                if (empty($categoryName)) {
+                    continue;
+                }
+
+                // Category: first or create (case-insensitive match)
+                $category = AssetCategory::whereRaw('LOWER(TRIM(category_name)) = ?', [strtolower(trim($categoryName))])->first();
+                if (!$category) {
+                    $category = AssetCategory::create(['category_name' => trim($categoryName)]);
+                    $createdCategories++;
+                }
+
+                if (empty($brandName)) {
+                    continue;
+                }
+
+                // Brand: first or create under this category
+                $brand = Brand::where('asset_category_id', $category->id)
+                    ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($brandName))])
+                    ->first();
+                if (!$brand) {
+                    $brand = Brand::create([
+                        'asset_category_id' => $category->id,
+                        'name' => trim($brandName),
+                    ]);
+                    $createdBrands++;
+                }
+
+                if (empty($modelName) || strtolower(trim($modelName)) === 'no result') {
+                    continue;
+                }
+
+                $modelNumber = trim($modelName);
+                $exists = BrandModel::where('brand_id', $brand->id)
+                    ->whereRaw('LOWER(TRIM(model_number)) = ?', [strtolower($modelNumber)])
+                    ->exists();
+                if (!$exists) {
+                    BrandModel::create([
+                        'brand_id' => $brand->id,
+                        'model_number' => $modelNumber,
+                    ]);
+                    $createdModels++;
+                }
+            }
+
+            fclose($handle);
+            @unlink($tempPath);
+
+            $message = "Import complete: {$createdCategories} category(ies), {$createdBrands} brand(s), {$createdModels} model(s) added.";
+            return back()->with('success', $message);
+        } catch (\Exception $e) {
+            Log::error('Category/Brand/Model import error: ' . $e->getMessage());
+            return back()->with('error', 'Import failed: ' . $e->getMessage());
+        }
+    }
+
     public function storeCategory(Request $request)
     {
         try {

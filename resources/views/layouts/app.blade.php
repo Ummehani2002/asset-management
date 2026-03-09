@@ -944,6 +944,9 @@
     <a href="{{ route('brand-management.add-brand-model') }}" class="{{ request()->routeIs('brand-management.add-brand-model') ? 'active' : '' }}">
         <i class="bi bi-plus-circle"></i> Add Brand & Model
     </a>
+    <a href="{{ route('brand-management.import.form') }}" class="{{ request()->routeIs('brand-management.import.form') ? 'active' : '' }}">
+        <i class="bi bi-upload"></i> Import Category, Brand & Model
+    </a>
     <a href="{{ route('brand-management.model-values') }}" class="{{ request()->routeIs('brand-management.model-values') ? 'active' : '' }}">
         <i class="bi bi-list-check"></i> Model Values
     </a>

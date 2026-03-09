@@ -31,57 +31,69 @@
     <form action="{{ route('assets.store') }}" method="POST" enctype="multipart/form-data" autocomplete="off">
         @csrf
 
-               <div class="mb-3">
-    <label>Entity <span class="text-danger">*</span></label>
-    <select name="entity_id" id="entity" class="form-control" required>
-        <option value="">-- Select Entity --</option>
-        @if(isset($entities))
-        @foreach($entities as $entity)
-            <option value="{{ $entity->id }}">{{ ucwords($entity->name) }}</option>
-        @endforeach
-        @endif
-    </select>
-</div>
-
-               <div class="mb-3">
-    <label>Category</label>
-    <select name="asset_category_id" id="category" class="form-control" required>
-        <option value="" data-category-name="">-- Select Category --</option>
-        @foreach($categories as $cat)
-            <option value="{{ $cat->id }}" data-category-name="{{ strtolower($cat->category_name) }}">{{ $cat->category_name }}</option>
-        @endforeach
-    </select>
-</div>
-<div class="mb-3">
-            <label>Asset ID (Auto-generated)</label>
-            <input type="text" name="asset_id" class="form-control" value="{{ $autoAssetId }}" readonly>
+        {{-- Section 1: Brand & Model only (from Brand Management) --}}
+        <div class="card border mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-tag me-2"></i>Brand & Model</h5>
+                <small class="text-muted">Select from brands and models added in <strong>Add Brand & Model</strong> / <strong>Model Values</strong></small>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Category <span class="text-danger">*</span></label>
+                    <select name="asset_category_id" id="category" class="form-control" required>
+                        <option value="" data-category-name="">-- Select Category --</option>
+                        @foreach($categories as $cat)
+                            <option value="{{ $cat->id }}" data-category-name="{{ strtolower($cat->category_name) }}">{{ $cat->category_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="mb-3" id="brand-wrap">
+                    <label>Brand <span class="text-danger">*</span></label>
+                    <select name="brand_id" id="brand" class="form-control" required>
+                        <option value="">-- Select Category first --</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label>Model <span class="text-muted">(optional)</span></label>
+                    <select name="brand_model_id" id="brand_model" class="form-control">
+                        <option value="">-- Select Model --</option>
+                    </select>
+                </div>
+                <div id="feature-fields"></div>
+            </div>
         </div>
 
-    <div class="form-group">
-    <label for="serial_number">Serial Number</label>
-    <input type="text" name="serial_number" id="serial_number" class="form-control" required autocomplete="off">
-</div>
+        {{-- Section 2: Asset details (other details in Asset Master) --}}
+        <div class="card border mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-pc-display me-2"></i>Asset details</h5>
+                <small class="text-muted">Entity, serial number, dates, warranty, and other asset information</small>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Entity <span class="text-danger">*</span></label>
+                    <select name="entity_id" id="entity" class="form-control" required>
+                        <option value="">-- Select Entity --</option>
+                        @if(isset($entities))
+                        @foreach($entities as $entity)
+                            <option value="{{ $entity->id }}">{{ ucwords($entity->name) }}</option>
+                        @endforeach
+                        @endif
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label>Asset ID (Auto-generated)</label>
+                    <input type="text" name="asset_id" class="form-control" value="{{ $autoAssetId }}" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="serial_number">Serial Number <span class="text-danger">*</span></label>
+                    <input type="text" name="serial_number" id="serial_number" class="form-control" required autocomplete="off">
+                </div>
 
-<div class="mb-3">
-    <label>Model <span class="text-muted"></span></label>
-    <select name="brand_model_id" id="brand_model" class="form-control">
-        <option value="">-- Select Model --</option>
-    </select>
-</div>
-
-<div class="mb-3" id="brand-wrap">
-    <label>Brand <span class="text-muted small"></span></label>
-    <select name="brand_id" id="brand" class="form-control" required>
-        <option value="">-- Select Model first --</option>
-    </select>
-</div>
-
-        <div id="feature-fields"></div>
-
-        <div class="mb-3">
-            <label>Purchase Date</label>
-            <input type="date" name="purchase_date" class="form-control" required>
-        </div>
+                <div class="mb-3">
+                    <label>Purchase Date <span class="text-danger">*</span></label>
+                    <input type="date" name="purchase_date" class="form-control" required>
+                </div>
 
         <div class="mb-3">
             <label>Warranty Start</label>
@@ -185,6 +197,8 @@
             <input type="file" name="invoice" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
             <small class="text-muted">Optional - PDF, JPG, JPEG, PNG (Max 10MB)</small>
         </div>
+            </div>
+        </div>
 
         <button type="submit" class="btn btn-primary" id="submitBtn">Save Asset</button>
         <button type="button" class="btn btn-secondary ms-2" onclick="resetForm(this)">
@@ -220,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const opt = $(this).find('option:selected');
         const categoryName = opt.data('category-name') || '';
 
-        $('#brand').html('<option value="">-- Select Model first --</option>');
+        $('#brand').html('<option value="">-- Select Brand --</option>');
         $('#brand_model').html('<option value="">-- Select Model --</option>');
         $('#feature-fields').html('');
         $('input[name="asset_id"]').val('');
@@ -255,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }).fail(function(xhr) { console.error('Error loading models', xhr.status, xhr.responseText); });
             // Load brands for this category (so we can set brand when model is selected)
             $.get(`{{ url('brands/by-category') }}/${categoryId}`, function (brands) {
-                $('#brand').html('<option value="">-- Select Model first --</option>');
+                $('#brand').html('<option value="">-- Select Brand --</option>');
                 brands.forEach(function (b) {
                     $('#brand').append($('<option></option>').attr('value', b.id).text(b.name));
                 });
