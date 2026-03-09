@@ -38,6 +38,7 @@
         <div class="card mt-3 mb-3">
             <div class="card-body">
                 <h5>Budget Summary</h5>
+                <p class="text-muted small mb-0">Editing replaces the previous amount (no double deduction). Balance = Budget − total of all expenses.</p>
                 <div class="row">
                     <div class="col-md-3">
                         <p>Budget Amount: <span class="fw-bold">{{ number_format($budgetAmount, 2) }}</span></p>
@@ -60,9 +61,8 @@
         <div class="mb-3">
             <label class="d-flex align-items-center gap-2">
                 <input type="checkbox" id="is_contracting" name="is_contracting" value="1" class="form-check-input" {{ ($expense->vat_percent ?? 5) == 15 ? 'checked' : '' }}>
-                <span>Contracting company (15% VAT)</span>
+                <span>KSA company</span>
             </label>
-            <small class="text-muted">If unchecked, 5% VAT applies.</small>
         </div>
 
         <div class="row">
@@ -100,7 +100,7 @@
         </div>
 
         <div class="no-print d-flex align-items-center gap-2">
-            <button type="submit" class="btn btn-primary">Update Expense</button>
+            <button type="submit" class="btn btn-primary" id="updateExpenseBtn">Update Expense</button>
             <a href="{{ route('budget-expenses.print', $expense->id) }}" target="_blank" class="btn btn-outline-secondary">
                 <i class="bi bi-printer me-1"></i>Print
             </a>
@@ -132,6 +132,16 @@ document.addEventListener('DOMContentLoaded', function() {
     expenseAmount.addEventListener('input', updateVatPreview);
     isContractingCheck.addEventListener('change', updateVatPreview);
     updateVatPreview();
+
+    // Prevent double submit: editing replaces the previous amount once
+    const form = document.getElementById('expenseForm');
+    const submitBtn = document.getElementById('updateExpenseBtn');
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Updating…';
+        });
+    }
 });
 </script>
 @endsection

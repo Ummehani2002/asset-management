@@ -29,7 +29,7 @@
             </div>
 
             <div class="col-md-4 mb-3">
-                <label for="expense_type">Expense Type</label>
+                <label for="expense_type">Expense Type <span class="text-muted">(select first)</span></label>
                 <select id="expense_type" name="expense_type" class="form-control" required>
                     <option value="">Select Type</option>
                     <option value="Maintenance">Maintenance</option>
@@ -40,7 +40,7 @@
             </div>
 
             <div class="col-md-4 mb-3">
-                <label for="cost_head">Cost Head</label>
+                <label for="cost_head">Cost Head <span class="text-muted">(then select; budget/cost shown below)</span></label>
                 <select name="cost_head" id="cost_head" class="form-control" required>
                     <option value="">Select Expense Type first</option>
                 </select>
@@ -49,7 +49,7 @@
 
         <div class="card mt-3 mb-3">
             <div class="card-body">
-                <h5>Budget Details</h5>
+                <h5>Budget (cost) for selected cost head</h5>
                 <div class="row">
                     <div class="col-md-3">
                         <p>Budget Amount: <span id="budget_amount" class="fw-bold">0</span></p>
@@ -72,9 +72,8 @@
         <div class="mb-3">
             <label class="d-flex align-items-center gap-2">
                 <input type="checkbox" id="is_contracting" name="is_contracting" value="1" class="form-check-input">
-                <span>Contracting company (15% VAT)</span>
+                <span>KSA company</span>
             </label>
-            <small class="text-muted">If unchecked, 5% VAT applies.</small>
         </div>
 
         <div class="row">
@@ -382,7 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             if (response.ok) {
                 renderFlash('Expense deleted successfully.', 'success');
-                fetchBudgetInfo(); // Refresh the table
+                fetchDetails(); // Refresh the table
             } else {
                 renderFlash('Failed to delete expense.', 'danger');
             }

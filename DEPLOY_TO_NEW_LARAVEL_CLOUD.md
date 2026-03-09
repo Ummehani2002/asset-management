@@ -118,7 +118,48 @@ exit
 
 ---
 
-## Step 8: Import Data (Optional)
+## Step 8: Copy from Old Database (Optional)
+
+If you have an **old database** (e.g. from a previous Laravel Cloud project or another MySQL server) and want to copy its data into the new DB:
+
+1. **Get your old DB credentials**  
+   From your old hosting (e.g. old Laravel Cloud → Environment → Variables), note:
+   - Host (e.g. `db-xxx.mysql.database.azure.com` or similar)
+   - Database name
+   - Username
+   - Password  
+   If the old DB has a **public endpoint**, ensure it’s enabled so the new app can connect.
+
+2. **Allow the new app (and your PC) to reach the old DB (fix timeout)**  
+   Laravel Cloud databases use an **IP allowlist**. If you get *"Max connect timeout reached"* or cannot connect from HeidiSQL, the old DB is blocking your IP.
+   - **Old project** (where the old DB lives): open the **old database** → **Settings/Network** (or **Allowed IPs**). Add:
+     - The **Laravel Cloud outbound IPs** for the region where your **new** app runs (e.g. **US East (Ohio)** = `us-east-2`). Get the list: [Laravel Cloud IP whitelist](https://cloud.laravel.com/docs/api/ips/list-ip-addresses-to-whitelist) or call `GET https://cloud.laravel.com/api/ip?region=us-east-2` (use the region of your new app) and add the returned IPv4 (and IPv6 if required) addresses to the old DB’s allowlist.
+     - For **HeidiSQL from your PC**: add your **current public IP** (search “what is my IP” or use your router) to the old DB’s allowlist.
+   - Save and wait a minute, then try the copy again.
+
+3. **Set old DB variables in the new project**  
+   In **Laravel Cloud** → **Environment** → **Variables**, add:
+   ```
+   OLD_DB_HOST=your-old-db-host
+   OLD_DB_DATABASE=your-old-db-name
+   OLD_DB_USERNAME=your-old-db-user
+   OLD_DB_PASSWORD=your-old-db-password
+   ```
+   Optionally: `OLD_DB_PORT=3306` (default is 3306).
+
+4. **Run the copy command**  
+   In **Laravel Cloud** → **Console** (or **Commands**), run:
+   ```bash
+   php artisan db:copy-from-old --force
+   ```
+   This truncates and refills tables on the **current** DB with data from the old DB (skips `migrations`). Use `--force` to skip the confirmation prompt in the console.
+
+5. **Remove old DB vars when done (recommended)**  
+   After the copy, you can delete `OLD_DB_*` from Environment → Variables for security.
+
+---
+
+## Step 9: Import Data (Optional)
 
 **Employees:**  
 - Go to **Employee Master** → **Import Employees** (or **Entity Master** → **Import Employees**)
@@ -133,7 +174,7 @@ exit
 
 ---
 
-## Step 9: Enabling Import in Production (Laravel Cloud)
+## Step 10: Enabling Import in Production (Laravel Cloud)
 
 If import works on localhost but fails in production:
 
@@ -217,6 +258,9 @@ php artisan db:seed --class=EntitySeeder --force
 php artisan storage:link
 php artisan optimize:clear
 php artisan optimize
+
+# Copy data from old DB (set OLD_DB_* in Environment first)
+php artisan db:copy-from-old --force
 ```
 
 ---

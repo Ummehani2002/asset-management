@@ -31,12 +31,17 @@
         <div class="row">
             <div class="col-md-3">
                 <label>Employee Name</label>
-                <select name="employee_id" id="employee_id" class="form-control employee-select" data-placeholder="Type to search...">
-                    <option value="">-- Select Employee --</option>
-                    @foreach ($employees as $emp)
-                        <option value="{{ $emp->id }}">{{ $emp->name ?? $emp->entity_name }}</option>
-                    @endforeach
-                </select>
+                @if($employees->isEmpty())
+                    <div class="alert alert-warning py-2 mb-0 small">No employees in the system. <a href="{{ route('employees.index') }}">Add employees</a> or <a href="{{ route('employees.import') }}">import from Excel</a> first.</div>
+                    <input type="hidden" name="employee_id" value="">
+                @else
+                    <select name="employee_id" id="employee_id" class="form-control employee-select" data-placeholder="Type to search...">
+                        <option value="">-- Select Employee --</option>
+                        @foreach ($employees as $emp)
+                            <option value="{{ $emp->id }}">{{ $emp->name ?? $emp->entity_name }}</option>
+                        @endforeach
+                    </select>
+                @endif
             </div>
 
             <div class="col-md-3">

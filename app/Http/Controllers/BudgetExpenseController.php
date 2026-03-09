@@ -202,11 +202,13 @@ class BudgetExpenseController extends Controller
     }
 
     /**
-     * Update an existing budget expense. Recomputes VAT and balance check excluding current expense.
+     * Update an existing budget expense. Recomputes VAT and replaces the previous amount.
+     * Uses the existing (old) expense amount so the budget is not reduced twice when editing.
      */
     public function update(Request $request, $id)
     {
         $expense = BudgetExpense::with('entityBudget')->findOrFail($id);
+        $expense->refresh(); // ensure we have current DB values before reading old amount
         $budget = $expense->entityBudget;
 
         $validated = $request->validate([
@@ -231,8 +233,12 @@ class BudgetExpenseController extends Controller
         $currentYear = (int) date('Y');
         $yearColumn = 'budget_' . $currentYear;
         $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
+
+        // Total of all expenses under this budget (includes this expense's current stored amount)
         $totalExpensesAll = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
-        $totalWithoutThis = $totalExpensesAll - (float) $expense->expense_amount;
+        // Existing amount for this expense only – we replace it, so do not deduct it twice
+        $oldAmountThisExpense = (float) $expense->expense_amount;
+        $totalWithoutThis = $totalExpensesAll - $oldAmountThisExpense;
         if (($totalWithoutThis + $totalWithVat) > $budgetAmount) {
             return response()->json([
                 'success' => false,
@@ -308,12 +314,17 @@ class BudgetExpenseController extends Controller
                 ]);
             }
             
-            // Budget is maintained by entity + expense type only. Prefer row with null cost_head.
-            $budget = EntityBudget::with('employee')
+            // One particular budget per (entity + expense_type); when cost_head is selected, prefer budget that matches it.
+            $costHeadReq = $request->filled('cost_head') ? trim($request->cost_head) : null;
+            $budgetQuery = EntityBudget::with('employee')
                 ->whereIn('employee_id', $employeeIds)
-                ->where('expense_type', $request->expense_type)
-                ->orderByRaw('CASE WHEN cost_head IS NULL THEN 0 ELSE 1 END')
-                ->first();
+                ->where('expense_type', $request->expense_type);
+            if ($costHeadReq !== null && $costHeadReq !== '') {
+                $budgetQuery->orderByRaw('CASE WHEN LOWER(TRIM(cost_head)) = LOWER(?) THEN 0 WHEN cost_head IS NULL THEN 1 ELSE 2 END', [$costHeadReq]);
+            } else {
+                $budgetQuery->orderByRaw('CASE WHEN cost_head IS NULL THEN 0 ELSE 1 END');
+            }
+            $budget = $budgetQuery->first();
             
             if (!$budget) {
                 Log::warning('BudgetExpense getBudgetDetails: No budget found', [
@@ -410,11 +421,16 @@ class BudgetExpenseController extends Controller
             $selectedEmployee = Employee::find($request->entity_id);
             if ($selectedEmployee) {
                 $employeeIds = Employee::where('entity_name', $selectedEmployee->entity_name)->pluck('id')->toArray();
-                $budget = EntityBudget::with('employee')
+                $costHeadReq = $request->filled('cost_head') ? trim($request->cost_head) : null;
+                $budgetQuery = EntityBudget::with('employee')
                     ->whereIn('employee_id', $employeeIds)
-                    ->where('expense_type', $request->expense_type)
-                    ->orderByRaw('CASE WHEN cost_head IS NULL THEN 0 ELSE 1 END')
-                    ->first();
+                    ->where('expense_type', $request->expense_type);
+                if ($costHeadReq !== null && $costHeadReq !== '') {
+                    $budgetQuery->orderByRaw('CASE WHEN LOWER(TRIM(cost_head)) = LOWER(?) THEN 0 WHEN cost_head IS NULL THEN 1 ELSE 2 END', [$costHeadReq]);
+                } else {
+                    $budgetQuery->orderByRaw('CASE WHEN cost_head IS NULL THEN 0 ELSE 1 END');
+                }
+                $budget = $budgetQuery->first();
                 if ($budget) {
                     $entityName = $budget->employee->entity_name ?? 'N/A';
                     $costHead = $request->cost_head;

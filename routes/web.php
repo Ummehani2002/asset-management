@@ -227,6 +227,7 @@ Route::get('/entity-budget/transaction-history/print', [EntityBudgetController::
 Route::get('/entity-budget/transaction-history/download', [EntityBudgetController::class, 'transactionHistoryDownload'])->name('entity_budget.transaction-history.download');
 Route::get('/entity-budget/export', [EntityBudgetController::class, 'export'])->name('entity_budget.export');
 Route::post('/entity-budget/store', [EntityBudgetController::class, 'store'])->name('entity_budget.store');
+Route::post('/entity-budget/bulk-store', [EntityBudgetController::class, 'bulkStore'])->name('entity_budget.bulk-store');
 Route::get('/entity-budget/{id}/download-form', [EntityBudgetController::class, 'downloadForm'])->name('entity_budget.download-form');
 Route::get('/entity-budget/{id}/print-form', [EntityBudgetController::class, 'printForm'])->name('entity_budget.print-form');
 

@@ -97,26 +97,35 @@
         {{-- Person in Charge (Employee) --}}
         <div class="mb-3">
             <label class="form-label">Person in Charge</label>
-            <select name="person_in_charge_id" class="form-control employee-select" required data-placeholder="Type to search...">
-                @foreach ($employees as $emp)
-                    <option value="{{ $emp->id }}">
-                        {{ $emp->name }} ({{ $emp->phone }})
-                    </option>
-                @endforeach
-            </select>
+            @if($employees->isEmpty())
+                <div class="alert alert-warning py-2 mb-0 small">No employees in the system. <a href="{{ route('employees.index') }}">Add employees</a> or <a href="{{ route('employees.import') }}">import from Excel</a> first.</div>
+                <input type="hidden" name="person_in_charge_id" value="">
+            @else
+                <select name="person_in_charge_id" class="form-control employee-select" required data-placeholder="Type to search...">
+                    @foreach ($employees as $emp)
+                        <option value="{{ $emp->id }}">
+                            {{ $emp->name }} ({{ $emp->phone }})
+                        </option>
+                    @endforeach
+                </select>
+            @endif
         </div>
 
         {{-- Project Manager --}}
         <div class="mb-3">
             <label class="form-label">Project Manager</label>
-            <select name="project_manager_id" id="project_manager_id" class="form-control employee-select" data-placeholder="Type to search...">
-                <option value="">-- Select Project Manager --</option>
-                @foreach ($employees as $emp)
-                    <option value="{{ $emp->id }}" data-phone="{{ $emp->phone }}">
-                        {{ $emp->name }} ({{ $emp->phone }})
-                    </option>
-                @endforeach
-            </select>
+            @if($employees->isEmpty())
+                <select name="project_manager_id" id="project_manager_id" class="form-control" disabled><option value="">-- No employees --</option></select>
+            @else
+                <select name="project_manager_id" id="project_manager_id" class="form-control employee-select" data-placeholder="Type to search...">
+                    <option value="">-- Select Project Manager --</option>
+                    @foreach ($employees as $emp)
+                        <option value="{{ $emp->id }}" data-phone="{{ $emp->phone }}">
+                            {{ $emp->name }} ({{ $emp->phone }})
+                        </option>
+                    @endforeach
+                </select>
+            @endif
         </div>
 
         {{-- PM Contact Number (Auto-filled) --}}
@@ -128,14 +137,18 @@
         {{-- Document Controller --}}
         <div class="mb-3">
             <label class="form-label">Document Controller</label>
-            <select name="document_controller_id" id="document_controller_id" class="form-control employee-select" data-placeholder="Type to search...">
-                <option value="">-- Select Document Controller --</option>
-                @foreach ($employees as $emp)
-                    <option value="{{ $emp->id }}" data-phone="{{ $emp->phone }}">
-                        {{ $emp->name }} ({{ $emp->phone }})
-                    </option>
-                @endforeach
-            </select>
+            @if($employees->isEmpty())
+                <select name="document_controller_id" id="document_controller_id" class="form-control" disabled><option value="">-- No employees --</option></select>
+            @else
+                <select name="document_controller_id" id="document_controller_id" class="form-control employee-select" data-placeholder="Type to search...">
+                    <option value="">-- Select Document Controller --</option>
+                    @foreach ($employees as $emp)
+                        <option value="{{ $emp->id }}" data-phone="{{ $emp->phone }}">
+                            {{ $emp->name }} ({{ $emp->phone }})
+                        </option>
+                    @endforeach
+                </select>
+            @endif
         </div>
 
         {{-- Document Controller Number (Auto-filled) --}}

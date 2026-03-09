@@ -332,9 +332,77 @@ class EntityBudgetController extends Controller
         }
     }
 
+    /**
+     * Set budget for all cost heads of an expense type at once (same amount for each).
+     */
+    public function bulkStore(Request $request)
+    {
+        try {
+            if (!Schema::hasTable('entity_budgets')) {
+                return redirect()->back()->withInput()->withErrors(['error' => 'Database table not found. Please run migrations.']);
+            }
+
+            $validated = $request->validate([
+                'entity_id' => 'required|exists:employees,id',
+                'expense_type' => 'required|string|in:Maintenance,Capex Software,Capex Hardware,Subscription',
+                'budget_year' => 'required|integer|min:2020|max:2100',
+                'budget_amount' => 'required|numeric|min:0',
+            ]);
+
+            $yearColumn = 'budget_' . $validated['budget_year'];
+            if (!Schema::hasColumn('entity_budgets', $yearColumn)) {
+                return redirect()->back()->withInput()->withErrors(['error' => 'Budget column for year ' . $validated['budget_year'] . ' does not exist.']);
+            }
+
+            $employee = Employee::findOrFail($validated['entity_id']);
+            $costHeadsList = self::getCostHeadsList();
+            $costHeadsForType = array_filter($costHeadsList, fn ($ch) => $ch['expense_type'] === $validated['expense_type']);
+            if (empty($costHeadsForType)) {
+                return redirect()->back()->withInput()->withErrors(['error' => 'No cost heads found for expense type: ' . $validated['expense_type']]);
+            }
+
+            $employeeIds = Employee::where('entity_name', $employee->entity_name)->pluck('id')->toArray();
+            if (empty($employeeIds)) {
+                return redirect()->back()->withInput()->withErrors(['error' => 'No employees found for entity.']);
+            }
+            $entityRepresentativeId = $employeeIds[0];
+
+            $count = 0;
+            foreach ($costHeadsForType as $ch) {
+                $budget = EntityBudget::where('employee_id', $entityRepresentativeId)
+                    ->where('expense_type', $validated['expense_type'])
+                    ->where('cost_head', $ch['name'])
+                    ->first();
+                if ($budget) {
+                    $budget->update([$yearColumn => $validated['budget_amount']]);
+                } else {
+                    EntityBudget::create([
+                        'employee_id' => $entityRepresentativeId,
+                        'cost_head' => $ch['name'],
+                        'expense_type' => $validated['expense_type'],
+                        'category' => $ch['category'] ?? 'Overhead',
+                        $yearColumn => $validated['budget_amount'],
+                    ]);
+                }
+                $count++;
+            }
+
+            return redirect()->route('entity_budget.create', [
+                'entity_id' => $validated['entity_id'],
+                'year' => $validated['budget_year'],
+                'expense_type' => $validated['expense_type'],
+            ])->with('success', "Budget set for {$count} cost head(s) at " . number_format($validated['budget_amount'], 2));
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('EntityBudget bulkStore error: ' . $e->getMessage());
+            return redirect()->back()->withInput()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
     public function downloadForm($id)
     {
-        $budget = EntityBudget::with(['employee', 'expenses'])->findOrFail($id);
+       $budget = EntityBudget::with(['employee', 'expenses'])->findOrFail($id);
         $currentYear = date('Y');
         $yearColumn = 'budget_' . $currentYear;
         $budgetAmount = $budget->$yearColumn ?? 0;

@@ -1079,6 +1079,9 @@
     document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.employee-select, .searchable-select').forEach(function(el) {
             if (el.tomselect) return;
+            var options = el.querySelectorAll('option');
+            var hasRealOptions = options.length > 1 || (options.length === 1 && options[0].value !== '');
+            if (!hasRealOptions) return;
             new TomSelect(el, {
                 create: false,
                 sortField: { field: 'text', direction: 'asc' },
