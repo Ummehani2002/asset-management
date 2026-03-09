@@ -36,10 +36,7 @@
             <h5 class="card-title mb-4">Upload CSV (Category, Brand, Model only)</h5>
 
             <div class="alert alert-info mb-4">
-                <strong>Required columns:</strong> <strong>CATEGORY</strong>, <strong>BRAND</strong>, <strong>MODEL</strong> (headers can be in any case).<br>
-                <strong>Behaviour:</strong> For each row, the system will create the category if it does not exist, then the brand under that category if it does not exist, then the model under that brand if it does not exist. Duplicates (same name, case-insensitive) are skipped.<br>
-                <strong>Empty cells:</strong> Rows with empty CATEGORY are skipped. Empty BRAND or MODEL skips adding that brand/model for the row. Values like "No Result" in MODEL are skipped.<br>
-                <strong>File format:</strong> In Excel, <strong>File → Save As → CSV UTF-8 (Comma delimited) (*.csv)</strong>.
+                <strong>Columns:</strong> CATEGORY, BRAND, MODEL. Save Excel as <strong>CSV UTF-8</strong>. If you get a timeout (504), try a smaller file (e.g. a few hundred rows), then import the rest.
             </div>
 
             <form action="{{ route('brand-management.import-category-brand-model') }}" method="POST" enctype="multipart/form-data">
