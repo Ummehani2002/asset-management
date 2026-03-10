@@ -161,6 +161,7 @@ use App\Http\Controllers\AssetTransactionController;
 // Asset Transactions
 Route::prefix('asset-transactions')->group(function () {
     Route::get('/', [AssetTransactionController::class, 'index'])->name('asset-transactions.index');
+    Route::get('/preview-asset-email', [AssetTransactionController::class, 'previewAssetAssignedEmail'])->name('asset-transactions.preview-email');
     Route::get('/view', [AssetTransactionController::class, 'view'])->name('asset-transactions.view');
     Route::get('/export', [AssetTransactionController::class, 'export'])->name('asset-transactions.export');
     Route::get('/create', [AssetTransactionController::class, 'create'])->name('asset-transactions.create');

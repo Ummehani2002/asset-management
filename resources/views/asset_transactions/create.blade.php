@@ -74,7 +74,7 @@
                 <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded"
                      style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
             </div>
-            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type initial letters of serial number or asset ID to see matching assets.' }}</small>
+            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type serial number or asset ID to see matching assets (for Return: only currently assigned assets are listed).' }}</small>
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}
@@ -435,7 +435,10 @@ document.addEventListener('DOMContentLoaded', function() {
             assetDebounce = setTimeout(function() {
                 assetDropdownEl.innerHTML = '<div class="list-group-item text-muted">Loading...</div>';
                 assetDropdownEl.style.display = 'block';
-                fetch('/asset-transactions/get-assets-by-category/' + categoryId + '?q=' + encodeURIComponent(q))
+                var txType = transactionType && transactionType.value ? transactionType.value : '';
+                var url = '/asset-transactions/get-assets-by-category/' + categoryId + '?q=' + encodeURIComponent(q);
+                if (txType) url += '&transaction_type=' + encodeURIComponent(txType);
+                fetch(url)
                     .then(function(r) { return r.json(); })
                     .then(function(assets) {
                         showAssetSuggestions(assets);

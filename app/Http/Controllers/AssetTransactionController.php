@@ -1406,6 +1406,15 @@ class AssetTransactionController extends Controller
     public function getAssetsByCategory(Request $request, $categoryId)
     {
         $query = Asset::with('assetCategory')->where('asset_category_id', $categoryId);
+        $transactionType = trim($request->get('transaction_type', ''));
+        // For return: only assets that are currently assigned (can be returned)
+        if ($transactionType === 'return') {
+            $query->where('status', 'assigned');
+        }
+        // For assign: only assets that are available or under_maintenance (can be assigned)
+        if ($transactionType === 'assign') {
+            $query->whereIn('status', ['available', 'under_maintenance']);
+        }
         $search = trim($request->get('q', ''));
         if ($search !== '') {
             $like = '%' . addcslashes($search, '%_\\') . '%';
@@ -2073,5 +2082,34 @@ private function sendAssetEmail($transaction)
         $path = $file->storeAs('transaction_images', $filename, 'public');
         
         return $path;
+    }
+
+    /**
+     * Preview the asset-assigned email with sample data (for viewing layout/content).
+     */
+    public function previewAssetAssignedEmail()
+    {
+        $employee = (object)[
+            'name' => 'Ahmad Abdulrahim',
+            'entity_name' => 'TANSEEQ INVESTMENT LLC',
+        ];
+        $asset = (object)[
+            'asset_id' => 'LPT00123',
+            'serial_number' => 'PF4RWWBP',
+            'purchase_date' => '2024-01-15',
+            'warranty_start' => '2024-01-15',
+            'expiry_date' => '2027-01-14',
+            'assetCategory' => (object)['category_name' => 'Laptop'],
+            'category' => (object)['category_name' => 'Laptop'],
+            'brand' => (object)['name' => 'Lenovo'],
+        ];
+        $transaction = (object)[
+            'transaction_type' => 'assign',
+            'maintenance_notes' => null,
+            'issue_date' => now()->format('Y-m-d'),
+            'location_id' => 1,
+            'location' => (object)['location_name' => 'Head Office - Dubai'],
+        ];
+        return view('emails.asset_assigned', compact('asset', 'employee', 'transaction'));
     }
 }
