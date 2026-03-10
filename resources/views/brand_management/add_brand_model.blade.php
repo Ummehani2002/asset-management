@@ -167,7 +167,15 @@
                                 <span class="text-muted">None</span>
                             @else
                                 @foreach($brand->models as $m)
-                                    <span class="badge bg-secondary me-1">{{ $m->model_number }}</span>
+                                    <span class="d-inline-flex align-items-center gap-1 me-1 mb-1">
+                                        <span class="badge bg-secondary">{{ $m->model_number }}</span>
+                                        <a href="{{ route('brand-models.edit', $m->id) }}?return_url={{ urlencode(route('brand-management.add-brand-model', ['category_id' => $selectedCategoryId])) }}" class="btn btn-sm btn-outline-warning py-0 px-1" title="Edit model"><i class="bi bi-pencil"></i></a>
+                                        <form action="{{ route('brand-models.destroy', $m->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete model {{ addslashes($m->model_number) }}?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete model"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </span>
                                 @endforeach
                             @endif
                         </div>

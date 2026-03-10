@@ -68,8 +68,16 @@
         @php $selectedCategory = $categories->firstWhere('id', $selectedCategoryId); @endphp
         {{-- Step 4: Add/edit model feature values — only shown when model selected --}}
         <div class="master-table-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 class="mb-0" style="color: white;"><i class="bi bi-list-check me-2"></i>Set values for model &ldquo;{{ $model->model_number }}&rdquo; ({{ $model->brand->name ?? '' }}) — <span class="badge bg-info">{{ $selectedCategory->category_name ?? 'N/A' }}</span></h5>
+                <div class="d-flex gap-1">
+                    <a href="{{ route('brand-models.edit', $model->id) }}?return_url={{ urlencode(route('brand-management.model-values', ['category_id' => $selectedCategoryId, 'brand_id' => $selectedBrandId, 'model_id' => $model->id])) }}" class="btn btn-sm btn-light"><i class="bi bi-pencil"></i> Edit</a>
+                    <form action="{{ route('brand-models.destroy', $model->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this model and its feature values?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
+                    </form>
+                </div>
             </div>
             <div class="card-body p-0">
                 <form action="{{ route('brand-models.update-feature-values', $model->id) }}" method="POST" autocomplete="off">
@@ -119,9 +127,15 @@
                         </table>
                     </div>
                     @if($features->isNotEmpty())
-                        <div class="p-3 border-top bg-white">
+                        <div class="p-3 border-top bg-white d-flex flex-wrap gap-2 align-items-center">
                             <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Save feature values</button>
-                            <a href="{{ route('brand-management.model-values', ['category_id' => $selectedCategoryId, 'brand_id' => $selectedBrandId]) }}" class="btn btn-secondary btn-sm ms-2">Change model</a>
+                            <a href="{{ route('brand-models.edit', $model->id) }}?return_url={{ urlencode(route('brand-management.model-values', ['category_id' => $selectedCategoryId, 'brand_id' => $selectedBrandId, 'model_id' => $model->id])) }}" class="btn btn-outline-warning btn-sm"><i class="bi bi-pencil me-1"></i>Edit model</a>
+                            <form action="{{ route('brand-models.destroy', $model->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this model and its feature values?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Delete model</button>
+                            </form>
+                            <a href="{{ route('brand-management.model-values', ['category_id' => $selectedCategoryId, 'brand_id' => $selectedBrandId]) }}" class="btn btn-secondary btn-sm ms-auto">Change model</a>
                         </div>
                     @endif
                 </form>

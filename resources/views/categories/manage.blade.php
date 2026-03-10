@@ -113,13 +113,24 @@
                                 <div>
                                     <label class="form-label small fw-semibold">Model (set values)</label>
                                     @if($selBrand->models && $selBrand->models->count() > 0)
-                                        <div class="d-flex flex-wrap gap-1">
+                                        <div class="d-flex flex-wrap gap-1 align-items-center">
                                             @foreach($selBrand->models as $bModel)
-                                                @php $setValuesParams = ['set_values' => $bModel->id, 'category_id' => $category->id, 'brand_id' => $selBrand->id]; @endphp
-                                                <a href="{{ route('categories.manage', $setValuesParams) }}#content-panel" class="badge {{ (isset($setValuesModel) && $setValuesModel->id == $bModel->id) ? 'bg-primary' : 'bg-secondary' }} text-decoration-none">{{ $bModel->model_number }}</a>
+                                                @php
+                                                    $setValuesParams = ['set_values' => $bModel->id, 'category_id' => $category->id, 'brand_id' => $selBrand->id];
+                                                    $returnUrl = route('categories.manage', $setValuesParams);
+                                                @endphp
+                                                <span class="d-inline-flex align-items-center gap-1">
+                                                    <a href="{{ route('categories.manage', $setValuesParams) }}#content-panel" class="badge {{ (isset($setValuesModel) && $setValuesModel->id == $bModel->id) ? 'bg-primary' : 'bg-secondary' }} text-decoration-none">{{ $bModel->model_number }}</a>
+                                                    <a href="{{ route('brand-models.edit', $bModel->id) }}?return_url={{ urlencode($returnUrl) }}" class="btn btn-sm btn-outline-warning py-0 px-1" title="Edit model"><i class="bi bi-pencil"></i></a>
+                                                    <form action="{{ route('brand-models.destroy', $bModel->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete model {{ addslashes($bModel->model_number) }}?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete model"><i class="bi bi-trash"></i></button>
+                                                    </form>
+                                                </span>
                                             @endforeach
                                         </div>
-                                        <small class="text-muted">Click model to set values</small>
+                                        <small class="text-muted">Click model to set values; use Edit/Delete to change or remove model.</small>
                                     @else
                                         <p class="text-muted small mb-0">No models. Add one on the right.</p>
                                     @endif

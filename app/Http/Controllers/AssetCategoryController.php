@@ -580,6 +580,31 @@ private function exportCategoryExcel($category)
         return redirect()->back()->with('success', 'Model added successfully.');
     }
 
+    /**
+     * Edit model (model number) form.
+     */
+    public function editModel($id)
+    {
+        $model = BrandModel::with('brand.category')->findOrFail($id);
+        return view('brand_management.edit_model', compact('model'));
+    }
+
+    /**
+     * Update model number.
+     */
+    public function updateModel(Request $request, $id)
+    {
+        $request->validate([
+            'model_number' => 'required|string|max:255',
+        ]);
+        $model = BrandModel::findOrFail($id);
+        $model->update(['model_number' => $request->model_number]);
+        if ($request->filled('return_url')) {
+            return redirect($request->return_url)->with('success', 'Model updated.');
+        }
+        return redirect()->back()->with('success', 'Model updated.');
+    }
+
     public function editModelFeatures($id)
     {
         $model = BrandModel::with(['brand.features', 'featureValues.categoryFeature'])->findOrFail($id);
