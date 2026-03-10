@@ -37,20 +37,19 @@
             <h5 class="card-title mb-4">Import assets from CSV</h5>
 
             <div class="alert alert-info mb-4">
-                <strong>Brand & Model</strong> (from Brand Management): only <strong>Category</strong> and <strong>Brand</strong> are used from your file; they must exist under <strong>Add Brand & Model</strong> / <strong>Model Values</strong>. Model can be set later when editing the asset.<br>
-                <strong>Asset details</strong> (other columns): Entity, Serial Number, Purchase Date, Warranty — these are stored in Asset Master.<br><br>
-                <strong>Required columns:</strong> Category, Brand, Serial Number (or <strong>SERVICE TAG</strong>), Purchase Date, Warranty Start. Optional: Entity, Warranty End.<br>
-                <strong>Column mapping:</strong><br>
+                <strong>Entity-wise upload:</strong> To assign assets by entity, add an <strong>Entity</strong> (or <strong>Company</strong>) column with the entity name (e.g. TANSEEQ INVESTMENT LLC). Entity names must already exist in Entity Master. If a row has no Entity column or it’s empty, the <strong>Default Entity</strong> below is used.<br><br>
+                <strong>Brand & Model:</strong> Category and Brand from your file must exist in <strong>Add Brand & Model</strong>. Model can be set later when editing the asset.<br><br>
+                <strong>Required columns:</strong> Category, Brand, Serial Number (or <strong>SERVICE TAG</strong>), and either Purchase Date or Warranty Start. Optional: Entity, Warranty End, Purchase Date.<br>
+                <strong>Column mapping (your Excel):</strong><br>
                 <ul class="mb-0 mt-1">
-                    <li><strong>Category</strong> / <strong>CATEGORY</strong> → Asset category (e.g. LAPTOP, DESKTOP). Must exist in Manage Categories.</li>
-                    <li><strong>Brand</strong> / <strong>BRAND</strong> → Brand (must exist for the category in Brand Management).</li>
-                    <li><strong>Entity</strong> / <strong>Entity Name</strong> / <strong>Company</strong> → Entity; use Default Entity below if missing.</li>
-                    <li><strong>Serial Number</strong> / <strong>SERVICE TAG</strong> → Serial number (unique).</li>
-                    <li><strong>Purchase Date</strong> / <strong>PURCHASE DATE</strong> → Purchase date (DD.MM.YYYY or Y-m-d).</li>
-                    <li><strong>Warranty Start</strong> / <strong>WARRANTY STA</strong> → Warranty start (defaults to purchase date if empty).</li>
-                    <li><strong>Warranty End</strong> / <strong>WARRANTY END</strong> → Warranty expiry date.</li>
+                    <li><strong>SERVICE TAG</strong> → Serial number (unique).</li>
+                    <li><strong>WARRANTY ST</strong> / <strong>WARRANTY STA</strong> → Warranty start date (DD.MM.YYYY).</li>
+                    <li><strong>WAR</strong> / <strong>WARRANTY END</strong> → Warranty end date (use full date DD.MM.YYYY if possible).</li>
+                    <li><strong>Entity</strong> / <strong>Company</strong> → Entity name for that row; or set Default Entity below for the whole file.</li>
+                    <li><strong>CATEGORY</strong> → LAPTOP, DESKTOP, etc. <strong>BRAND</strong> → DELL, LENOVO, etc.</li>
+                    <li><strong>PURCHASE DATE</strong> → Optional if Warranty Start is present.</li>
                 </ul>
-                <strong class="mt-2 d-block">File format:</strong> Save your Excel as <strong>CSV UTF-8</strong> (File → Save As → CSV UTF-8 Comma delimited). Rows with duplicate serial numbers or missing required fields are skipped.
+                <strong class="mt-2 d-block">File format:</strong> Save Excel as <strong>CSV UTF-8</strong> (File → Save As → CSV UTF-8). Rows with duplicate serial numbers or missing required fields are skipped.
             </div>
 
             <form action="{{ route('assets.import') }}" method="POST" enctype="multipart/form-data">

@@ -315,36 +315,66 @@ public function import(Request $request)
         if ($content === false) {
             throw new \Exception('Could not read file.');
         }
-        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
-        $tempPath = sys_get_temp_dir() . '/asset_import_' . uniqid() . '.csv';
-        file_put_contents($tempPath, $content);
+            $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+            $tempPath = sys_get_temp_dir() . '/asset_import_' . uniqid() . '.csv';
+            file_put_contents($tempPath, $content);
 
-        $handle = fopen($tempPath, 'r');
-        if (!$handle) {
-            @unlink($tempPath);
-            throw new \Exception('Could not open file.');
-        }
+            // Detect delimiter (Excel in some locales uses semicolon)
+            $firstLine = strtok($content, "\n");
+            $delimiter = (substr_count($firstLine ?? '', ';') >= substr_count($firstLine ?? '', ',')) ? ';' : ',';
 
-        $headers = [];
-        $imported = 0;
-        $skipped = [];
-        $rowNum = 0;
+            $handle = fopen($tempPath, 'r');
+            if (!$handle) {
+                @unlink($tempPath);
+                throw new \Exception('Could not open file.');
+            }
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $rowNum++;
-            if ($rowNum === 1) {
-                $headers = array_map(function ($h) {
+            $headers = [];
+            $headerRowIndex = 0;
+            $imported = 0;
+            $skipped = [];
+            $rowNum = 0;
+
+            $hasExpectedHeaders = function ($row) {
+                $trim = function ($h) { return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h)); };
+                $norm = function ($key) { return str_replace(' ', '', strtolower($key)); };
+                $targets = ['category', 'brand', 'serialnumber', 'servicetag', 'purchasedate', 'warrantysta', 'warrantyst', 'warrantyend', 'war'];
+                foreach ($row as $h) {
+                    $n = $norm($trim($h));
+                    if (in_array($n, $targets, true)) {
+                        return true;
+                    }
+                    if (str_contains($n, 'serial') || str_contains($n, 'category') || str_contains($n, 'brand')) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+                $rowNum++;
+                $trimmed = array_map(function ($h) {
                     return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h));
                 }, $row);
-                continue;
-            }
 
-            $data = array_combine($headers, array_pad($row, count($headers), ''));
-            if (!$data || count(array_filter($row)) === 0) {
-                continue;
-            }
+                if ($headerRowIndex === 0) {
+                    if ($hasExpectedHeaders($trimmed)) {
+                        $headerRowIndex = $rowNum;
+                        $headers = [];
+                        foreach ($trimmed as $i => $h) {
+                            $headers[] = ($h !== '') ? $h : ('_col' . $i);
+                        }
+                        continue;
+                    }
+                    continue;
+                }
 
-            $result = $this->mapRowToAsset($data, $defaultEntityName);
+                $data = array_combine($headers, array_pad($row, count($headers), ''));
+                if (!$data || count(array_filter($row)) === 0) {
+                    continue;
+                }
+
+                $result = $this->mapRowToAsset($data, $defaultEntityName);
             if ($result === null) {
                 continue;
             }
@@ -438,10 +468,16 @@ private function mapRowToAsset(array $data, $defaultEntityName)
     }
 
     $purchaseDate = $this->parseImportDate($normalize('Purchase Date') ?: $normalize('PURCHASE DATE'));
-    $warrantyStart = $this->parseImportDate($normalize('Warranty Start') ?: $normalize('WARRANTY STA') ?: $normalize('WARRANTY START'));
-    $warrantyEnd = $this->parseImportDate($normalize('Warranty End') ?: $normalize('WARRANTY END'));
+    $warrantyStart = $this->parseImportDate($normalize('Warranty Start') ?: $normalize('WARRANTY STA') ?: $normalize('WARRANTY ST') ?: $normalize('WARRANTY START'));
+    $warrantyEnd = $this->parseImportDate($normalize('Warranty End') ?: $normalize('WARRANTY END') ?: $normalize('WAR'));
+    if (!$warrantyStart && $purchaseDate) {
+        $warrantyStart = $purchaseDate;
+    }
+    if (!$purchaseDate && $warrantyStart) {
+        $purchaseDate = $warrantyStart;
+    }
     if (!$purchaseDate) {
-        return ['error' => 'Invalid or missing Purchase Date'];
+        return ['error' => 'Invalid or missing Purchase Date or Warranty Start'];
     }
     if (!$warrantyStart) {
         $warrantyStart = $purchaseDate;
