@@ -170,6 +170,10 @@ class AssetCategoryController extends Controller
             $tempPath = sys_get_temp_dir() . '/cbm_import_' . uniqid() . '.csv';
             file_put_contents($tempPath, $content);
 
+            // Detect delimiter: Excel in some locales uses semicolon (;)
+            $firstLine = strtok($content, "\n");
+            $delimiter = (substr_count($firstLine, ';') >= substr_count($firstLine, ',')) ? ';' : ',';
+
             $handle = fopen($tempPath, 'r');
             if (!$handle) {
                 @unlink($tempPath);
@@ -177,37 +181,65 @@ class AssetCategoryController extends Controller
             }
 
             $headers = [];
+            $headerRowIndex = 0;
             $rowNum = 0;
             $createdCategories = 0;
             $createdBrands = 0;
             $createdModels = 0;
-            // In-memory cache to avoid repeated DB lookups (reduces queries and speeds up import)
             $categoryCache = [];
             $brandCache = [];
 
-            \DB::transaction(function () use ($handle, &$headers, &$rowNum, &$createdCategories, &$createdBrands, &$createdModels, &$categoryCache, &$brandCache) {
-                while (($row = fgetcsv($handle)) !== false) {
+            $hasExpectedHeaders = function ($row) {
+                $trim = function ($h) { return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h)); };
+                $norm = function ($key) { return str_replace(' ', '', strtolower($key)); };
+                $targets = ['category', 'brand', 'model'];
+                foreach ($row as $h) {
+                    $n = $norm($trim($h));
+                    if (in_array($n, $targets, true)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            \DB::transaction(function () use ($handle, $delimiter, $hasExpectedHeaders, &$headers, &$headerRowIndex, &$rowNum, &$createdCategories, &$createdBrands, &$createdModels, &$categoryCache, &$brandCache) {
+                while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
                     $rowNum++;
-                    if ($rowNum === 1) {
-                        $headers = array_map(function ($h) {
-                            return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h));
-                        }, $row);
-                        continue;
+                    $trimmed = array_map(function ($h) {
+                        return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h));
+                    }, $row);
+
+                    if ($headerRowIndex === 0) {
+                        if ($hasExpectedHeaders($trimmed)) {
+                            $headerRowIndex = $rowNum;
+                            // Make headers unique so empty columns (Excel B,C) don't collapse array_combine
+                            $headers = [];
+                            foreach ($trimmed as $i => $h) {
+                                $headers[] = ($h !== '') ? $h : ('_col' . $i);
+                            }
+                            continue;
+                        }
+                        continue; // skip title row, try next
                     }
 
                     $data = array_combine($headers, array_pad($row, count($headers), ''));
-                    if (!$data || count(array_filter($row)) === 0) {
+                    if (!$data) {
+                        continue;
+                    }
+                    if (count(array_filter($row)) === 0) {
                         continue;
                     }
 
                     $normalize = function ($key) use ($data) {
                         $keys = array_keys($data);
+                        $keyNorm = str_replace(' ', '', strtolower($key));
                         foreach ($keys as $k) {
-                            if (str_replace(' ', '', strtolower($k)) === str_replace(' ', '', strtolower($key))) {
-                                return trim($data[$k] ?? '');
+                            if ($k !== '' && str_replace(' ', '', strtolower($k)) === $keyNorm) {
+                                $v = trim($data[$k] ?? '');
+                                return $v === '' ? null : $v;
                             }
                         }
-                        return trim($data[$key] ?? '');
+                        return null;
                     };
 
                     $categoryName = $normalize('CATEGORY') ?: $normalize('Category');

@@ -36,7 +36,9 @@
             <h5 class="card-title mb-4">Upload CSV (Category, Brand, Model only)</h5>
 
             <div class="alert alert-info mb-4">
-                <strong>Columns:</strong> CATEGORY, BRAND, MODEL. Save Excel as <strong>CSV UTF-8</strong>. If you get a timeout (504), try a smaller file (e.g. a few hundred rows), then import the rest.
+                <strong>Columns:</strong> CATEGORY, BRAND, MODEL (headers can be in row 1 or 2; a title row in row 1 is skipped).<br>
+                Save Excel as <strong>CSV UTF-8 (Comma delimited)</strong> — File → Save As → CSV UTF-8. Empty columns between CATEGORY and BRAND/MODEL are fine.<br>
+                If you get a timeout (504), try a smaller file (e.g. a few hundred rows), then import the rest.
             </div>
 
             <form action="{{ route('brand-management.import-category-brand-model') }}" method="POST" enctype="multipart/form-data">
