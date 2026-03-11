@@ -99,7 +99,7 @@ class CheckDelayedTasks extends Command
                     }
                 }
                 
-                if ($shouldSendEmail) {
+                if ($shouldSendEmail && config('mail.notifications_enabled', false)) {
                     $employee = Employee::find($task->employee_id);
                     
                     if ($employee && $employee->email) {

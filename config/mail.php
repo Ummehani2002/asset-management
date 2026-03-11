@@ -127,4 +127,13 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Tanseeq Asset Management'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Notifications
+    |--------------------------------------------------------------------------
+    | Set to true to send asset-assigned, maintenance, and task emails.
+    |
+    */
+    'notifications_enabled' => env('MAIL_NOTIFICATIONS_ENABLED', false),
+
 ];

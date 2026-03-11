@@ -189,8 +189,8 @@ public function store(Request $request)
                 ->withErrors(['error' => 'Failed to save job card. Please try again.']);
         }
 
-        // Send email to employee when task is assigned
-        if ($employee->email) {
+        // Send email to employee when task is assigned (if notifications enabled)
+        if (config('mail.notifications_enabled', false) && $employee->email) {
             try {
                 Mail::to($employee->email)->send(new TaskAssignedMail($timeRecord));
                 \Log::info('Task assignment email sent to: ' . $employee->email);
