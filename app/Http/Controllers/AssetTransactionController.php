@@ -176,7 +176,7 @@ class AssetTransactionController extends Controller
             $query->where('transaction_type', $request->transaction_type);
         }
 
-        // Search filter
+        // Search filter (asset serial/asset_id, employee name/entity/employee_id, project name)
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -186,7 +186,8 @@ class AssetTransactionController extends Controller
                 })
                 ->orWhereHas('employee', function($empQuery) use ($search) {
                     $empQuery->where('name', 'like', "%{$search}%")
-                             ->orWhere('entity_name', 'like', "%{$search}%");
+                             ->orWhere('entity_name', 'like', "%{$search}%")
+                             ->orWhere('employee_id', 'like', "%{$search}%");
                 })
                 ->orWhere('project_name', 'like', "%{$search}%");
             });
@@ -468,7 +469,8 @@ class AssetTransactionController extends Controller
                     })
                     ->orWhereHas('employee', function($empQuery) use ($search) {
                         $empQuery->where('name', 'like', "%{$search}%")
-                                 ->orWhere('entity_name', 'like', "%{$search}%");
+                                 ->orWhere('entity_name', 'like', "%{$search}%")
+                                 ->orWhere('employee_id', 'like', "%{$search}%");
                     })
                     ->orWhere('project_name', 'like', "%{$search}%");
                 });

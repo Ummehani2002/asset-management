@@ -45,7 +45,7 @@
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Search</label>
                     <div class="position-relative" id="txnSearchWrap">
-                        <input type="text" name="search" id="txnSearchInput" class="form-control" placeholder="Type asset, employee, or project..." value="{{ request('search') }}" autocomplete="off">
+                        <input type="text" name="search" id="txnSearchInput" class="form-control" placeholder="Type asset serial, Employee ID, name, or project..." value="{{ request('search') }}" autocomplete="off">
                         <div id="txnSearchDropdown" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; max-height: 260px; overflow-y: auto;"></div>
                     </div>
                
