@@ -2089,6 +2089,145 @@ private function sendAssetEmail($transaction)
     }
 
     /**
+     * Show form to import asset assignments from CSV (ERP ID + SERVICE TAG columns).
+     */
+    public function showImportAssignmentsForm()
+    {
+        return view('asset_transactions.import_assignments');
+    }
+
+    /**
+     * Import asset assignments from CSV. Columns: ERP ID (or Employee ID), SERVICE TAG (or Serial Number).
+     * Creates assign transactions for each row where employee and asset exist and asset is assignable.
+     */
+    public function importAssignments(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt|max:10240',
+            'issue_date' => 'nullable|date',
+        ]);
+
+        $issueDate = $request->issue_date ? $request->issue_date : now()->format('Y-m-d');
+        $file = $request->file('file');
+
+        try {
+            $path = $file->getRealPath();
+            $content = file_get_contents($path);
+            if ($content === false) {
+                throw new \Exception('Could not read file.');
+            }
+            $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+            $tempPath = sys_get_temp_dir() . '/assign_import_' . uniqid() . '.csv';
+            file_put_contents($tempPath, $content);
+
+            $firstLine = strtok($content, "\n");
+            $delimiter = (substr_count($firstLine ?? '', ';') >= substr_count($firstLine ?? '', ',')) ? ';' : ',';
+            $handle = fopen($tempPath, 'r');
+            if (!$handle) {
+                @unlink($tempPath);
+                throw new \Exception('Could not open file.');
+            }
+
+            $headers = [];
+            $imported = 0;
+            $skipped = [];
+            $rowNum = 0;
+
+            while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+                $rowNum++;
+                $trimmed = array_map(function ($h) {
+                    return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h));
+                }, $row);
+
+                if ($rowNum === 1) {
+                    $headers = [];
+                    foreach ($trimmed as $i => $h) {
+                        $headers[] = ($h !== '') ? $h : ('_col' . $i);
+                    }
+                    continue;
+                }
+
+                $data = array_combine($headers, array_pad($row, count($headers), ''));
+                if (!$data || count(array_filter($row)) === 0) {
+                    continue;
+                }
+
+                $erpId = $this->normalizeColumn($data, ['ERP ID', 'ERPID', 'Employee ID', 'EmployeeID']);
+                $serviceTag = $this->normalizeColumn($data, ['SERVICE TAG', 'Service Tag', 'Serial Number', 'Serial number']);
+                if (empty($erpId) || empty($serviceTag)) {
+                    $skipped[] = "Row {$rowNum}: Missing ERP ID or SERVICE TAG";
+                    continue;
+                }
+
+                $employee = Employee::where('employee_id', (string) $erpId)->first();
+                if (!$employee) {
+                    $skipped[] = "Row {$rowNum}: Employee not found (ERP ID: {$erpId})";
+                    continue;
+                }
+
+                $serviceTagNorm = trim($serviceTag);
+                $asset = Asset::whereRaw('LOWER(TRIM(serial_number)) = ?', [strtolower($serviceTagNorm)])->first();
+                if (!$asset) {
+                    $skipped[] = "Row {$rowNum}: Asset not found (SERVICE TAG: {$serviceTag})";
+                    continue;
+                }
+
+                if (!in_array($asset->status, ['available', 'under_maintenance'])) {
+                    $skipped[] = "Row {$rowNum}: Asset {$asset->serial_number} is not available (status: {$asset->status})";
+                    continue;
+                }
+
+                try {
+                    $transaction = AssetTransaction::create([
+                        'asset_id' => $asset->id,
+                        'transaction_type' => 'assign',
+                        'status' => 'assigned',
+                        'employee_id' => $employee->id,
+                        'assigned_to_type' => 'employee',
+                        'issue_date' => $issueDate,
+                        'return_date' => null,
+                    ]);
+                    $asset->update(['status' => 'assigned']);
+                    $employee->update(['is_active' => true]);
+                    $imported++;
+                } catch (\Exception $e) {
+                    $skipped[] = "Row {$rowNum}: " . $e->getMessage();
+                    Log::warning("Import assignment row {$rowNum}: " . $e->getMessage());
+                }
+            }
+
+            fclose($handle);
+            @unlink($tempPath);
+
+            $message = "Successfully assigned {$imported} asset(s).";
+            if (!empty($skipped)) {
+                $message .= ' Skipped: ' . implode('; ', array_slice($skipped, 0, 10));
+                if (count($skipped) > 10) {
+                    $message .= ' (+' . (count($skipped) - 10) . ' more)';
+                }
+            }
+            return redirect()->route('asset-transactions.index')->with('success', $message);
+        } catch (\Exception $e) {
+            Log::error('Import assignments error: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Import failed: ' . $e->getMessage());
+        }
+    }
+
+    private function normalizeColumn(array $data, array $possibleKeys): string
+    {
+        $value = '';
+        foreach ($possibleKeys as $key) {
+            foreach (array_keys($data) as $k) {
+                if (str_replace(' ', '', strtolower($k)) === str_replace(' ', '', strtolower($key))) {
+                    $value = trim($data[$k] ?? '');
+                    break 2;
+                }
+            }
+        }
+        return $value;
+    }
+
+    /**
      * Preview the asset-assigned email with sample data (for viewing layout/content).
      */
     public function previewAssetAssignedEmail()

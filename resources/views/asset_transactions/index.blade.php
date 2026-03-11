@@ -11,6 +11,9 @@
                 <a href="{{ route('asset-transactions.create') }}" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-2"></i>Assign/Return
                 </a>
+                <a href="{{ route('asset-transactions.import-assignments') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-upload me-2"></i>Import Assignments
+                </a>
                 <a href="{{ route('asset-transactions.maintenance') }}" class="btn btn-info">
                     <i class="bi bi-tools me-2"></i>System Maintenance
                 </a>

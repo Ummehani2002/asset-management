@@ -164,6 +164,8 @@ Route::prefix('asset-transactions')->group(function () {
     Route::get('/preview-asset-email', [AssetTransactionController::class, 'previewAssetAssignedEmail'])->name('asset-transactions.preview-email');
     Route::get('/view', [AssetTransactionController::class, 'view'])->name('asset-transactions.view');
     Route::get('/export', [AssetTransactionController::class, 'export'])->name('asset-transactions.export');
+    Route::get('/import-assignments', [AssetTransactionController::class, 'showImportAssignmentsForm'])->name('asset-transactions.import-assignments');
+    Route::post('/import-assignments', [AssetTransactionController::class, 'importAssignments'])->name('asset-transactions.import-assignments.store');
     Route::get('/create', [AssetTransactionController::class, 'create'])->name('asset-transactions.create');
     Route::get('/maintenance', [AssetTransactionController::class, 'maintenance'])->name('asset-transactions.maintenance');
     Route::post('/maintenance-store', [AssetTransactionController::class, 'maintenanceStore'])->name('asset-transactions.maintenance-store');
