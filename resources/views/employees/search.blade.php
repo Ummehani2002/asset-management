@@ -86,6 +86,7 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
+                                    <th>ID</th>
                                     <th>Employee ID</th>
                                     <th>Name</th>
                                     <th>Status</th>
@@ -101,6 +102,7 @@
                                 @foreach($employees as $emp)
                                     <tr class="{{ $emp->is_active === false ? 'table-secondary' : '' }}">
                                         <td>{{ $loop->iteration }}</td>
+                                        <td><code>{{ $emp->id }}</code></td>
                                         <td>{{ $emp->employee_id }}</td>
                                         <td>{{ $emp->name ?? 'N/A' }}</td>
                                         <td>

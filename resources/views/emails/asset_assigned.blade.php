@@ -226,7 +226,7 @@
 
                 <div class="contact-it">
                     <p class="title">For any queries</p>
-                    <p class="text">If you have any questions or concerns about this asset, please contact the <strong>IT Department</strong>. They will be happy to assist you.</p>
+                    <p class="text">If you have any questions or concerns about this asset, please contact the <strong>IT Department</strong>. We will be happy to assist you.</p>
                     <p class="text" style="margin-top: 12px; font-size: 13px; color: #666;"><em>This email is auto-generated. Please do not reply to it.</em></p>
                 </div>
 

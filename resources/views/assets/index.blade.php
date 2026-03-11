@@ -27,10 +27,10 @@
 
     {{-- Filter Form --}}
     <div class="master-form-card">
-        <form method="GET" action="{{ route('assets.filter') }}">
-            <div class="row">
+        <form method="GET" action="{{ route('assets.index') }}">
+            <div class="row g-2 align-items-end">
                 <div class="col-md-4">
-                    <label for="category_id" class="form-label">Filter by Category:</label>
+                    <label for="category_id" class="form-label">Category</label>
                     <select name="category_id" id="category_id" class="form-control" onchange="this.form.submit()">
                         <option value="">-- All Categories --</option>
                         @foreach($categories as $category)
@@ -39,6 +39,23 @@
                             </option>
                         @endforeach
                     </select>
+                </div>
+                @if($entities->isNotEmpty())
+                <div class="col-md-4">
+                    <label for="entity" class="form-label">Entity</label>
+                    <select name="entity" id="entity" class="form-control" onchange="this.form.submit()">
+                        <option value="">-- All Entities --</option>
+                        @foreach($entities as $entity)
+                            <option value="{{ $entity->id }}" {{ (isset($selectedEntityId) && $selectedEntityId == $entity->id) ? 'selected' : '' }}>
+                                {{ $entity->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                    <a href="{{ route('assets.index') }}" class="btn btn-outline-secondary">Clear</a>
                 </div>
             </div>
         </form>
@@ -60,6 +77,7 @@
                             <tr>
                                 <th>#</th>
                                 <th>Asset ID</th>
+                                <th>Entity</th>
                                 <th>Category</th>
                                 <th>Brand</th>
                                 <th>Purchase Date</th>
@@ -83,6 +101,7 @@
                                             <i class="bi bi-clock-history"></i> History
                                         </a>
                                     </td>
+                                    <td>{{ optional($asset->entity)->name ?? '-' }}</td>
                                     <td>{{ optional($asset->category)->category_name ?? 'N/A' }}</td>
                                     <td>{{ optional($asset->brand)->name ?? 'N/A' }}</td>
                                     <td>{{ $asset->purchase_date ?? 'N/A' }}</td>
@@ -124,7 +143,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="13" class="text-center text-muted py-4">No assets found.</td>
+                                    <td colspan="14" class="text-center text-muted py-4">No assets found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

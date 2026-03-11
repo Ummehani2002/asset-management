@@ -15,22 +15,21 @@ use Illuminate\Support\Collection;
 
 class AssetController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            // Check if required tables exist
             $hasAssetCategories = Schema::hasTable('asset_categories');
             $hasAssets = Schema::hasTable('assets');
-            
+
             if (!$hasAssetCategories && !$hasAssets) {
                 Log::warning('asset_categories and assets tables do not exist');
                 $categories = collect([]);
                 $assets = collect([]);
-                return view('assets.index', compact('assets', 'categories'))
+                $entities = collect([]);
+                return view('assets.index', compact('assets', 'categories', 'entities'))
                     ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
 
-            // Try to get categories, fallback to empty collection if table doesn't exist
             try {
                 $categories = $hasAssetCategories ? AssetCategory::all() : collect([]);
             } catch (\Exception $e) {
@@ -38,25 +37,43 @@ class AssetController extends Controller
                 $categories = collect([]);
             }
 
-            // Try to get assets, fallback to empty collection if table doesn't exist
-            try {
-                $assets = $hasAssets 
-                    ? Asset::with(['category', 'brand', 'featureValues.feature'])->get() 
-                    : collect([]);
-            } catch (\Exception $e) {
-                Log::warning('Error loading assets: ' . $e->getMessage());
-                $assets = collect([]);
+            $entities = collect([]);
+            if (Schema::hasTable('entities')) {
+                try {
+                    $entities = Entity::orderBy('name')->get(['id', 'name']);
+                } catch (\Exception $e) {
+                    Log::warning('Error loading entities: ' . $e->getMessage());
+                }
             }
 
-            return view('assets.index', compact('assets', 'categories'));
+            $assets = collect([]);
+            if ($hasAssets) {
+                try {
+                    $query = Asset::with(['category', 'brand', 'featureValues.feature', 'entity']);
+                    if ($request->filled('category_id')) {
+                        $query->where('asset_category_id', $request->category_id);
+                    }
+                    if ($request->filled('entity') && Schema::hasColumn('assets', 'entity_id')) {
+                        $query->where('entity_id', $request->entity);
+                    }
+                    $assets = $query->orderBy('asset_id')->get();
+                } catch (\Exception $e) {
+                    Log::warning('Error loading assets: ' . $e->getMessage());
+                }
+            }
+
+            $categoryId = $request->get('category_id');
+            $selectedEntityId = $request->get('entity');
+            return view('assets.index', compact('assets', 'categories', 'entities', 'categoryId', 'selectedEntityId'));
         } catch (\Exception $e) {
             Log::error('Asset index error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
-            
-            // Return empty collections instead of crashing
             $categories = collect([]);
             $assets = collect([]);
-            return view('assets.index', compact('assets', 'categories'))
+            $entities = collect([]);
+            $categoryId = null;
+            $selectedEntityId = null;
+            return view('assets.index', compact('assets', 'categories', 'entities', 'categoryId', 'selectedEntityId'))
                 ->with('warning', 'Unable to load assets. Please ensure migrations are run: php artisan migrate --force');
         }
     }

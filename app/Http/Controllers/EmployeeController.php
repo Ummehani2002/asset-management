@@ -508,12 +508,13 @@ private function syncEntitiesFromImport(array $entityNames, $replaceExisting)
             $file = fopen('php://output', 'w');
             
             // Headers
-            fputcsv($file, ['#', 'Employee ID', 'Name', 'Email', 'Phone', 'Entity', 'Department', 'Created At']);
+            fputcsv($file, ['#', 'ID', 'Employee ID', 'Name', 'Email', 'Phone', 'Entity', 'Department', 'Created At']);
 
             // Data
             foreach ($employees as $index => $employee) {
                 fputcsv($file, [
                     $index + 1,
+                    $employee->id,
                     $employee->employee_id,
                     $employee->name ?? 'N/A',
                     $employee->email ?? 'N/A',

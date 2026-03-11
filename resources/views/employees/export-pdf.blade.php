@@ -20,6 +20,7 @@
         <thead>
             <tr>
                 <th>#</th>
+                <th>ID</th>
                 <th>Employee ID</th>
                 <th>Name</th>
                 <th>Email</th>
@@ -33,6 +34,7 @@
             @foreach($employees as $index => $employee)
                 <tr>
                     <td>{{ $index + 1 }}</td>
+                    <td>{{ $employee->id }}</td>
                     <td>{{ $employee->employee_id }}</td>
                     <td>{{ $employee->name ?? 'N/A' }}</td>
                     <td>{{ $employee->email ?? 'N/A' }}</td>
