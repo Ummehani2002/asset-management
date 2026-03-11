@@ -34,7 +34,7 @@
                 </ul>
                 <strong>Your Excel columns:</strong> Sl.no, <strong>ERP ID</strong>, NAME, Designation, CATEGORY, <strong>SERVICE TAG</strong>, BRAND, MODEL, <strong>PURCHASE DATE</strong>, etc. – we use <strong>ERP ID</strong>, <strong>SERVICE TAG</strong>, and <strong>PURCHASE DATE</strong> (for issue date).<br>
                 <strong>Before importing:</strong> Ensure employees are imported (Employee Master / Import) and assets are imported (Assets / Import) so ERP ID and SERVICE TAG exist. Only <em>available</em> or <em>under maintenance</em> assets can be assigned.<br>
-                <strong>File format:</strong> Save Excel as <strong>CSV UTF-8</strong> (File → Save As → CSV UTF-8).
+                <strong>File format:</strong> Save Excel as <strong>CSV UTF-8</strong> (File → Save As → CSV UTF-8). If your sheet has title rows (e.g. company name) above the column headers, the importer will detect the row that contains <strong>ERP ID</strong> and <strong>SERVICE TAG</strong> and use it as the header row.
             </div>
 
             <form action="{{ route('asset-transactions.import-assignments') }}" method="POST" enctype="multipart/form-data">

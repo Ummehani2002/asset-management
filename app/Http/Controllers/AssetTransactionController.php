@@ -2128,24 +2128,39 @@ private function sendAssetEmail($transaction)
                 throw new \Exception('Could not open file.');
             }
 
-            $headers = [];
-            $imported = 0;
-            $skipped = [];
-            $rowNum = 0;
-
+            $allRows = [];
             while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
-                $rowNum++;
+                $allRows[] = $row;
+            }
+            fclose($handle);
+
+            $headers = [];
+            $dataRows = [];
+            $maxHeaderSearch = 25;
+            for ($i = 0; $i < min($maxHeaderSearch, count($allRows)); $i++) {
                 $trimmed = array_map(function ($h) {
                     return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h));
-                }, $row);
-
-                if ($rowNum === 1) {
-                    $headers = [];
-                    foreach ($trimmed as $i => $h) {
-                        $headers[] = ($h !== '') ? $h : ('_col' . $i);
+                }, $allRows[$i]);
+                if ($this->rowLooksLikeAssignmentHeader($trimmed)) {
+                    foreach ($trimmed as $j => $h) {
+                        $headers[] = ($h !== '') ? $h : ('_col' . $j);
                     }
-                    continue;
+                    $dataRows = array_slice($allRows, $i + 1);
+                    break;
                 }
+            }
+            if (empty($headers) && !empty($allRows)) {
+                $first = $allRows[0];
+                foreach ($first as $j => $h) {
+                    $headers[] = (trim((string) $h) !== '') ? trim($first[$j]) : ('_col' . $j);
+                }
+                $dataRows = array_slice($allRows, 1);
+            }
+
+            $imported = 0;
+            $skipped = [];
+            foreach ($dataRows as $idx => $row) {
+                $rowNum = $idx + (count($allRows) - count($dataRows)) + 1;
 
                 $data = array_combine($headers, array_pad($row, count($headers), ''));
                 if (!$data || count(array_filter($row)) === 0) {
@@ -2205,7 +2220,6 @@ private function sendAssetEmail($transaction)
                 }
             }
 
-            fclose($handle);
             @unlink($tempPath);
 
             $message = "Successfully assigned {$imported} asset(s).";
@@ -2220,6 +2234,28 @@ private function sendAssetEmail($transaction)
             Log::error('Import assignments error: ' . $e->getMessage());
             return redirect()->back()->withInput()->with('error', 'Import failed: ' . $e->getMessage());
         }
+    }
+
+    /** Return true if this row looks like the header row (contains ERP ID and SERVICE TAG / Serial columns). */
+    private function rowLooksLikeAssignmentHeader(array $trimmed): bool
+    {
+        $norm = function ($s) {
+            return str_replace(' ', '', strtolower(trim((string) $s)));
+        };
+        $erpLabels = ['erpid', 'erp id', 'employeeid', 'employee id'];
+        $serviceLabels = ['servicetag', 'service tag', 'serialnumber', 'serial number'];
+        $hasErp = false;
+        $hasService = false;
+        foreach ($trimmed as $cell) {
+            $c = $norm($cell);
+            if (in_array($c, $erpLabels, true)) {
+                $hasErp = true;
+            }
+            if (in_array($c, $serviceLabels, true)) {
+                $hasService = true;
+            }
+        }
+        return $hasErp && $hasService;
     }
 
     private function normalizeColumn(array $data, array $possibleKeys): string
