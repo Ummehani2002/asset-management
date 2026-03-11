@@ -30,8 +30,9 @@
                 <ul class="mb-2 mt-1">
                     <li><strong>ERP ID</strong> (or Employee ID) – must match the Employee ID in <strong>Employee Master</strong> (same as in your Excel register).</li>
                     <li><strong>SERVICE TAG</strong> (or Serial Number) – must match the asset’s <strong>Serial number</strong> in the system (same as in your asset register).</li>
+                    <li><strong>PURCHASE DATE</strong> – used as the <strong>issue date</strong> for each assignment (e.g. 22.10.2022 or Y-m-d). If missing, the date below or the asset’s purchase date is used.</li>
                 </ul>
-                <strong>Your Excel columns:</strong> Sl.no, <strong>ERP ID</strong>, NAME, Designation, CATEGORY, <strong>SERVICE TAG</strong>, BRAND, MODEL, etc. are fine – we only use <strong>ERP ID</strong> and <strong>SERVICE TAG</strong>.<br>
+                <strong>Your Excel columns:</strong> Sl.no, <strong>ERP ID</strong>, NAME, Designation, CATEGORY, <strong>SERVICE TAG</strong>, BRAND, MODEL, <strong>PURCHASE DATE</strong>, etc. – we use <strong>ERP ID</strong>, <strong>SERVICE TAG</strong>, and <strong>PURCHASE DATE</strong> (for issue date).<br>
                 <strong>Before importing:</strong> Ensure employees are imported (Employee Master / Import) and assets are imported (Assets / Import) so ERP ID and SERVICE TAG exist. Only <em>available</em> or <em>under maintenance</em> assets can be assigned.<br>
                 <strong>File format:</strong> Save Excel as <strong>CSV UTF-8</strong> (File → Save As → CSV UTF-8).
             </div>
@@ -40,9 +41,9 @@
                 @csrf
 
                 <div class="mb-3">
-                    <label class="form-label">Issue date for all assignments</label>
+                    <label class="form-label">Fallback issue date (when PURCHASE DATE is missing in a row)</label>
                     <input type="date" name="issue_date" class="form-control" value="{{ old('issue_date', date('Y-m-d')) }}">
-                    <small class="text-muted">Leave as today unless you want a different date for all rows.</small>
+                    <small class="text-muted">Used only if a row has no PURCHASE DATE or it can’t be parsed. Otherwise each row uses its PURCHASE DATE as issue date.</small>
                 </div>
 
                 <div class="mb-4">

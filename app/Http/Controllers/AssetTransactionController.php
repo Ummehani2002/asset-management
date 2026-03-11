@@ -2102,12 +2102,12 @@ private function sendAssetEmail($transaction)
      */
     public function importAssignments(Request $request)
     {
-        $request->validate([
+            $request->validate([
             'file' => 'required|mimes:csv,txt|max:10240',
             'issue_date' => 'nullable|date',
         ]);
 
-        $issueDate = $request->issue_date ? $request->issue_date : now()->format('Y-m-d');
+        $defaultIssueDate = $request->issue_date ?: now()->format('Y-m-d');
         $file = $request->file('file');
 
         try {
@@ -2154,6 +2154,7 @@ private function sendAssetEmail($transaction)
 
                 $erpId = $this->normalizeColumn($data, ['ERP ID', 'ERPID', 'Employee ID', 'EmployeeID']);
                 $serviceTag = $this->normalizeColumn($data, ['SERVICE TAG', 'Service Tag', 'Serial Number', 'Serial number']);
+                $purchaseDateRaw = $this->normalizeColumn($data, ['PURCHASE DATE', 'Purchase Date', 'Purchase date']);
                 if (empty($erpId) || empty($serviceTag)) {
                     $skipped[] = "Row {$rowNum}: Missing ERP ID or SERVICE TAG";
                     continue;
@@ -2175,6 +2176,14 @@ private function sendAssetEmail($transaction)
                 if (!in_array($asset->status, ['available', 'under_maintenance'])) {
                     $skipped[] = "Row {$rowNum}: Asset {$asset->serial_number} is not available (status: {$asset->status})";
                     continue;
+                }
+
+                $issueDate = $this->parseImportDate($purchaseDateRaw);
+                if (!$issueDate && $asset->purchase_date) {
+                    $issueDate = \Carbon\Carbon::parse($asset->purchase_date)->format('Y-m-d');
+                }
+                if (!$issueDate) {
+                    $issueDate = $defaultIssueDate;
                 }
 
                 try {
@@ -2225,6 +2234,29 @@ private function sendAssetEmail($transaction)
             }
         }
         return $value;
+    }
+
+    /** Parse date from CSV (DD.MM.YYYY, Y-m-d, etc.) for import. */
+    private function parseImportDate(?string $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+        $value = trim($value);
+        foreach (['d.m.Y', 'd/m/Y', 'Y-m-d', 'm/d/Y', 'd-m-Y'] as $format) {
+            try {
+                $d = \Carbon\Carbon::createFromFormat($format, $value);
+                return $d->format('Y-m-d');
+            } catch (\Exception $e) {
+                // try next
+            }
+        }
+        try {
+            $d = new \DateTime($value);
+            return $d->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
