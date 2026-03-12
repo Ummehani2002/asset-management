@@ -13,6 +13,12 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
     {{-- Bulk: Set budget for all cost heads at once --}}
     <div class="master-form-card mb-4">
@@ -119,6 +125,51 @@
             </button>
         </div>
     </form>
+
+    {{-- Existing budgets list (when filters applied) with Delete option --}}
+    @if(isset($budgets) && $budgets->isNotEmpty())
+        @php $yearCol = 'budget_' . ($selectedYear ?? date('Y')); @endphp
+        <div class="master-table-card mt-4 no-print">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0" style="color: white;"><i class="bi bi-list-ul me-2"></i>Existing budgets</h5>
+                <span class="text-white-50 small">Filter by Entity / Expense type above to see list</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Entity</th>
+                                <th>Cost Head</th>
+                                <th>Expense Type</th>
+                                <th>Budget ({{ $selectedYear ?? date('Y') }})</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($budgets as $budget)
+                                <tr>
+                                    <td>{{ $budget->employee->entity_name ?? 'N/A' }}</td>
+                                    <td>{{ $budget->cost_head ?? 'N/A' }}</td>
+                                    <td>{{ $budget->expense_type ?? 'N/A' }}</td>
+                                    <td>{{ isset($budget->$yearCol) ? number_format($budget->$yearCol, 2) : '–' }}</td>
+                                    <td class="text-end">
+                                        <form action="{{ route('entity_budget.destroy', $budget->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this budget? Any expenses under it will also be removed.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger" title="Delete budget">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
 
 </div>
 

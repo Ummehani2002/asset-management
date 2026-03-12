@@ -400,6 +400,23 @@ class EntityBudgetController extends Controller
         }
     }
 
+    /**
+     * Delete an entity budget (and its expenses via cascade).
+     */
+    public function destroy($id)
+    {
+        try {
+            $budget = EntityBudget::findOrFail($id);
+            $entityId = $budget->employee_id;
+            $budget->delete();
+            return redirect()->route('entity_budget.create', ['entity_id' => $entityId])
+                ->with('success', 'Budget deleted successfully.');
+        } catch (\Exception $e) {
+            Log::error('EntityBudget destroy error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Could not delete budget. ' . $e->getMessage());
+        }
+    }
+
     public function downloadForm($id)
     {
        $budget = EntityBudget::with(['employee', 'expenses'])->findOrFail($id);

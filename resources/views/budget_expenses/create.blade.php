@@ -49,8 +49,15 @@
 
         <div class="card mt-3 mb-3">
             <div class="card-body">
-                <h5>Budget (cost) for selected cost head</h5>
-                <div class="row">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <h5 class="mb-0">Budget (cost) for selected cost head</h5>
+                    <form id="deleteBudgetForm" action="" method="POST" class="d-none" onsubmit="return confirm('Delete this budget? All expenses under it will also be removed.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Delete this budget</button>
+                    </form>
+                </div>
+                <div class="row mt-2">
                     <div class="col-md-3">
                         <p>Budget Amount: <span id="budget_amount" class="fw-bold">0</span></p>
                     </div>
@@ -215,6 +222,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 availableBalanceEl.textContent = '0';
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">' + (data.message || 'No budget found') + '</td></tr>';
                 updateBalance();
+                var deleteForm = document.getElementById('deleteBudgetForm');
+                if (deleteForm) deleteForm.classList.add('d-none');
                 console.log('Budget not found:', data.message || 'Unknown error');
                 return null;
             }
@@ -225,6 +234,15 @@ document.addEventListener('DOMContentLoaded', function() {
             availableBalanceEl.textContent = data.available_balance ?? '0';
             renderExpenses(data.expenses || [], data);
             updateBalance();
+            var deleteForm = document.getElementById('deleteBudgetForm');
+            if (deleteForm) {
+                if (data.entity_budget_id) {
+                    deleteForm.action = "{{ url('entity-budget') }}/" + data.entity_budget_id;
+                    deleteForm.classList.remove('d-none');
+                } else {
+                    deleteForm.classList.add('d-none');
+                }
+            }
             return data;
         } catch (error) {
             console.error('Error fetching budget details:', error);
@@ -234,6 +252,8 @@ document.addEventListener('DOMContentLoaded', function() {
             availableBalanceEl.textContent = '0';
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading budget details</td></tr>';
             updateBalance();
+            var deleteForm = document.getElementById('deleteBudgetForm');
+            if (deleteForm) deleteForm.classList.add('d-none');
             return null;
         }
     }
