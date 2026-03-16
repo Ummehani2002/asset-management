@@ -621,6 +621,13 @@ document.addEventListener('DOMContentLoaded', function() {
         var locationSelect = document.getElementById('assign_location');
         var locationIdInput = document.getElementById('location_id');
         if (!entity || !locationSelect) return;
+
+        // If no explicit location passed, but we already have a saved location_id,
+        // use that as the default so the dropdown keeps showing the last selected value.
+        if (!selectLocationId && locationIdInput && locationIdInput.value) {
+            selectLocationId = locationIdInput.value;
+        }
+
         var entityName = (entity.value || '').trim();
         locationSelect.innerHTML = '<option value="">Loading...</option>';
         if (!selectLocationId && locationIdInput) locationIdInput.value = '';
