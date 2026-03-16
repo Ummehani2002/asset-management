@@ -251,19 +251,18 @@ class IssueNoteController extends Controller
             return response()->json(['error' => 'Employee not found'], 404);
         }
 
-        // Get location from the employee's CURRENT active assignment:
-        // latest ASSIGN transaction with status = 'assigned' and a location.
-        $latestTransaction = \App\Models\AssetTransaction::where('employee_id', $id)
-            ->where('transaction_type', 'assign')
-            ->where('status', 'assigned')
-            ->whereNotNull('location_id')
+        // Prefer location from the employee's CURRENT assigned asset (Asset.status = 'assigned')
+        $location = 'N/A';
+        $assignedAsset = \App\Models\Asset::where('status', 'assigned')
+            ->whereHas('assetTransactions', function ($q) use ($id) {
+                $q->where('employee_id', $id);
+            })
             ->with('location')
-            ->latest('id')
+            ->orderByDesc('id')
             ->first();
 
-        $location = 'N/A';
-        if ($latestTransaction && $latestTransaction->location) {
-            $loc = $latestTransaction->location;
+        if ($assignedAsset && $assignedAsset->location) {
+            $loc = $assignedAsset->location;
             $locName = trim($loc->location_name ?? '');
             $locEntity = trim($loc->location_entity ?? '');
             if ($locName && $locEntity) {
@@ -272,6 +271,27 @@ class IssueNoteController extends Controller
                 $location = $locName;
             } elseif ($locEntity) {
                 $location = $locEntity;
+            }
+        } else {
+            // Fallback: latest ASSIGN transaction with a location
+            $latestTransaction = \App\Models\AssetTransaction::where('employee_id', $id)
+                ->where('transaction_type', 'assign')
+                ->whereNotNull('location_id')
+                ->with('location')
+                ->latest('id')
+                ->first();
+
+            if ($latestTransaction && $latestTransaction->location) {
+                $loc = $latestTransaction->location;
+                $locName = trim($loc->location_name ?? '');
+                $locEntity = trim($loc->location_entity ?? '');
+                if ($locName && $locEntity) {
+                    $location = $locName . ' (' . $locEntity . ')';
+                } elseif ($locName) {
+                    $location = $locName;
+                } elseif ($locEntity) {
+                    $location = $locEntity;
+                }
             }
         }
         
