@@ -51,11 +51,9 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <h5 class="mb-0">Budget (cost) for selected cost head</h5>
-                    <form id="deleteBudgetForm" action="" method="POST" class="d-none" onsubmit="return confirm('Delete this budget? All expenses under it will also be removed.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Delete this budget</button>
-                    </form>
+                    <button type="button" id="deleteBudgetBtn" class="btn btn-sm btn-outline-danger d-none" onclick="document.getElementById('deleteBudgetForm').submit();">
+                        <i class="bi bi-trash me-1"></i>Delete this budget
+                    </button>
                 </div>
                 <div class="row mt-2">
                     <div class="col-md-3">
@@ -89,8 +87,8 @@
                 <input type="number" step="0.01" id="expense_amount" name="expense_amount" class="form-control" required placeholder="Amount excluding VAT">
             </div>
             <div class="col-md-6 mb-3">
-                <label for="expense_date">Expense Date</label>
-                <input type="date" id="expense_date" name="expense_date" class="form-control" required>
+                <label for="expense_date">Expense Date (DD-MM-YYYY)</label>
+                <input type="text" id="expense_date" name="expense_date" class="form-control" required placeholder="e.g. 16-03-2026">
             </div>
         </div>
         <div class="row mb-3">
@@ -113,6 +111,11 @@
                 <i class="bi bi-x-circle me-2"></i>Cancel
             </button>
         </div>
+    </form>
+
+    <form id="deleteBudgetForm" action="" method="POST" class="d-none" onsubmit="return confirm('Delete this budget? All expenses under it will also be removed.');">
+        @csrf
+        @method('DELETE')
     </form>
 
     <div class="mt-4">
@@ -235,12 +238,13 @@ document.addEventListener('DOMContentLoaded', function() {
             renderExpenses(data.expenses || [], data);
             updateBalance();
             var deleteForm = document.getElementById('deleteBudgetForm');
-            if (deleteForm) {
+            var deleteBtn = document.getElementById('deleteBudgetBtn');
+            if (deleteForm && deleteBtn) {
                 if (data.entity_budget_id) {
                     deleteForm.action = "{{ url('entity-budget') }}/" + data.entity_budget_id;
-                    deleteForm.classList.remove('d-none');
+                    deleteBtn.classList.remove('d-none');
                 } else {
-                    deleteForm.classList.add('d-none');
+                    deleteBtn.classList.add('d-none');
                 }
             }
             return data;
@@ -253,7 +257,8 @@ document.addEventListener('DOMContentLoaded', function() {
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading budget details</td></tr>';
             updateBalance();
             var deleteForm = document.getElementById('deleteBudgetForm');
-            if (deleteForm) deleteForm.classList.add('d-none');
+            var deleteBtn = document.getElementById('deleteBudgetBtn');
+            if (deleteBtn) deleteBtn.classList.add('d-none');
             return null;
         }
     }
@@ -336,14 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
     isContractingCheck.addEventListener('change', updateBalance);
     updateVatPreview();
 
-    // Submit normally (no AJAX). Server will validate and redirect with flash messages.
-    form.addEventListener('submit', function() {
-        // Ensure hidden flags are set before submit
-        if (!entityBudgetId.value) {
-            // let server-side validation handle missing budget_id; no JS blocking
-        }
-        document.getElementById('is_contracting').value = isContractingCheck.checked ? '1' : '0';
-    });
+    // Let the form submit normally.
 
     // Delete expense function
     window.deleteExpense = async function(expenseId) {

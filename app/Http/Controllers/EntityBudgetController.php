@@ -290,23 +290,31 @@ class EntityBudgetController extends Controller
                     ->withErrors(['error' => 'Budget column for year ' . $validated['budget_year'] . ' does not exist. Please run migrations.']);
             }
             
-            // Budget is maintained by entity + expense type + cost head. Update existing or create.
-            $budget = EntityBudget::where('employee_id', $validated['entity_id'])
+            // Enforce one budget per Entity + Expense Type + Year + Cost Head
+            $existing = EntityBudget::where('employee_id', $validated['entity_id'])
                 ->where('expense_type', $validated['expense_type'])
                 ->where('cost_head', $validated['cost_head'])
+                ->whereNotNull($yearColumn)
                 ->first();
-            
-            if ($budget) {
-                $budget->update([$yearColumn => $validated['budget_amount']]);
-            } else {
-                $budget = EntityBudget::create([
-                    'employee_id' => $validated['entity_id'],
-                    'cost_head' => $validated['cost_head'],
-                    'expense_type' => $validated['expense_type'],
-                    'category' => $request->get('category', 'Overhead'),
-                    $yearColumn => $validated['budget_amount'],
-                ]);
+
+            if ($existing) {
+                return redirect()
+                    ->route('entity_budget.create', [
+                        'entity_id' => $validated['entity_id'],
+                        'year' => $validated['budget_year'],
+                        'expense_type' => $validated['expense_type'],
+                    ])
+                    ->withInput()
+                    ->with('warning', 'Budget already added for this Entity, Expense Type and Cost Head for year ' . $validated['budget_year'] . '.');
             }
+
+            $budget = EntityBudget::create([
+                'employee_id' => $validated['entity_id'],
+                'cost_head' => $validated['cost_head'],
+                'expense_type' => $validated['expense_type'],
+                'category' => $request->get('category', 'Overhead'),
+                $yearColumn => $validated['budget_amount'],
+            ]);
 
             // Redirect back to create page with entity_id and year filter to show the newly created budget
             return redirect()->route('entity_budget.create', [

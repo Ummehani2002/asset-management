@@ -221,6 +221,28 @@ public function edit($id)
     }
 }
 
+    public function reactivate($id)
+    {
+        try {
+            $employee = Employee::findOrFail($id);
+
+            if (Schema::hasColumn('employees', 'is_active')) {
+                $employee->is_active = true;
+                $employee->save();
+            }
+
+            return redirect()->route('employees.edit', $employee->id)
+                ->with('success', 'Employee marked as Active again. You can now assign new assets.');
+        } catch (\Exception $e) {
+            Log::error('Employee reactivate failed', [
+                'employee_id' => $id,
+                'message'     => $e->getMessage(),
+            ]);
+            return redirect()->route('employees.edit', $id)
+                ->with('error', 'Unable to reactivate employee. Please try again.');
+        }
+    }
+
 
 public function destroy($id)
 {

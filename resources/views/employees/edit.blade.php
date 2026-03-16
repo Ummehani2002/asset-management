@@ -16,11 +16,24 @@
             {{ session('error') }}
         </div>
     @endif
+    @if(session('success'))
+        <div class="alert alert-success">
+            {{ session('success') }}
+        </div>
+    @endif
 
     @if($employee->is_active === false)
-        <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            This employee has returned all assets and is marked as non-active. All details are read-only.
+        <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                This employee has returned all assets and is marked as non-active. All details are read-only.
+            </div>
+            <form action="{{ route('employees.reactivate', $employee->id) }}" method="POST" class="mb-0">
+                @csrf
+                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Mark this employee as Active again so they can receive new assets?');">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Make Active Again
+                </button>
+            </form>
         </div>
     @endif
 

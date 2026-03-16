@@ -88,6 +88,31 @@ class BudgetExpenseController extends Controller
     }
 }
 
+    /**
+     * Parse a human-entered date (DD-MM-YYYY or DD-MM-YY or Y-m-d) to Y-m-d.
+     */
+    private function parseHumanDate(?string $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+        $value = trim($value);
+        foreach (['d-m-Y', 'd-m-y', 'Y-m-d'] as $format) {
+            try {
+                $d = \Carbon\Carbon::createFromFormat($format, $value);
+                return $d->format('Y-m-d');
+            } catch (\Exception $e) {
+                // try next
+            }
+        }
+        try {
+            $d = new \DateTime($value);
+            return $d->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
     public function store(Request $request)
     {
         try {
@@ -95,12 +120,19 @@ class BudgetExpenseController extends Controller
                 'entity_budget_id' => 'required|exists:entity_budgets,id',
                 'cost_head' => 'nullable|string',
                 'expense_amount' => 'required|numeric|min:0', // amount before VAT
-                'expense_date' => 'required|date',
+                'expense_date' => 'required|string',
                 'description' => 'nullable|string',
                 'is_contracting' => 'nullable|in:0,1'
             ]);
 
             $amountBeforeVat = (float) $validated['expense_amount'];
+
+            // Parse DD-MM-YYYY (or similar) to Y-m-d
+            $rawDate = $validated['expense_date'];
+            $parsedDate = $this->parseHumanDate($rawDate);
+            if (!$parsedDate) {
+                throw new \Exception('Invalid expense date. Please use format DD-MM-YYYY.');
+            }
             $isContracting = (bool) ($request->get('is_contracting', 0));
             $vatPercent = $isContracting ? 15 : 5;
             $vatAmount = round($amountBeforeVat * $vatPercent / 100, 2);
@@ -121,7 +153,7 @@ class BudgetExpenseController extends Controller
                 'entity_budget_id' => $validated['entity_budget_id'],
                 'cost_head' => $validated['cost_head'] ?? null,
                 'expense_amount' => $totalWithVat, // stored total (amount + VAT) for balance deduction
-                'expense_date' => $validated['expense_date'],
+                'expense_date' => $parsedDate,
                 'description' => $validated['description'] ?? null,
                 'is_contracting' => $isContracting,
                 'amount_before_vat' => $amountBeforeVat,
@@ -241,7 +273,7 @@ class BudgetExpenseController extends Controller
             'entity_budget_id' => 'required|exists:entity_budgets,id',
             'cost_head' => 'nullable|string',
             'expense_amount' => 'required|numeric|min:0',
-            'expense_date' => 'required|date',
+            'expense_date' => 'required|string',
             'description' => 'nullable|string',
             'is_contracting' => 'nullable|in:0,1'
         ]);
@@ -251,6 +283,12 @@ class BudgetExpenseController extends Controller
         }
 
         $amountBeforeVat = (float) $validated['expense_amount'];
+
+        $rawDate = $validated['expense_date'];
+        $parsedDate = $this->parseHumanDate($rawDate);
+        if (!$parsedDate) {
+            return response()->json(['success' => false, 'message' => 'Invalid expense date. Please use DD-MM-YYYY.'], 422);
+        }
         $isContracting = (bool) ($request->get('is_contracting', 0));
         $vatPercent = $isContracting ? 15 : 5;
         $vatAmount = round($amountBeforeVat * $vatPercent / 100, 2);
@@ -275,7 +313,7 @@ class BudgetExpenseController extends Controller
         $expense->update([
             'cost_head' => $validated['cost_head'] ?? null,
             'expense_amount' => $totalWithVat,
-            'expense_date' => $validated['expense_date'],
+            'expense_date' => $parsedDate,
             'description' => $validated['description'] ?? null,
             'is_contracting' => $isContracting,
             'amount_before_vat' => $amountBeforeVat,

@@ -90,6 +90,8 @@ Route::get('/assets/import', [AssetController::class, 'showImportForm'])->middle
 Route::post('/assets/import', [AssetController::class, 'import'])->middleware('auth')->name('assets.import');
 Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
 Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
+Route::get('/assets/{asset}/edit', [AssetController::class, 'edit'])->middleware('auth')->name('assets.edit');
+Route::put('/assets/{asset}', [AssetController::class, 'update'])->middleware('auth')->name('assets.update');
 
 
 use App\Http\Controllers\CategoryFeatureController;
@@ -145,6 +147,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/employee-assets', [EmployeeAssetController::class, 'index'])->name('employee.assets');
     Route::get('/employee-assets/{id}/export', [EmployeeAssetController::class, 'export'])->name('employee.assets.export');
     Route::get('/employee/search', [App\Http\Controllers\EmployeeController::class, 'search'])->name('employee.search');
+    Route::post('/employees/{id}/reactivate', [EmployeeController::class, 'reactivate'])->name('employees.reactivate');
 });
 
 

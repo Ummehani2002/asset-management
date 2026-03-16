@@ -474,6 +474,7 @@ private function mapRowToAsset(array $data, $defaultEntityName)
     if (empty($brandName)) {
         return ['error' => 'Brand is required'];
     }
+
     $brand = Brand::where('asset_category_id', $category->id)
         ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($brandName))])
         ->first();
@@ -564,6 +565,26 @@ private function parseImportDate($value)
     }
 }
 
+    public function edit(Asset $asset)
+    {
+        $categories = AssetCategory::orderBy('category_name')->get();
+        $entities = Schema::hasTable('entities') ? \App\Models\Entity::orderBy('name')->get() : collect([]);
+        return view('assets.edit', compact('asset', 'categories', 'entities'));
+    }
+
+    public function update(Request $request, Asset $asset)
+    {
+        $validated = $request->validate([
+            'po_number' => 'nullable|string|max:255',
+            'vendor_name' => 'nullable|string|max:255',
+            'value' => 'nullable|numeric|min:0',
+        ]);
+
+        $asset->update($validated);
+
+        return redirect()->route('assets.index')->with('success', 'Asset updated successfully.');
+    }
+
 /**
  * Autocomplete endpoint for serial numbers
  */
@@ -610,8 +631,29 @@ public function autocompleteSerialNumber(Request $request)
         }
     }
 
+    // Filter by status (assigned / available / under_maintenance / all)
+    $selectedStatus = $request->get('status');
+    if ($selectedStatus === 'assigned') {
+        $query->where('status', 'assigned');
+    } elseif ($selectedStatus === 'available') {
+        // Treat both available and returned as available for this view
+        $query->whereIn('status', ['available', 'returned']);
+    } elseif ($selectedStatus === 'under_maintenance') {
+        $query->where('status', 'under_maintenance');
+    }
+
+    // Filter by brand
+    $selectedBrandId = $request->get('brand_id');
+    if (!empty($selectedBrandId)) {
+        $query->where('brand_id', $selectedBrandId);
+    }
+
     $assets = $query->get();
-    return view('assets.by_category', compact('category', 'assets', 'selectedEntity'));
+
+    // Brand list for this category (for filter dropdown)
+    $brands = Brand::where('asset_category_id', $id)->orderBy('name')->get();
+
+    return view('assets.by_category', compact('category', 'assets', 'selectedEntity', 'brands', 'selectedStatus', 'selectedBrandId'));
 }
 
 public function getSerialNumbersApi(Request $request)

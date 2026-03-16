@@ -89,6 +89,7 @@
                                 <th>Serial Number</th>
                                 <th>Features</th>
                                 <th>Invoice</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -139,6 +140,11 @@
                                         @else
                                             N/A
                                         @endif
+                                    </td>
+                                    <td>
+                                        <a href="{{ route('assets.edit', $asset->id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </a>
                                     </td>
                                 </tr>
                             @empty

@@ -195,6 +195,15 @@
                         </a>`;
                     }
 
+                    // Edit button
+                    let editHtml = '';
+                    if (asset.id) {
+                        const editUrl = '{{ url("assets") }}/' + asset.id + '/edit';
+                        editHtml = `<a href="${editUrl}" class="btn btn-sm btn-outline-primary me-1" title="Edit">
+                            <i class="bi bi-pencil-square"></i>
+                        </a>`;
+                    }
+
                     // Delete button
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                     const deleteUrl = '{{ url("assets") }}/' + asset.id;
@@ -224,7 +233,7 @@
                             <td>${featuresHtml}</td>
                             <td>${invoiceHtml}</td>
                             <td>${historyHtml}</td>
-                            <td>${deleteHtml}</td>
+                            <td>${editHtml}${deleteHtml}</td>
                         </tr>
                     `);
                 });

@@ -20,50 +20,6 @@
         </div>
     @endif
 
-    {{-- Bulk: Set budget for all cost heads at once --}}
-    <div class="master-form-card mb-4">
-        <h5 class="mb-3"><i class="bi bi-collection me-2"></i> Set Budget for All Cost Heads (One Amount)</h5>
-        <form action="{{ route('entity_budget.bulk-store') }}" method="POST" autocomplete="off">
-            @csrf
-            <div class="row">
-                <div class="col-md-3 mb-3">
-                    <label for="bulk_entity_id">Entity <span class="text-danger">*</span></label>
-                    <select name="entity_id" id="bulk_entity_id" class="form-control" required>
-                        <option value="">Select Entity</option>
-                        @foreach($entities as $entity)
-                            <option value="{{ $entity->id }}" {{ (request('entity_id') == $entity->id) ? 'selected' : '' }}>{{ $entity->entity_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label for="bulk_expense_type">Expense Type <span class="text-danger">*</span></label>
-                    <select name="expense_type" id="bulk_expense_type" class="form-control" required>
-                        <option value="">Select Type</option>
-                        @foreach($expenseTypes as $type)
-                            <option value="{{ $type }}" {{ request('expense_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2 mb-3">
-                    <label for="bulk_budget_year">Year <span class="text-danger">*</span></label>
-                    <select name="budget_year" id="bulk_budget_year" class="form-control" required>
-                        @foreach($availableYears as $year)
-                            <option value="{{ $year }}" {{ $selectedYear == $year ? 'selected' : '' }}>{{ $year }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2 mb-3">
-                    <label for="bulk_budget_amount">Amount <span class="text-danger">*</span></label>
-                    <input type="number" step="0.01" name="budget_amount" id="bulk_budget_amount" class="form-control" required placeholder="Same for all" min="0">
-                </div>
-                <div class="col-md-2 mb-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Apply to All Cost Heads</button>
-                </div>
-            </div>
-            <p class="text-muted small mb-0">This sets the same budget amount for every cost head under the selected expense type. Use the form below to set or change a single cost head.</p>
-        </form>
-    </div>
-
     {{-- Add Budget Form (single cost head) --}}
     <div class="master-form-card mb-4 budget-form-printable">
         <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i> New Budget (Single Cost Head)</h5>

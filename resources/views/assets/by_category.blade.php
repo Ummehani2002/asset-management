@@ -2,18 +2,18 @@
 
 @section('content')
 <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Assets in Category: {{ $category->category_name }}@if(isset($selectedEntity) && $selectedEntity) ({{ ucwords($selectedEntity->name) }})@endif</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h2 class="mb-0">Assets in Category: {{ $category->category_name }}@if(isset($selectedEntity) && $selectedEntity) ({{ ucwords($selectedEntity->name) }})@endif</h2>
         <div class="d-flex gap-2">
             <div class="dropdown">
                 <button class="btn btn-sm btn-success dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-download me-1"></i>Download
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
-                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'pdf'] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : [])) }}">
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'pdf'] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : []) + ['status' => request('status'), 'brand_id' => request('brand_id')]) }}">
                         <i class="bi bi-file-earmark-pdf me-2"></i>PDF
                     </a></li>
-                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'csv'] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : [])) }}">
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'csv'] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : []) + ['status' => request('status'), 'brand_id' => request('brand_id')]) }}">
                         <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
                     </a></li>
                 </ul>
@@ -23,6 +23,41 @@
             </a>
         </div>
     </div>
+
+    {{-- Filter bar --}}
+    <form method="GET" class="row g-2 align-items-end mb-3">
+        @if(isset($selectedEntity) && $selectedEntity)
+            <input type="hidden" name="entity" value="{{ $selectedEntity->id }}">
+        @endif
+        <div class="col-md-3">
+            <label class="form-label mb-1">Asset Status</label>
+            <select name="status" class="form-control form-control-sm">
+                <option value="">All</option>
+                <option value="assigned" {{ ($selectedStatus ?? request('status')) === 'assigned' ? 'selected' : '' }}>Assigned</option>
+                <option value="available" {{ ($selectedStatus ?? request('status')) === 'available' ? 'selected' : '' }}>Available</option>
+                <option value="under_maintenance" {{ ($selectedStatus ?? request('status')) === 'under_maintenance' ? 'selected' : '' }}>Under Maintenance</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label mb-1">Brand</label>
+            <select name="brand_id" class="form-control form-control-sm">
+                <option value="">All brands</option>
+                @foreach(($brands ?? collect()) as $brand)
+                    <option value="{{ $brand->id }}" {{ (string)($selectedBrandId ?? request('brand_id')) === (string)$brand->id ? 'selected' : '' }}>
+                        {{ $brand->name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary mt-3">
+                <i class="bi bi-filter me-1"></i>Apply
+            </button>
+            <a href="{{ route('assets.byCategory', ['id' => $category->id] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : [])) }}" class="btn btn-sm btn-secondary mt-3">
+                <i class="bi bi-x-circle me-1"></i>Clear
+            </a>
+        </div>
+    </form>
 
     @if($assets->isEmpty())
         <div class="alert alert-info">

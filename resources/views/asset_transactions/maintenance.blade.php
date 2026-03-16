@@ -87,7 +87,7 @@
         <div class="card mb-4 border-warning">
             <div class="card-header bg-warning bg-opacity-25 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-envelope-check me-2"></i>Maintenance Approval Requests ({{ $pendingMaintenanceRequests->count() }})</h5>
-                <small class="text-dark">Someone requested to send an asset for maintenance. Approve to enable maintenance for that asset, then fill details in "Send for Maintenance".</small>
+                <small class="text-dark">Someone requested to send an asset for maintenance. Approve to enable maintenance for that asset, then fill details in "Receive for Maintenance".</small>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -159,7 +159,7 @@
     <ul class="nav nav-tabs mb-4" id="maintenanceTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="send-tab" data-bs-toggle="tab" data-bs-target="#send-maintenance" type="button" role="tab">
-                <i class="bi bi-arrow-down-circle me-2"></i>Send for Maintenance
+                <i class="bi bi-arrow-down-circle me-2"></i>Receive for Maintenance
             </button>
         </li>
         @if($canDelegateToOthers ?? false)
@@ -177,7 +177,7 @@
     </ul>
 
     <div class="tab-content" id="maintenanceTabContent">
-        <!-- Send for Maintenance Tab -->
+        <!-- Receive for Maintenance Tab -->
         <div class="tab-pane fade show active" id="send-maintenance" role="tabpanel">
             <form method="POST" action="{{ route('asset-transactions.maintenance-store') }}" enctype="multipart/form-data" id="maintenanceForm">
                 @csrf
@@ -299,7 +299,7 @@
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary" id="submitBtn">
-                        <i class="bi bi-check-circle me-2"></i>Send for Maintenance
+                        <i class="bi bi-check-circle me-2"></i>Receive for Maintenance
                     </button>
                     <a href="{{ route('asset-transactions.index') }}" class="btn btn-secondary">
                         <i class="bi bi-x-circle me-2"></i>Cancel
