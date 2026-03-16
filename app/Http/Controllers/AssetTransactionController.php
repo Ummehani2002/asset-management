@@ -1696,11 +1696,11 @@ class AssetTransactionController extends Controller
         $category = $asset->assetCategory;
         $latest = $asset->latestTransaction;
 
-        // Validate assignment can only be done when asset is available or under maintenance (reassignment after maintenance)
-        if (
-            $request->transaction_type === 'assign' &&
-            !in_array($asset->status, ['available', 'under_maintenance'])
-        ) {
+        // For EDIT: only block assignment validation when this is a NEW assign transaction.
+        // If we are editing an existing assign transaction for this asset, allow updating fields
+        // like location without re-checking current asset status.
+        $isNewAssign = $request->transaction_type === 'assign' && $transaction->transaction_type !== 'assign';
+        if ($isNewAssign && !in_array($asset->status, ['available', 'under_maintenance'])) {
             throw ValidationException::withMessages([
                 'asset_id' => 'Asset is not available for assignment. Current status: ' . ucfirst($asset->status ?? 'unknown'),
             ]);
