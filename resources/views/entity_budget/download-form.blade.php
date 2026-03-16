@@ -13,35 +13,43 @@
 <body>
     <h2>Entity Budget Form - {{ $currentYear }}</h2>
     
+    {{-- Summary box designed to sit in the blank area of the PR form --}}
     <table>
-        <tr>
-            <th>Field</th>
-            <th>Value</th>
-        </tr>
-        <tr>
-            <td><strong>Entity</strong></td>
-            <td>{{ $budget->employee->entity_name ?? 'N/A' }}</td>
-        </tr>
-        <tr>
-            <td><strong>Expense Type</strong></td>
-            <td>{{ $budget->expense_type ?? 'N/A' }}</td>
-        </tr>
-        <tr>
-            <td><strong>Cost Head</strong></td>
-            <td>{{ $budget->cost_head ?? '—' }}</td>
-        </tr>
-        <tr>
-            <td><strong>Budget {{ $currentYear }}</strong></td>
-            <td>{{ number_format($budgetAmount, 2) }}</td>
-        </tr>
-        <tr>
-            <td><strong>Total Expenses</strong></td>
-            <td>{{ number_format($budget->expenses->sum('expense_amount'), 2) }}</td>
-        </tr>
-        <tr>
-            <td><strong>Available Balance</strong></td>
-            <td>{{ number_format($budgetAmount - $budget->expenses->sum('expense_amount'), 2) }}</td>
-        </tr>
+        <thead>
+            <tr>
+                <th>Entity</th>
+                <th>Expense Type</th>
+                <th>Cost Head</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ $budget->employee->entity_name ?? 'N/A' }}</td>
+                <td>{{ $budget->expense_type ?? 'N/A' }}</td>
+                <td>{{ $budget->cost_head ?? '—' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Budget {{ $currentYear }}</th>
+                <th>Total Expenses</th>
+                <th>Available Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            @php
+                $totalExpenses = $budget->expenses->sum('expense_amount');
+                $available = $budgetAmount - $totalExpenses;
+            @endphp
+            <tr>
+                <td>{{ number_format($budgetAmount, 2) }}</td>
+                <td>{{ number_format($totalExpenses, 2) }}</td>
+                <td>{{ number_format($available, 2) }}</td>
+            </tr>
+        </tbody>
     </table>
     
     @if($budget->expenses->count() > 0)

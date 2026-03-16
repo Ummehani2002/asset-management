@@ -108,8 +108,7 @@ class BudgetExpenseController extends Controller
 
             // Check available balance (all expenses under this budget) – deduct total including VAT
             $budget = EntityBudget::find($validated['entity_budget_id']);
-            $totalExpenses = BudgetExpense::where('entity_budget_id', $budget->id)
-                ->sum('expense_amount');
+            $totalExpenses = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
 
             $currentYear = (int) date('Y');
             $yearColumn = 'budget_' . $currentYear;
@@ -130,15 +129,42 @@ class BudgetExpenseController extends Controller
                 'vat_amount' => $vatAmount,
             ]);
 
-            // Get updated budget details and add print URL for the saved expense
-            $response = $this->getBudgetDetails($request);
-            $data = $response->getData(true);
-            if (is_array($data)) {
-                $data['saved_expense_id'] = $expense->id;
-                $data['print_url'] = route('budget-expenses.print', $expense->id);
-                return response()->json($data);
+            // Build fresh response payload instead of reusing getBudgetDetails (POST does not contain all its params)
+            $updatedTotalExpenses = $totalExpenses + $totalWithVat;
+            $availableBalance = $budgetAmount - $updatedTotalExpenses;
+
+            $latestExpense = [
+                'id' => $expense->id,
+                'expense_date' => date('Y-m-d', strtotime($expense->expense_date)),
+                'expense_amount' => number_format($expense->expense_amount, 2),
+                'description' => $expense->description ?: '-',
+                'entity_name' => $budget->employee->entity_name ?? 'N/A',
+                'cost_head' => $validated['cost_head'] ?: ($budget->cost_head ?? '—'),
+                'expense_type' => $budget->expense_type,
+                'balance_after' => number_format($availableBalance, 2),
+            ];
+
+            $payload = [
+                'success' => true,
+                'entity_budget_id' => $budget->id,
+                'entity_name' => $budget->employee->entity_name ?? 'N/A',
+                'cost_head' => $validated['cost_head'] ?: ($budget->cost_head ?? '—'),
+                'expense_type' => $budget->expense_type,
+                'budget_amount' => number_format($budgetAmount, 2),
+                'total_expenses' => number_format($updatedTotalExpenses, 2),
+                'available_balance' => number_format($availableBalance, 2),
+                'expenses' => [$latestExpense],
+                'saved_expense_id' => $expense->id,
+                'print_url' => route('budget-expenses.print', $expense->id),
+            ];
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json($payload);
             }
-            return $response;
+
+            return redirect()
+                ->route('budget-expenses.create')
+                ->with('success', 'Expense saved successfully.');
 
         } catch (\Exception $e) {
             return response()->json([

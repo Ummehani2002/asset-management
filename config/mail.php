@@ -134,6 +134,6 @@ return [
     | Set to true to send asset-assigned, maintenance, and task emails.
     |
     */
-    'notifications_enabled' => env('MAIL_NOTIFICATIONS_ENABLED', false),
+    'notifications_enabled' => env('MAIL_NOTIFICATIONS_ENABLED', true),
 
 ];

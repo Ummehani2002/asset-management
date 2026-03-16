@@ -5,137 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asset Assigned</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #2c3e50;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 20px;
-        }
-        .email-wrap {
-            max-width: 620px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-        }
-        .header {
-            background: linear-gradient(135deg, #1F2A44 0%, #2C3E66 100%);
-            color: #ffffff;
-            padding: 28px 24px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-        }
-        .header .sub {
-            margin: 8px 0 0 0;
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        .content {
-            padding: 32px 28px;
-        }
-        .greeting {
-            font-size: 17px;
-            margin: 0 0 20px 0;
-            color: #1F2A44;
-        }
-        .greeting strong {
-            color: #1F2A44;
-        }
-        .intro {
-            font-size: 15px;
-            margin: 0 0 24px 0;
-            color: #444;
-        }
-        .section-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: #1F2A44;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 12px 0;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #C6A87D;
-        }
-        .details-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 0 0 24px 0;
-            font-size: 14px;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-        }
-        .details-table td {
-            padding: 14px 18px;
-            border-bottom: 1px solid #e8e8e8;
-            vertical-align: top;
-        }
-        .details-table tr:last-child td {
-            border-bottom: none;
-        }
-        .details-table td:first-child {
-            font-weight: 600;
-            width: 38%;
-            min-width: 140px;
-            color: #1F2A44;
-            background: #f8f9fa;
-        }
-        .details-table td:last-child {
-            color: #333;
-            background: #fff;
-        }
-        .contact-it {
-            background: linear-gradient(135deg, #E8F4FD 0%, #D1E9FA 100%);
-            border: 1px solid #b8daff;
-            border-left: 4px solid #1F2A44;
-            border-radius: 8px;
-            padding: 20px 22px;
-            margin: 28px 0 0 0;
-        }
-        .contact-it .title {
-            font-size: 15px;
-            font-weight: 700;
-            color: #1F2A44;
-            margin: 0 0 8px 0;
-        }
-        .contact-it .text {
-            font-size: 14px;
-            margin: 0;
-            color: #333;
-            line-height: 1.65;
-        }
-        .info-box {
-            background: #f0f7f0;
-            border-left: 4px solid #4CAF50;
-            border-radius: 6px;
-            padding: 16px 20px;
-            margin: 0 0 24px 0;
-        }
-        .info-box p { margin: 0; font-size: 14px; color: #2e5c2e; }
-        .warning-box {
-            background: #fff8e6;
-            border-left: 4px solid #FF9800;
-            border-radius: 6px;
-            padding: 16px 20px;
-            margin: 0 0 24px 0;
-        }
-        .warning-box p { margin: 0; font-size: 14px; color: #664d00; }
-        .footer {
-            background: #f8f9fa;
-            padding: 20px 28px;
-            text-align: center;
-            font-size: 12px;
-            color: #6c757d;
-            border-top: 1px solid #e9ecef;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #2c3e50; background-color: #f0f2f5; margin: 0; padding: 16px; }
+        .email-wrap { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .header { background: linear-gradient(135deg, #1F2A44 0%, #2C3E66 100%); color: #fff; padding: 20px 20px; text-align: center; }
+        .header-logo { display: block; margin: 0 auto 12px auto; max-height: 48px; max-width: 180px; height: auto; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: 0.2px; }
+        .header .sub { margin: 4px 0 0 0; font-size: 13px; opacity: 0.9; }
+        .content { padding: 20px 20px; }
+        .greeting { font-size: 16px; margin: 0 0 14px 0; color: #1F2A44; }
+        .greeting strong { color: #1F2A44; }
+        .intro { font-size: 14px; margin: 0 0 14px 0; color: #444; }
+        .section-title { font-size: 13px; font-weight: 700; color: #1F2A44; text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 8px 0; padding-bottom: 6px; border-bottom: 2px solid #C6A87D; }
+        .details-table { width: 100%; border-collapse: collapse; margin: 0 0 14px 0; font-size: 13px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+        .details-table td { padding: 8px 12px; border-bottom: 1px solid #e8e8e8; vertical-align: middle; }
+        .details-table tr:last-child td { border-bottom: none; }
+        .details-table td:first-child { font-weight: 600; width: 36%; min-width: 120px; color: #1F2A44; background: #f5f6f8; }
+        .details-table td:last-child { color: #333; background: #fff; }
+        .contact-it { background: #E8F4FD; border: 1px solid #b8daff; border-left: 4px solid #1F2A44; border-radius: 6px; padding: 14px 16px; margin: 16px 0 0 0; }
+        .contact-it .title { font-size: 14px; font-weight: 700; color: #1F2A44; margin: 0 0 6px 0; }
+        .contact-it .text { font-size: 13px; margin: 0; color: #333; line-height: 1.5; }
+        .info-box { background: #f0f7f0; border-left: 4px solid #4CAF50; border-radius: 6px; padding: 12px 14px; margin: 0 0 14px 0; }
+        .info-box p { margin: 0; font-size: 13px; color: #2e5c2e; }
+        .warning-box { background: #fff8e6; border-left: 4px solid #FF9800; border-radius: 6px; padding: 12px 14px; margin: 0 0 14px 0; }
+        .warning-box p { margin: 0; font-size: 13px; color: #664d00; }
+        .footer { background: #f5f5f5; padding: 14px 20px; text-align: center; font-size: 11px; color: #6c757d; border-top: 1px solid #e9ecef; }
         .footer p { margin: 0; }
     </style>
 </head>
@@ -152,6 +45,11 @@
                     default => 'Asset Transaction Notification',
                 };
             @endphp
+            @if(!empty($logoCid))
+            <img src="{{ $logoCid }}" alt="Tanseeq Investment" class="header-logo" />
+            @else
+            <div style="font-size:20px;font-weight:700;letter-spacing:1px;margin-bottom:6px;">TANSEEQ INVESTMENT</div>
+            @endif
             <h1>{{ $title }}</h1>
             <p class="sub">Asset Management System</p>
         </div>

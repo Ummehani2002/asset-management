@@ -39,12 +39,19 @@ class AssetAssigned extends Mailable
             default => 'Asset Transaction Notification: ' . ($this->asset->asset_id ?? 'Asset'),
         };
 
+        $logoPath = public_path('images/tanseeq-logo.png');
+        $with = [
+            'asset' => $this->asset,
+            'employee' => $this->employee,
+            'transaction' => $this->transaction,
+            'logoCid' => null,
+        ];
+        if (file_exists($logoPath)) {
+            $with['logoCid'] = $this->embed($logoPath);
+        }
+
         return $this->subject($subject)
                     ->view('emails.asset_assigned')
-                    ->with([
-                        'asset' => $this->asset,
-                        'employee' => $this->employee,
-                        'transaction' => $this->transaction
-                    ]);
+                    ->with($with);
     }
 }

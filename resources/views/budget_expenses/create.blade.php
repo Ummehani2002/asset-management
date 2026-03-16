@@ -336,54 +336,13 @@ document.addEventListener('DOMContentLoaded', function() {
     isContractingCheck.addEventListener('change', updateBalance);
     updateVatPreview();
 
-    // submit via AJAX so we can show success and update table without redirect
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        await fetchDetails(); // ensure entity_budget_id is set
-
+    // Submit normally (no AJAX). Server will validate and redirect with flash messages.
+    form.addEventListener('submit', function() {
+        // Ensure hidden flags are set before submit
         if (!entityBudgetId.value) {
-            renderFlash('No budget found for selected Entity / Cost Head / Expense Type', 'danger');
-            return;
+            // let server-side validation handle missing budget_id; no JS blocking
         }
-
-        const formData = new FormData(form);
-        formData.set('entity_budget_id', entityBudgetId.value);
-        formData.set('is_contracting', isContractingCheck.checked ? '1' : '0');
-
-        try {
-            const res = await fetch(storeUrl, {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-                body: formData
-            });
-            const data = await res.json();
-
-            // controller returns getBudgetDetails structure on success
-            if (data && (data.entity_budget_id || data.success)) {
-                // use response to update UI
-                const details = data;
-                entityBudgetId.value = details.entity_budget_id ?? entityBudgetId.value;
-                budgetAmountEl.textContent = details.budget_amount ?? budgetAmountEl.textContent;
-                totalExpensesEl.textContent = details.total_expenses ?? totalExpensesEl.textContent;
-                availableBalanceEl.textContent = details.available_balance ?? availableBalanceEl.textContent;
-                renderExpenses(details.expenses || [], details);
-
-                
-                expenseAmount.value = '';
-                document.getElementById('expense_date').value = '';
-                document.getElementById('description').value = '';
-                isContractingCheck.checked = false;
-
-                updateBalance();
-                renderFlash('Expense saved successfully.', 'success', data.print_url || null);
-            } else {
-                const msg = data.message || 'Error saving expense';
-                renderFlash(msg, 'danger');
-            }
-        } catch (err) {
-            console.error(err);
-            renderFlash('Error saving expense', 'danger');
-        }
+        document.getElementById('is_contracting').value = isContractingCheck.checked ? '1' : '0';
     });
 
     // Delete expense function
