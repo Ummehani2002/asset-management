@@ -251,8 +251,9 @@ class IssueNoteController extends Controller
             return response()->json(['error' => 'Employee not found'], 404);
         }
 
-        // Get location from employee's latest asset transaction (any type) with a location set
+        // Get location from employee's latest ASSIGN asset transaction with a location set
         $latestTransaction = \App\Models\AssetTransaction::where('employee_id', $id)
+            ->where('transaction_type', 'assign')
             ->whereNotNull('location_id')
             ->with('location')
             ->latest('issue_date')
