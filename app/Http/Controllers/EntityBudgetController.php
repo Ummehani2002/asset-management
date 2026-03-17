@@ -47,6 +47,7 @@ class EntityBudgetController extends Controller
             ['name' => 'Domain Renewal', 'expense_type' => 'Maintenance', 'category' => 'Overhead'],
             ['name' => 'Hosting', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
             ['name' => 'Check Point Email Security Services', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
+            ['name' => 'Veeam Backup & Replication', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
         ];
     }
 
