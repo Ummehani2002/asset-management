@@ -8,8 +8,13 @@
 
     <div id="flash-placeholder">
         @if(session('success'))
-            <div class="alert alert-success">
-                {{ session('success') }}
+            <div class="alert alert-success d-flex align-items-center flex-wrap gap-2">
+                <span>{{ session('success') }}</span>
+                @if(session('print_url'))
+                    <a href="{{ session('print_url') }}" target="_blank" class="btn btn-sm btn-outline-light ms-2">
+                        <i class="bi bi-printer me-1"></i>Print this expense
+                    </a>
+                @endif
             </div>
         @endif
     </div>
@@ -87,8 +92,8 @@
                 <input type="number" step="0.01" id="expense_amount" name="expense_amount" class="form-control" required placeholder="Amount excluding VAT">
             </div>
             <div class="col-md-6 mb-3">
-                <label for="expense_date">Expense Date (DD-MM-YYYY)</label>
-                <input type="text" id="expense_date" name="expense_date" class="form-control" required placeholder="e.g. 16-03-2026">
+                <label for="expense_date">Expense Date</label>
+                <input type="date" id="expense_date" name="expense_date" class="form-control" required value="{{ old('expense_date', date('Y-m-d')) }}" placeholder="Select date">
             </div>
         </div>
         <div class="row mb-3">

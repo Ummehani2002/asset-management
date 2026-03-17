@@ -1111,13 +1111,14 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         function initDatePickers() {
+            // All date inputs (type="date") get calendar picker
             document.querySelectorAll('input[type="date"]').forEach(function(el) {
                 if (el._flatpickr) return;
                 if (el.id === 'expiry_date' || el.hasAttribute('data-no-flatpickr')) return;
                 var opts = {
                     dateFormat: 'Y-m-d',
                     altInput: true,
-                    altFormat: 'd-m-y',
+                    altFormat: 'd-m-Y',
                     allowInput: false,
                     clickOpens: true
                 };
@@ -1125,10 +1126,20 @@
                 if (el.max) opts.maxDate = el.max;
                 if (el.readOnly) opts.clickOpens = true;
                 if (el.hasAttribute('readonly')) opts.allowInput = false;
-                // Default to today's date when field is empty (all date inputs)
-                if (!el.value || el.value.trim() === '') {
-                    opts.defaultDate = 'today';
-                }
+                if (!el.value || el.value.trim() === '') opts.defaultDate = 'today';
+                window.flatpickr(el, opts);
+            });
+            // Text inputs with class date-picker also get calendar (e.g. for DD-MM-YYYY display)
+            document.querySelectorAll('input.date-picker').forEach(function(el) {
+                if (el._flatpickr) return;
+                var opts = {
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'd-m-Y',
+                    allowInput: true,
+                    clickOpens: true
+                };
+                if (!el.value || el.value.trim() === '') opts.defaultDate = 'today';
                 window.flatpickr(el, opts);
             });
         }

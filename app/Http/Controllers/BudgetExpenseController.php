@@ -196,7 +196,9 @@ class BudgetExpenseController extends Controller
 
             return redirect()
                 ->route('budget-expenses.create')
-                ->with('success', 'Expense saved successfully.');
+                ->with('success', 'Expense saved successfully.')
+                ->with('saved_expense_id', $expense->id)
+                ->with('print_url', route('budget-expenses.print', $expense->id));
 
         } catch (\Exception $e) {
             return response()->json([
