@@ -1,34 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Budget Expense - {{ $entity_name }}</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        h2 { color: #1F2A44; border-bottom: 2px solid #C6A87D; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #1F2A44; color: white; }
-        .summary { margin-bottom: 20px; }
-        .summary p { margin: 5px 0; }
-        .summary-grid { display: flex; flex-wrap: wrap; gap: 10px 30px; }
-        .summary-item { min-width: 200px; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            line-height: 1.3;
+            padding: 12px;
+            margin: 0;
+            color: #333;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+        .budget-block {
+            border: 1px solid #999;
+            padding: 10px 12px;
+            margin: 0;
+        }
+        h2 {
+            font-size: 12pt;
+            color: #1F2A44;
+            border-bottom: 1px solid #C6A87D;
+            padding-bottom: 4px;
+            margin: 0 0 10px 0;
+        }
+        .budget-lines {
+            font-size: 10pt;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .budget-lines .line {
+            display: flex;
+            margin: 3px 0;
+        }
+        .budget-lines .label {
+            min-width: 130px;
+            font-weight: 600;
+        }
+        .budget-lines .value { }
+        h3 {
+            font-size: 10pt;
+            margin: 8px 0 4px 0;
+            color: #1F2A44;
+            font-weight: 600;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 6px 0;
+            font-size: 10pt;
+        }
+        th, td {
+            border: 1px solid #999;
+            padding: 5px 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #1F2A44;
+            color: white;
+            font-size: 10pt;
+            font-weight: 600;
+        }
+        .footer {
+            margin-top: 8px;
+            font-size: 9pt;
+            color: #666;
+        }
+        @media print {
+            body { padding: 10px; max-width: none; font-size: 10pt; }
+            .budget-block { border: 1px solid #333; padding: 8px 10px; }
+            h2 { font-size: 12pt; }
+            .budget-lines, table { font-size: 10pt; }
+            table { break-inside: avoid; }
+            th, td { padding: 4px 6px; }
+        }
     </style>
 </head>
 <body>
+    <div class="budget-block">
     <h2>Budget Expense</h2>
 
-    <div class="summary">
-        <div class="summary-grid">
-            <div class="summary-item"><p><strong>Entity:</strong> {{ $entity_name }}</p></div>
-            <div class="summary-item"><p><strong>Expense Type:</strong> {{ $expense_type }}</p></div>
-            <div class="summary-item"><p><strong>Cost Head:</strong> {{ $cost_head }}</p></div>
-            <div class="summary-item"><p><strong>Budget Amount:</strong> {{ $budget_amount }}</p></div>
-            <div class="summary-item"><p><strong>Total Expenses:</strong> {{ $total_expenses }}</p></div>
-            <div class="summary-item"><p><strong>Available Balance:</strong> {{ $available_balance }}</p></div>
-        </div>
+    <div class="budget-lines">
+        <div class="line"><span class="label">Entity:</span><span class="value">{{ $entity_name }}</span></div>
+        <div class="line"><span class="label">Expense Type:</span><span class="value">{{ $expense_type }}</span></div>
+        <div class="line"><span class="label">Cost Head:</span><span class="value">{{ $cost_head }}</span></div>
+        <div class="line"><span class="label">Total Budget:</span><span class="value">{{ $budget_amount }}</span></div>
+        <div class="line"><span class="label">Used Budget:</span><span class="value">{{ $total_expenses }}</span></div>
+        <div class="line"><span class="label">Remaining Balance:</span><span class="value">{{ $available_balance }}</span></div>
     </div>
 
-    <h3>Expense Details</h3>
+    <h3>Expense Details (this expense)</h3>
     <table>
         <thead>
             <tr>
@@ -55,9 +119,9 @@
         </tbody>
     </table>
 
-    <p style="margin-top: 24px; font-size: 12px; color: #666;">
-        Generated on: {{ date('Y-m-d H:i:s') }}
-    </p>
+    <p class="footer">Generated on: {{ date('Y-m-d H:i:s') }}</p>
+    </div>
+
     @if(!empty($autoPrint))
         <script>window.onload = function() { window.print(); };</script>
     @endif
