@@ -1966,9 +1966,10 @@ private function sendAssetEmail($transaction)
             ];
         };
 
-        // Get current assignment details
+        // Get current assignment details (current_employee_id = DB id for FK; current_employee_erp_id = actual/ERP ID for display)
         if ($latestTransaction) {
             $data['current_employee_id'] = $latestTransaction->employee_id;
+            $data['current_employee_erp_id'] = $latestTransaction->employee?->employee_id ?? null;
             $data['current_employee_name'] = $latestTransaction->employee?->name ?? null;
             $data['current_employee_email'] = $latestTransaction->employee?->email ?? null;
             $data['current_employee_entity'] = $latestTransaction->employee?->entity_name ?? null;
@@ -2007,6 +2008,7 @@ private function sendAssetEmail($transaction)
                 ->first();
             if ($beforeMaintenance) {
                 $data['current_employee_id'] = $beforeMaintenance->employee_id;
+                $data['current_employee_erp_id'] = $beforeMaintenance->employee?->employee_id ?? null;
                 $data['current_employee_name'] = $beforeMaintenance->employee?->name ?? null;
                 $data['current_employee_email'] = $beforeMaintenance->employee?->email ?? null;
                 $data['current_employee_entity'] = $beforeMaintenance->employee?->entity_name ?? null;

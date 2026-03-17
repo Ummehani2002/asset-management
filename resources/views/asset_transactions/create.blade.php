@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.current_employee_id) {
                             employeeDisplaySection.style.display = 'block';
                             document.getElementById('display_employee_name').textContent = data.current_employee_name || 'N/A';
-                            document.getElementById('display_employee_id').textContent = data.current_employee_id || 'N/A';
+                            document.getElementById('display_employee_id').textContent = (data.current_employee_erp_id != null && data.current_employee_erp_id !== '') ? data.current_employee_erp_id : (data.current_employee_id || 'N/A');
                             document.getElementById('display_employee_entity').textContent = data.current_employee_entity || 'N/A';
                             if (employeeIdField) employeeIdField.value = data.current_employee_id;
                             if (employeeReturnField) employeeReturnField.value = data.current_employee_id;
@@ -558,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
             employeeDisplaySection.style.display = 'block';
             employeeSection.style.display = 'none';
             document.getElementById('display_employee_name').textContent = data.current_employee_name || 'N/A';
-            document.getElementById('display_employee_id').textContent = data.current_employee_id || 'N/A';
+            document.getElementById('display_employee_id').textContent = (data.current_employee_erp_id != null && data.current_employee_erp_id !== '') ? data.current_employee_erp_id : (data.current_employee_id || 'N/A');
             document.getElementById('display_employee_entity').textContent = data.current_employee_entity || 'N/A';
             // Set both the select field and hidden field for return transactions
             document.getElementById('employee_id').value = data.current_employee_id;
@@ -695,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (assetDetails && assetDetails.current_employee_id) {
                 employeeDisplaySection.style.display = 'block';
                 document.getElementById('display_employee_name').textContent = assetDetails.current_employee_name || 'N/A';
-                document.getElementById('display_employee_id').textContent = assetDetails.current_employee_id || 'N/A';
+                document.getElementById('display_employee_id').textContent = (assetDetails.current_employee_erp_id != null && assetDetails.current_employee_erp_id !== '') ? assetDetails.current_employee_erp_id : (assetDetails.current_employee_id || 'N/A');
                 document.getElementById('display_employee_entity').textContent = assetDetails.current_employee_entity || 'N/A';
                 if (employeeIdField) {
                     employeeIdField.value = assetDetails.current_employee_id;
