@@ -119,8 +119,8 @@
                                             {{ $t->employee->name ?? $t->project_name ?? 'N/A' }}
                                         @endif
                                     </td>
-                                    <td>{{ ucwords(trim(optional($t->location)->location_entity ?? $t->employee->entity_name ?? '')) ?: 'N/A' }}</td>
-                                    <td>{{ $t->location->location_name ?? 'N/A' }}</td>
+                                    <td>{{ ucwords(trim(optional($t->location)->location_entity ?? optional($t->asset->location)->location_entity ?? $t->employee->entity_name ?? '')) ?: 'N/A' }}</td>
+                                    <td>{{ $t->location->location_name ?? optional($t->asset->location)->location_name ?? 'N/A' }}</td>
                                     <td>
                                         @if($t->transaction_type == 'system_maintenance')
                                             <div><strong>Receive:</strong> {{ $t->receive_date ?? 'N/A' }}</div>

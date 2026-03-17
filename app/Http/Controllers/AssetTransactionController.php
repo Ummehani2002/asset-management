@@ -41,7 +41,7 @@ class AssetTransactionController extends Controller
                     ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
 
-            $query = AssetTransaction::with(['asset.assetCategory', 'employee', 'location']);
+            $query = AssetTransaction::with(['asset.assetCategory', 'asset.location', 'employee', 'location']);
 
         // Filter by asset status - show all transactions for assets with this status
         // Default to showing only assigned assets if no filter is explicitly set
@@ -209,7 +209,7 @@ class AssetTransactionController extends Controller
 
     public function view(Request $request)
     {
-        $query = AssetTransaction::with(['asset.assetCategory', 'employee', 'location']);
+        $query = AssetTransaction::with(['asset.assetCategory', 'asset.location', 'employee', 'location']);
 
         // Filter by type
         if ($request->filled('filter')) {
@@ -1724,7 +1724,7 @@ class AssetTransactionController extends Controller
             'status' => $status,
         ], $data, $imageData));
 
-        // Update asset status
+        // Update asset status and location to keep in sync with this assignment
         $finalStatus = $status;
         if ($request->transaction_type === 'assign' && $latest && $latest->transaction_type === 'system_maintenance') {
             // Assigning from maintenance - restore to previous employee (status already 'assigned')
@@ -1735,6 +1735,9 @@ class AssetTransactionController extends Controller
         }
         
         $asset->status = $finalStatus;
+        if ($request->transaction_type === 'assign' && $request->location_id) {
+            $asset->location_id = $request->location_id;
+        }
         $asset->save();
 
         // Send email for all transaction types
