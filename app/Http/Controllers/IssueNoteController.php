@@ -251,17 +251,22 @@ class IssueNoteController extends Controller
             return response()->json(['error' => 'Employee not found'], 404);
         }
 
-        // Use latest ASSIGN transaction for this employee that has a location.
+        // Same as Asset Transactions list: use latest ASSIGN, then location from transaction or from asset.
         $location = 'N/A';
         $latestTransaction = \App\Models\AssetTransaction::where('employee_id', $id)
             ->where('transaction_type', 'assign')
-            ->whereNotNull('location_id')
-            ->with('location')
+            ->with(['location', 'asset.location'])
             ->latest('id')
             ->first();
 
+        $loc = null;
         if ($latestTransaction && $latestTransaction->location) {
             $loc = $latestTransaction->location;
+        } elseif ($latestTransaction && $latestTransaction->asset && $latestTransaction->asset->location) {
+            $loc = $latestTransaction->asset->location;
+        }
+
+        if ($loc) {
             $locName = trim($loc->location_name ?? '');
             $locEntity = trim($loc->location_entity ?? '');
             if ($locName && $locEntity) {
@@ -272,8 +277,8 @@ class IssueNoteController extends Controller
                 $location = $locEntity;
             }
         }
-        
-        // If no location from transaction, try to get from locations table based on employee's entity
+
+        // If still no location, try locations table by employee's entity
         if ($location === 'N/A' && $employee->entity_name) {
             // Try case-insensitive match for entity
             $entityLocation = \App\Models\Location::whereRaw('LOWER(location_entity) = ?', [strtolower($employee->entity_name)])->first();
