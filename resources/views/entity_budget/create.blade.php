@@ -22,7 +22,7 @@
 
     {{-- Add Budget Form (single cost head) --}}
     <div class="master-form-card mb-4 budget-form-printable">
-        <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i> New Budget (Single Cost Head)</h5>
+        <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i> New Budget </h5>
         <form action="{{ route('entity_budget.store') }}" method="POST" autocomplete="off">
             @csrf
             

@@ -19,7 +19,7 @@ class BudgetExpenseController extends Controller
         // Initialize defaults
         $entities = collect([]);
         $costHeads = [];
-        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
+        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription', 'Network'];
         
         // Check database connection
         try {
@@ -82,7 +82,7 @@ class BudgetExpenseController extends Controller
         foreach ($costHeadsList as $item) {
             $costHeadsWithTypes[$item['name']] = $item['expense_type'];
         }
-        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
+        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription', 'Network'];
         return view('budget_expenses.create', compact('entities', 'costHeads', 'costHeadsWithTypes', 'expenseTypes'))
             ->with('error', 'An error occurred. Please check logs.');
     }
@@ -221,7 +221,7 @@ class BudgetExpenseController extends Controller
 
         $entities = collect([]);
         $costHeads = [];
-        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
+        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription', 'Network'];
         $costHeadsWithTypes = [];
 
         if (Schema::hasTable('employees')) {
@@ -472,7 +472,7 @@ class BudgetExpenseController extends Controller
             $uniqueEntityNames = Employee::whereNotNull('entity_name')->where('entity_name', '!=', '')->distinct()->pluck('entity_name')->toArray();
             $entities = collect($uniqueEntityNames)->map(fn ($n) => Employee::where('entity_name', $n)->first())->filter()->values();
         }
-        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
+        $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription', 'Network'];
         $costHeadsWithTypes = \App\Http\Controllers\EntityBudgetController::getCostHeadsList();
         $costHeadsByType = collect($costHeadsWithTypes)->groupBy('expense_type')->map(fn ($g) => $g->pluck('name')->toArray())->toArray();
 

@@ -21,7 +21,7 @@ class EntityBudgetController extends Controller
     public static function getCostHeadsList(): array
     {
         return [
-            ['name' => 'Network', 'expense_type' => 'Capex Software', 'category' => 'Overhead'],
+            ['name' => 'Network', 'expense_type' => 'Network', 'category' => 'Overhead'],
             ['name' => 'Multifunction Printers & Plotters', 'expense_type' => 'Maintenance', 'category' => 'Overhead'],
             ['name' => 'New Laptops, Desktops & Workstations', 'expense_type' => 'Capex Software', 'category' => 'Overhead'],
             ['name' => 'CAD Softwares', 'expense_type' => 'Subscription', 'category' => 'Overhead'],
@@ -58,7 +58,7 @@ class EntityBudgetController extends Controller
             $entities = collect([]);
             $costHeadsList = self::getCostHeadsList();
             $costHeads = array_column($costHeadsList, 'name');
-            $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
+            $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription', 'Network'];
             $budgets = collect([]);
 
             // Test database connection first
@@ -168,7 +168,7 @@ class EntityBudgetController extends Controller
             $entities = collect([]);
             $costHeadsList = self::getCostHeadsList();
             $costHeads = array_column($costHeadsList, 'name');
-            $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription'];
+            $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription', 'Network'];
             $budgets = collect([]);
             return view('entity_budget.create', compact('entities', 'costHeads', 'costHeadsList', 'expenseTypes', 'budgets'))
                 ->with('error', 'An error occurred. Please check Laravel Cloud logs for details.');
@@ -353,7 +353,7 @@ class EntityBudgetController extends Controller
 
             $validated = $request->validate([
                 'entity_id' => 'required|exists:employees,id',
-                'expense_type' => 'required|string|in:Maintenance,Capex Software,Capex Hardware,Subscription',
+                'expense_type' => 'required|string|in:Maintenance,Capex Software,Capex Hardware,Subscription,Network',
                 'budget_year' => 'required|integer|min:2020|max:2100',
                 'budget_amount' => 'required|numeric|min:0',
             ]);

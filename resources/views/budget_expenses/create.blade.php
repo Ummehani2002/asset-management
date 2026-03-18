@@ -41,6 +41,7 @@
                     <option value="Capex Software">Capex Software</option>
                     <option value="Capex Hardware">Capex Hardware</option>
                     <option value="Subscription">Subscription</option>
+                    <option value="Network">Network</option>
                 </select>
             </div>
 

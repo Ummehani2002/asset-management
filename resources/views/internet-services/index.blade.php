@@ -9,7 +9,7 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h2><i class="bi bi-wifi me-2"></i>Internet Services Management</h2>
-                <p>Manage internet service subscriptions and accounts</p>
+            
             </div>
             <a href="{{ route('internet-services.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-2"></i> New Internet Service
