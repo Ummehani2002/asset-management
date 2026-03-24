@@ -123,9 +123,12 @@ class EmployeeController extends Controller
                 'email'          => 'nullable|email|max:100',
                 'phone'          => 'nullable|string|max:20',
                 'entity_name'    => 'required|string|max:100',
-                'department_name'=> 'required|string|max:100',
+                'department_name'=> 'nullable|string|max:100',
                 'designation'    => 'nullable|string|max:100',
             ]);
+
+            // Keep compatibility with non-null DB column while allowing optional input.
+            $data['department_name'] = trim($data['department_name'] ?? '') ?: 'N/A';
 
             Log::info('Creating employee with data:', $data);
             
