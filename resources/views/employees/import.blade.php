@@ -36,7 +36,7 @@
             <h5 class="card-title mb-4">Import ~1500 employees from Excel/CSV</h5>
 
             <div class="alert alert-info mb-4">
-                <strong>Expected columns:</strong> Employee ID (or <strong>ERP ID</strong>), Name, Designation, Department Name, Email, Phone, Entity (optional).<br>
+                <strong>Expected columns:</strong> Employee ID (or <strong>ERP ID</strong>) is required. Name, Designation, Department Name, Email, Phone, and Entity are optional.<br>
                 <strong>Column mapping:</strong> <strong>ERP ID</strong> → Employee ID; <strong>NAME</strong> → Name. Other names (e.g. SERVICE TAG for assets) are for asset data; use Asset forms or future asset import for serial numbers.<br>
                 <strong>Entity:</strong> If your Excel has an Entity/Entity Name/Company column, it will be used. Otherwise use Default Entity below.<br>
                 <strong>File format:</strong> Save your Excel as <strong>CSV UTF-8</strong> (File → Save As → CSV UTF-8 Comma delimited).

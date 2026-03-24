@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 
 class AssetController extends Controller
 {
@@ -447,8 +448,9 @@ private function mapRowToAsset(array $data, $defaultEntityName)
     if (empty($serialNumber)) {
         return null;
     }
+    $serialNumber = trim($serialNumber);
 
-    if (Asset::where('serial_number', $serialNumber)->exists()) {
+    if (Asset::whereRaw('LOWER(TRIM(serial_number)) = ?', [strtolower($serialNumber)])->exists()) {
         return ['error' => "Serial number already exists: {$serialNumber}"];
     }
 
@@ -886,6 +888,10 @@ private function exportCategoryExcel($assets, $category)
 public function store(Request $request)
 {
     try {
+        if ($request->has('serial_number')) {
+            $request->merge(['serial_number' => trim((string) $request->serial_number)]);
+        }
+
         // Test database connection first
         try {
             DB::connection()->getPdo();
@@ -960,7 +966,12 @@ public function store(Request $request)
             'po_number' => 'nullable|string',
             'vendor_name' => 'nullable|string|max:255',
             'value' => 'nullable|numeric|min:0',
-            'serial_number' => 'required|string|max:100',
+            'serial_number' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('assets', 'serial_number'),
+            ],
             'invoice' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'features' => 'nullable|array',
             'features.*' => 'nullable',
