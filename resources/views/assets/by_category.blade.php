@@ -115,7 +115,11 @@
                                         @php
                                             $latestTxnEmployee = $asset->latestTransaction?->employee;
                                         @endphp
-                                        {{ $latestTxnEmployee ? ($latestTxnEmployee->employee_id ?? 'N/A') : 'N/A' }}
+                                        @if($latestTxnEmployee)
+                                            {{ $latestTxnEmployee->employee_id ?? 'N/A' }} - {{ $latestTxnEmployee->name ?? 'N/A' }}
+                                        @else
+                                            N/A
+                                        @endif
                                     </td>
                                     <td>{{ $asset->vendor_name ?? '-' }}</td>
                                     <td>{{ $asset->value ? number_format($asset->value, 2) : '-' }}</td>
