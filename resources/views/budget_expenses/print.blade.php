@@ -70,10 +70,13 @@
             color: #666;
         }
         @media print {
-            body { padding: 10px; max-width: none; font-size: 10pt; }
-            .budget-block { border: 1px solid #333; padding: 8px 10px; }
+            /* Shift content slightly upward for better alignment on paper */
+            body { padding: 6px; max-width: none; font-size: 10pt; }
+            .budget-block { border: 1px solid #333; padding: 6px 10px; }
             h2 { font-size: 12pt; }
             .budget-lines, table { font-size: 10pt; }
+            h2 { margin-bottom: 6px; }
+            table { margin: 4px 0; }
             table { break-inside: avoid; }
             th, td { padding: 4px 6px; }
         }
