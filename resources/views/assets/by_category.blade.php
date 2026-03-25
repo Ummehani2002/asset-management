@@ -80,13 +80,14 @@
                                 <th>Entity</th>
                                 <th>Status</th>
                                 <th>Brand</th>
+                                <th>Serial Number</th>
                                 <th>Purchase Date</th>
                                 <th>Warranty Start</th>
                                 <th>Expiry Date</th>
                                 <th>PO Number</th>
+                                <th>Employee Details</th>
                                 <th>Vendor Name</th>
                                 <th>Value</th>
-                                <th>Serial Number</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -105,13 +106,19 @@
                                         @endif
                                     </td>
                                     <td>{{ $asset->brand->name ?? 'N/A' }}</td>
+                                    <td>{{ $asset->serial_number ?? 'N/A' }}</td>
                                     <td>{{ $asset->purchase_date ?? 'N/A' }}</td>
                                     <td>{{ $asset->warranty_start ?? 'N/A' }}</td>
                                     <td>{{ $asset->expiry_date ?? 'N/A' }}</td>
                                     <td>{{ $asset->po_number ?? 'N/A' }}</td>
+                                    <td>
+                                        @php
+                                            $latestTxnEmployee = $asset->latestTransaction?->employee;
+                                        @endphp
+                                        {{ $latestTxnEmployee ? ($latestTxnEmployee->employee_id ?? 'N/A') : 'N/A' }}
+                                    </td>
                                     <td>{{ $asset->vendor_name ?? '-' }}</td>
                                     <td>{{ $asset->value ? number_format($asset->value, 2) : '-' }}</td>
-                                    <td>{{ $asset->serial_number ?? 'N/A' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

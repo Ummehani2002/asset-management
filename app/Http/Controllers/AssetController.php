@@ -616,7 +616,7 @@ public function autocompleteSerialNumber(Request $request)
    public function assetsByCategory(Request $request, $id)
 {
     $category = AssetCategory::findOrFail($id);
-    $query = Asset::with('category', 'brand', 'location', 'entity')
+    $query = Asset::with('category', 'brand', 'location', 'entity', 'latestTransaction.employee')
                 ->where('asset_category_id', $id);
 
     $selectedEntity = null;
