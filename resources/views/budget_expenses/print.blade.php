@@ -70,17 +70,71 @@
             color: #666;
         }
         @media print {
-            /* Move content down to align with blank area on PR form */
-            body { padding: 0 6px 6px 6px; max-width: none; font-size: 10pt; }
-            /* Push the whole printed block downward into blank PR area */
-            .budget-block { margin-top: 300px; }
-            .budget-block { border: 1px solid #333; padding: 6px 10px; }
-            h2 { font-size: 12pt; }
-            .budget-lines, table { font-size: 10pt; }
-            h2 { margin-bottom: 6px; }
-            table { margin: 4px 0; }
-            table { break-inside: avoid; }
-            th, td { padding: 4px 6px; }
+            @page { size: A4 portrait; margin: 0; }
+
+            /* Print as an overlay block in the lower blank PR area */
+            body {
+                margin: 0;
+                padding: 0;
+                max-width: none;
+                font-size: 9pt;
+                color: #222;
+            }
+
+            .budget-block {
+                position: fixed;
+                left: 12mm;
+                right: 12mm;
+                top: 182mm; /* lower area alignment on PR form */
+                margin: 0;
+                border: 1px solid #777;
+                padding: 5px 7px;
+                background: transparent;
+            }
+
+            h2 {
+                font-size: 10pt;
+                color: #222;
+                border-bottom: 1px solid #999;
+                margin: 0 0 6px 0;
+                padding-bottom: 3px;
+            }
+
+            .budget-lines,
+            table { font-size: 8.8pt; }
+
+            .budget-lines { line-height: 1.25; margin-bottom: 6px; }
+            .budget-lines .line { margin: 1px 0; }
+            .budget-lines .label { min-width: 120px; }
+
+            h3 {
+                margin: 6px 0 3px 0;
+                font-size: 9pt;
+                color: #222;
+            }
+
+            table {
+                margin: 2px 0;
+                break-inside: avoid;
+            }
+
+            th, td {
+                border: 1px solid #888;
+                padding: 2px 4px;
+                color: #222;
+            }
+
+            th {
+                background: #fff;
+                color: #222;
+                font-weight: 700;
+            }
+
+            .footer {
+                margin-top: 4px;
+                font-size: 8pt;
+                color: #444;
+            }
         }
     </style>
 </head>
