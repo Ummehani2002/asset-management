@@ -92,10 +92,10 @@
         <div class="line"><span class="label">Cost Head:</span><span class="value">{{ $cost_head }}</span></div>
         <div class="line"><span class="label">Total Budget:</span><span class="value">{{ $budget_amount }}</span></div>
         <div class="line"><span class="label">Used Budget:</span><span class="value">{{ $total_expenses }}</span></div>
-        <div class="line"><span class="label">Remaining Balance:</span><span class="value">{{ $available_balance }}</span></div>
+        <div class="line"><span class="label">Available Balance:</span><span class="value">{{ $available_balance }}</span></div>
     </div>
 
-    <h3>Expense Details (this expense)</h3>
+    <h3>Expense Details</h3>
     <table>
         <thead>
             <tr>
