@@ -4,13 +4,24 @@
     <title>Budget - {{ $budget->id }}</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; }
+        .print-area { width: 100%; }
         h2 { color: #1F2A44; border-bottom: 2px solid #C6A87D; padding-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
         th { background-color: #1F2A44; color: white; }
+
+        @media print {
+            /*
+             * Move budget details down to fit the blank lower area
+             * of the pre-printed PR sheet.
+             */
+            body { padding: 0 20px 20px 20px; }
+            .print-area { margin-top: 320px; }
+        }
     </style>
 </head>
 <body>
+    <div class="print-area">
     <h2>Entity Budget Form - {{ $currentYear }}</h2>
     
     {{-- Summary box designed to sit in the blank area of the PR form --}}
@@ -82,5 +93,6 @@
     @if(!empty($autoPrint))
         <script>window.onload = function() { window.print(); };</script>
     @endif
+    </div>
 </body>
 </html>
