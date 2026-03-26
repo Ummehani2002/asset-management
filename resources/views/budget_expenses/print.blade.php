@@ -70,8 +70,10 @@
             color: #666;
         }
         @media print {
-            /* Shift content slightly upward for better alignment on paper */
-            body { padding: 6px; max-width: none; font-size: 10pt; }
+            /* Move content down to align with blank area on PR form */
+            body { padding: 0 6px 6px 6px; max-width: none; font-size: 10pt; }
+            /* Push the whole printed block downward into blank PR area */
+            .budget-block { margin-top: 300px; }
             .budget-block { border: 1px solid #333; padding: 6px 10px; }
             h2 { font-size: 12pt; }
             .budget-lines, table { font-size: 10pt; }
