@@ -3,12 +3,14 @@
 <head>
     <title>Budget - {{ $budget->id }}</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
+        body { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.3; padding: 20px; color: #333; }
         .print-area { width: 100%; }
-        h2 { color: #1F2A44; border-bottom: 2px solid #C6A87D; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #1F2A44; color: white; }
+        h2 { color: #1F2A44; font-size: 12pt; border-bottom: 1px solid #C6A87D; padding-bottom: 6px; margin: 0 0 10px 0; }
+        h3 { color: #1F2A44; font-size: 10pt; margin: 12px 0 6px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10pt; }
+        th, td { border: 1px solid #999; padding: 5px 8px; text-align: left; }
+        th { background-color: #1F2A44; color: white; font-weight: 600; }
+        .footer { margin-top: 10px; font-size: 9pt; color: #666; }
 
         @media print {
             /*
@@ -17,6 +19,9 @@
              */
             body { padding: 0 20px 20px 20px; }
             .print-area { margin-top: 320px; }
+            h2 { margin-bottom: 8px; }
+            table { margin: 6px 0; }
+            th, td { padding: 4px 6px; }
         }
     </style>
 </head>
@@ -64,7 +69,7 @@
     </table>
     
     @if($budget->expenses->count() > 0)
-        <h3 style="margin-top: 30px;">Expense Details</h3>
+        <h3>Expense Details</h3>
         <table>
             <thead>
                 <tr>
@@ -87,7 +92,7 @@
         </table>
     @endif
     
-    <p style="margin-top: 30px; font-size: 12px; color: #666;">
+    <p class="footer">
         Generated on: {{ date('Y-m-d H:i:s') }}
     </p>
     @if(!empty($autoPrint))
