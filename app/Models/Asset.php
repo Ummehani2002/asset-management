@@ -13,6 +13,7 @@ class Asset extends Model
         'entity_id',
         'asset_category_id',
         'brand_id',
+        'model_number',
         'purchase_date',
         'warranty_start',
         'warranty_years',

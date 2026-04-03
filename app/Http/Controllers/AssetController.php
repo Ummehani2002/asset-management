@@ -5,6 +5,7 @@ use App\Models\Asset;
 use App\Models\AssetTransaction;
 use App\Models\AssetCategory;
 use App\Models\Brand;
+use App\Models\BrandModel;
 use App\Models\Entity;
 use App\Models\CategoryFeature; // for features
 use Illuminate\Support\Facades\Storage;
@@ -686,7 +687,7 @@ public function filterAssetsApi(Request $request)
 
         $assets = $query->get()->map(function($asset) {
             $features = [];
-            $modelNo = null;
+            $modelNo = $asset->model_number ?? null;
             foreach ($asset->featureValues as $fv) {
                 $featureName = $fv->feature->feature_name ?? 'N/A';
                 $featureValue = $fv->feature_value ?? 'N/A';
@@ -1020,6 +1021,14 @@ public function store(Request $request)
             'serial_number' => $request->serial_number,
             'status' => 'available', // Set default status
         ];
+
+        // Store model number from selected model for reliable table display.
+        if ($request->filled('brand_model_id') && Schema::hasColumn('assets', 'model_number')) {
+            $selectedModel = BrandModel::find($request->brand_model_id);
+            if ($selectedModel && !empty($selectedModel->model_number)) {
+                $assetData['model_number'] = $selectedModel->model_number;
+            }
+        }
 
         // Laptop-only: Patch / Antivirus / AutoCAD = Yes/No; OS / MS Office / On-Screen Takeoff = value when Yes
         $category = AssetCategory::find($request->asset_category_id);
