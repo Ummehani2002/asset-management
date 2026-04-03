@@ -75,6 +75,7 @@
                                 <th>#</th>
                                 <th>Asset ID</th>
                                 <th>Brand</th>
+                                <th>Model No</th>
                                 <th>Purchase Date</th>
                                 <th>Warranty Start</th>
                                 <th>Expiry Date</th>
@@ -90,7 +91,7 @@
                         </thead>
                         <tbody id="assetsTableBody">
                             <tr>
-                                <td colspan="14" class="text-center text-muted py-4">Select a category or type a serial number, then click Search.</td>
+                                <td colspan="15" class="text-center text-muted py-4">Select a category or type a serial number, then click Search.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -223,6 +224,7 @@
                             <td>${index + 1}</td>
                             <td>${asset.asset_id || 'N/A'}</td>
                             <td>${asset.brand_name || 'N/A'}</td>
+                            <td>${asset.model_no || 'N/A'}</td>
                             <td>${asset.purchase_date || 'N/A'}</td>
                             <td>${asset.warranty_start || 'N/A'}</td>
                             <td>${asset.expiry_date || 'N/A'}</td>
@@ -240,7 +242,7 @@
                 $('#assets-section').show();
                 $('#downloadDropdown').show();
             } else {
-                tableBody.append('<tr><td colspan="14" class="text-center text-muted py-4">No assets found in this category.</td></tr>');
+                tableBody.append('<tr><td colspan="15" class="text-center text-muted py-4">No assets found in this category.</td></tr>');
                 $('#assets-section').show();
                 $('#downloadDropdown').hide();
             }
@@ -253,7 +255,7 @@
                     errorMsg = 'Error: ' + resp.message;
                 }
             } catch(e) {}
-            $('#assetsTableBody').html('<tr><td colspan="14" class="text-center text-danger py-4">' + errorMsg + '</td></tr>');
+            $('#assetsTableBody').html('<tr><td colspan="15" class="text-center text-danger py-4">' + errorMsg + '</td></tr>');
             $('#assets-section').show();
             $('#downloadDropdown').hide();
         });

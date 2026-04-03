@@ -686,10 +686,14 @@ public function filterAssetsApi(Request $request)
 
         $assets = $query->get()->map(function($asset) {
             $features = [];
+            $modelNo = null;
             foreach ($asset->featureValues as $fv) {
                 $featureName = $fv->feature->feature_name ?? 'N/A';
                 $featureValue = $fv->feature_value ?? 'N/A';
                 $features[] = $featureName . ': ' . $featureValue;
+                if ($modelNo === null && stripos((string) $featureName, 'model') !== false && $featureValue !== 'N/A') {
+                    $modelNo = $featureValue;
+                }
             }
             
             $invoiceUrl = null;
@@ -713,6 +717,7 @@ public function filterAssetsApi(Request $request)
                 'id' => $asset->id,
                 'asset_id' => $asset->asset_id ?? 'N/A',
                 'brand_name' => $asset->brand->name ?? 'N/A',
+                'model_no' => $modelNo ?? 'N/A',
                 'purchase_date' => $asset->purchase_date ?? 'N/A',
                 'warranty_start' => $asset->warranty_start ?? 'N/A',
                 'expiry_date' => $asset->expiry_date ?? 'N/A',
