@@ -52,12 +52,24 @@ class InternetServiceController extends Controller
             }
 
             $internetServices = $query->latest()->get();
+
+            // Optional: show timeline/history for a particular account/card number (all service types)
+            $dataCardHistory = collect([]);
+            if ($request->filled('card_history')) {
+                $dataCardHistory = InternetService::query()
+                    ->with(['project', 'personInCharge', 'projectManager'])
+                    ->where('account_number', 'like', '%' . trim((string) $request->card_history) . '%')
+                    ->orderByDesc('service_start_date')
+                    ->orderByDesc('id')
+                    ->get();
+            }
             
-            return view('internet-services.index', compact('internetServices'));
+            return view('internet-services.index', compact('internetServices', 'dataCardHistory'));
         } catch (\Exception $e) {
             Log::error('InternetService index error: ' . $e->getMessage());
             $internetServices = collect([]);
-            return view('internet-services.index', compact('internetServices'))
+            $dataCardHistory = collect([]);
+            return view('internet-services.index', compact('internetServices', 'dataCardHistory'))
                 ->with('warning', 'Unable to load internet services. Please ensure migrations are run: php artisan migrate --force');
         }
     }

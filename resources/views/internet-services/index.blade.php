@@ -63,7 +63,11 @@
                         <option value="closed" {{ request('status') == 'closed' ? 'selected' : '' }}>Closed</option>
                     </select>
                 </div>
-                <div class="col-md-3 mb-3 d-flex align-items-end">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Service History (All Types)</label>
+                    <input type="text" name="card_history" class="form-control" placeholder="Enter account number..." value="{{ request('card_history') }}">
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary me-2">
                         <i class="bi bi-search me-1"></i>Search
                     </button>
@@ -76,7 +80,7 @@
     </div>
 
     
-    @if(request()->hasAny(['search', 'service_type', 'status']) && $internetServices->count() > 0)
+    @if(request()->hasAny(['search', 'service_type', 'status', 'card_history']) && $internetServices->count() > 0)
         <div class="master-table-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 style="color: white; margin: 0;"><i class="bi bi-list-ul me-2"></i>All Internet Services</h5>
@@ -186,7 +190,7 @@
                 </p>
             </div>
         </div>
-    @elseif(request()->hasAny(['search', 'service_type', 'status']))
+    @elseif(request()->hasAny(['search', 'service_type', 'status', 'card_history']))
         <div class="alert alert-info text-center">
             <i class="bi bi-wifi-off display-4 d-block mb-3"></i>
             <h4>No Results Found</h4>
@@ -194,6 +198,61 @@
         </div>
     @else
         
+    @endif
+
+    @if(request('card_history'))
+        <div class="master-table-card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 style="color: white; margin: 0;">
+                    <i class="bi bi-clock-history me-2"></i>Service History (All Types): {{ request('card_history') }}
+                </h5>
+                <span class="badge bg-light text-dark">
+                    {{ $dataCardHistory->count() }} record(s)
+                </span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Account No.</th>
+                                <th>Service Type</th>
+                                <th>Project</th>
+                                <th>Transaction</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th>Status</th>
+                                <th>MRC</th>
+                                <th>Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($dataCardHistory as $index => $history)
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td>{{ $history->account_number ?? 'N/A' }}</td>
+                                    <td>{{ ucfirst($history->service_type ?? 'N/A') }}</td>
+                                    <td>{{ $history->project_name ?? 'N/A' }}</td>
+                                    <td>{{ ucfirst($history->transaction_type ?? 'N/A') }}</td>
+                                    <td>{{ $history->service_start_date ? $history->service_start_date->format('d-m-Y') : 'N/A' }}</td>
+                                    <td>{{ $history->service_end_date ? $history->service_end_date->format('d-m-Y') : 'Ongoing' }}</td>
+                                    <td>{{ ucfirst($history->status ?? 'N/A') }}</td>
+                                    <td>{{ number_format($history->mrc ?? 0, 2) }}</td>
+                                    <td>{{ number_format($history->cost ?? 0, 2) }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        No service history found for this account number.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     @endif
 </div>
 @endsection
