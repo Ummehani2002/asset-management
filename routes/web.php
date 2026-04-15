@@ -90,6 +90,7 @@ Route::get('/assets/import', [AssetController::class, 'showImportForm'])->middle
 Route::post('/assets/import', [AssetController::class, 'import'])->middleware('auth')->name('assets.import');
 Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
 Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
+Route::post('/assets/{asset}/scrap', [AssetController::class, 'scrap'])->middleware('auth')->name('assets.scrap');
 Route::get('/assets/{asset}/edit', [AssetController::class, 'edit'])->middleware('auth')->name('assets.edit');
 Route::put('/assets/{asset}', [AssetController::class, 'update'])->middleware('auth')->name('assets.update');
 

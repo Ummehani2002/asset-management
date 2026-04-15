@@ -177,6 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const storeUrl = form.action;
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_token"]').value;
     const flashPlaceholder = document.getElementById('flash-placeholder');
+    const savedExpenseFromSession = @json(session('saved_expense'));
 
     function renderFlash(message, type = 'success', printUrl = null) {
         let html = `<div class="alert alert-${type}">${message}`;
@@ -291,6 +292,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${exp.id ? `<a href="${editUrl}" class="btn btn-sm btn-outline-primary me-1">Edit</a><a href="${printUrl}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Print</a><button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${exp.id})">Delete</button>` : ''}</td>
                 </tr>
             `;
+        });
+    }
+
+    if (savedExpenseFromSession && savedExpenseFromSession.id) {
+        renderExpenses([savedExpenseFromSession], {
+            entity_name: savedExpenseFromSession.entity_name,
+            cost_head: savedExpenseFromSession.cost_head,
+            expense_type: savedExpenseFromSession.expense_type,
         });
     }
 

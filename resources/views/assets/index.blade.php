@@ -53,6 +53,17 @@
                     </select>
                 </div>
                 @endif
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-control" onchange="this.form.submit()">
+                        <option value="">-- All Status --</option>
+                        <option value="assigned" {{ (isset($selectedStatus) && $selectedStatus === 'assigned') ? 'selected' : '' }}>Assigned</option>
+                        <option value="available" {{ (isset($selectedStatus) && $selectedStatus === 'available') ? 'selected' : '' }}>Available</option>
+                        <option value="returned" {{ (isset($selectedStatus) && $selectedStatus === 'returned') ? 'selected' : '' }}>Returned</option>
+                        <option value="under_maintenance" {{ (isset($selectedStatus) && $selectedStatus === 'under_maintenance') ? 'selected' : '' }}>Under Maintenance</option>
+                        <option value="scrap" {{ (isset($selectedStatus) && $selectedStatus === 'scrap') ? 'selected' : '' }}>Scrap</option>
+                    </select>
+                </div>
                 <div class="col-md-auto">
                     <button type="submit" class="btn btn-primary">Apply</button>
                     <a href="{{ route('assets.index') }}" class="btn btn-outline-secondary">Clear</a>
@@ -87,6 +98,7 @@
                                 <th>Vendor Name</th>
                                 <th>Value</th>
                                 <th>Serial Number</th>
+                                <th>Status</th>
                                 <th>Features</th>
                                 <th>Invoice</th>
                                 <th>Actions</th>
@@ -112,6 +124,21 @@
                                     <td>{{ $asset->vendor_name ?? '-' }}</td>
                                     <td>{{ $asset->value ? number_format($asset->value, 2) : '-' }}</td>
                                     <td>{{ $asset->serial_number ?? 'N/A' }}</td>
+                                    <td>
+                                        @if($asset->status === 'assigned')
+                                            <span class="badge bg-primary">Assigned</span>
+                                        @elseif(($asset->latestTransaction?->transaction_type ?? null) === 'return')
+                                            <span class="badge bg-info text-dark">Returned</span>
+                                        @elseif($asset->status === 'available')
+                                            <span class="badge bg-success">Available</span>
+                                        @elseif($asset->status === 'under_maintenance')
+                                            <span class="badge bg-warning text-dark">Under Maintenance</span>
+                                        @elseif($asset->status === 'scrap')
+                                            <span class="badge bg-danger">Scrap</span>
+                                        @else
+                                            <span class="badge bg-secondary">{{ ucfirst(str_replace('_', ' ', $asset->status ?? 'N/A')) }}</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         @if($asset->featureValues->count() > 0)
                                             <ul class="mb-0" style="font-size: 12px;">
@@ -145,11 +172,19 @@
                                         <a href="{{ route('assets.edit', $asset->id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-pencil-square"></i> Edit
                                         </a>
+                                        @if(in_array($asset->status, ['available', 'returned']) || ($asset->latestTransaction?->transaction_type ?? null) === 'return')
+                                            <form action="{{ route('assets.scrap', $asset->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Move this asset to scrap?');">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                                    <i class="bi bi-archive"></i> Scrap
+                                                </button>
+                                            </form>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="14" class="text-center text-muted py-4">No assets found.</td>
+                                    <td colspan="15" class="text-center text-muted py-4">No assets found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

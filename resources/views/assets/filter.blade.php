@@ -83,6 +83,7 @@
                                 <th>Vendor Name</th>
                                 <th>Value</th>
                                 <th>Serial Number</th>
+                                <th>Status</th>
                                 <th>Features</th>
                                 <th>Invoice</th>
                                 <th>History</th>
@@ -91,7 +92,7 @@
                         </thead>
                         <tbody id="assetsTableBody">
                             <tr>
-                                <td colspan="15" class="text-center text-muted py-4">Select a category or type a serial number, then click Search.</td>
+                                <td colspan="16" class="text-center text-muted py-4">Select a category or type a serial number, then click Search.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -219,6 +220,17 @@
                         </form>`;
                     }
 
+                    let statusHtml = '<span class="badge bg-secondary">N/A</span>';
+                    if (asset.status === 'assigned') {
+                        statusHtml = '<span class="badge bg-primary">Assigned</span>';
+                    } else if (asset.latest_transaction_type === 'return' || asset.status === 'returned') {
+                        statusHtml = '<span class="badge bg-info text-dark">Returned</span>';
+                    } else if (asset.status === 'available') {
+                        statusHtml = '<span class="badge bg-success">Available</span>';
+                    } else if (asset.status === 'under_maintenance') {
+                        statusHtml = '<span class="badge bg-warning text-dark">Under Maintenance</span>';
+                    }
+
                     tableBody.append(`
                         <tr>
                             <td>${index + 1}</td>
@@ -232,6 +244,7 @@
                             <td>${asset.vendor_name || '-'}</td>
                             <td>${asset.value || '-'}</td>
                             <td>${asset.serial_number || 'N/A'}</td>
+                            <td>${statusHtml}</td>
                             <td>${featuresHtml}</td>
                             <td>${invoiceHtml}</td>
                             <td>${historyHtml}</td>
@@ -242,7 +255,7 @@
                 $('#assets-section').show();
                 $('#downloadDropdown').show();
             } else {
-                tableBody.append('<tr><td colspan="15" class="text-center text-muted py-4">No assets found in this category.</td></tr>');
+                tableBody.append('<tr><td colspan="16" class="text-center text-muted py-4">No assets found in this category.</td></tr>');
                 $('#assets-section').show();
                 $('#downloadDropdown').hide();
             }
@@ -255,7 +268,7 @@
                     errorMsg = 'Error: ' + resp.message;
                 }
             } catch(e) {}
-            $('#assetsTableBody').html('<tr><td colspan="15" class="text-center text-danger py-4">' + errorMsg + '</td></tr>');
+            $('#assetsTableBody').html('<tr><td colspan="16" class="text-center text-danger py-4">' + errorMsg + '</td></tr>');
             $('#assets-section').show();
             $('#downloadDropdown').hide();
         });

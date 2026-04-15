@@ -79,8 +79,12 @@
         </form>
     </div>
 
-    
-    @if(request()->hasAny(['search', 'service_type', 'status', 'card_history']) && $internetServices->count() > 0)
+    @php
+        $hasCardHistorySearch = request()->filled('card_history');
+        $hasMainFilters = request()->filled('search') || request()->filled('service_type') || request()->filled('status');
+    @endphp
+
+    @if($hasMainFilters && !$hasCardHistorySearch && $internetServices->count() > 0)
         <div class="master-table-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 style="color: white; margin: 0;"><i class="bi bi-list-ul me-2"></i>All Internet Services</h5>
@@ -190,7 +194,7 @@
                 </p>
             </div>
         </div>
-    @elseif(request()->hasAny(['search', 'service_type', 'status', 'card_history']))
+    @elseif($hasMainFilters && !$hasCardHistorySearch)
         <div class="alert alert-info text-center">
             <i class="bi bi-wifi-off display-4 d-block mb-3"></i>
             <h4>No Results Found</h4>
@@ -219,6 +223,7 @@
                                 <th>Account No.</th>
                                 <th>Service Type</th>
                                 <th>Project</th>
+                                <th>Person in Charge</th>
                                 <th>Transaction</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
@@ -234,6 +239,7 @@
                                     <td>{{ $history->account_number ?? 'N/A' }}</td>
                                     <td>{{ ucfirst($history->service_type ?? 'N/A') }}</td>
                                     <td>{{ $history->project_name ?? 'N/A' }}</td>
+                                    <td>{{ $history->person_in_charge ?? 'N/A' }}</td>
                                     <td>{{ ucfirst($history->transaction_type ?? 'N/A') }}</td>
                                     <td>{{ $history->service_start_date ? $history->service_start_date->format('d-m-Y') : 'N/A' }}</td>
                                     <td>{{ $history->service_end_date ? $history->service_end_date->format('d-m-Y') : 'Ongoing' }}</td>
@@ -243,7 +249,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="text-center text-muted py-4">
+                                    <td colspan="11" class="text-center text-muted py-4">
                                         No service history found for this account number.
                                     </td>
                                 </tr>

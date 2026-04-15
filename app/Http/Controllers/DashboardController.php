@@ -53,6 +53,7 @@ class DashboardController extends Controller
             $relevantStatuses = ['assigned', 'available', 'returned'];
             $totalAssets = 0;
             $availableAssets = 0;
+            $scrapAssets = 0;
 
             if (Schema::hasTable('assets')) {
                 $assetQuery = Asset::whereIn('status', $relevantStatuses);
@@ -62,6 +63,10 @@ class DashboardController extends Controller
                 $availQuery = Asset::whereIn('status', ['available', 'returned']);
                 $this->scopeAssetsByEntity($availQuery, $selectedEntityId, $entityName);
                 $availableAssets = $availQuery->count();
+
+                $scrapQuery = Asset::where('status', 'scrap');
+                $this->scopeAssetsByEntity($scrapQuery, $selectedEntityId, $entityName);
+                $scrapAssets = $scrapQuery->count();
             }
 
             // Check if required tables exist
@@ -97,17 +102,18 @@ class DashboardController extends Controller
                 }
             }
 
-            return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets', 'entities', 'selectedEntityId', 'selectedEntity'));
+            return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets', 'scrapAssets', 'entities', 'selectedEntityId', 'selectedEntity'));
         } catch (\Exception $e) {
             Log::error('Dashboard error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             $categoryCounts = collect([]);
             $totalAssets = 0;
             $availableAssets = 0;
+            $scrapAssets = 0;
             $entities = Schema::hasTable('entities') ? Entity::orderBy('name')->get() : collect([]);
             $selectedEntityId = null;
             $selectedEntity = null;
-            return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets', 'entities', 'selectedEntityId', 'selectedEntity'))
+            return view('dashboard', compact('categoryCounts', 'totalAssets', 'availableAssets', 'scrapAssets', 'entities', 'selectedEntityId', 'selectedEntity'))
                 ->with('warning', 'Some data could not be loaded. Please ensure migrations are run.');
         }
     }

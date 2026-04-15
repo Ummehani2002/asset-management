@@ -35,6 +35,10 @@
             <div class="d-flex gap-3 align-items-center">
                 <span class="text-white"><i class="bi bi-box-seam me-1"></i><strong>Total:</strong> {{ number_format($totalAssets ?? 0) }}</span>
                 <span class="text-white"><i class="bi bi-check-circle me-1"></i><strong>Available:</strong> {{ number_format($availableAssets ?? 0) }}</span>
+                <span class="text-white"><i class="bi bi-trash3 me-1"></i><strong>Scrap:</strong> {{ number_format($scrapAssets ?? 0) }}</span>
+                <a href="{{ route('assets.index', array_filter(['status' => 'scrap', 'entity' => $selectedEntityId ?? null])) }}" class="btn btn-sm btn-light">
+                    <i class="bi bi-eye me-1"></i>View Scrap Assets
+                </a>
             </div>
         </div>
 

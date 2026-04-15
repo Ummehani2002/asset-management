@@ -56,12 +56,74 @@ class InternetServiceController extends Controller
             // Optional: show timeline/history for a particular account/card number (all service types)
             $dataCardHistory = collect([]);
             if ($request->filled('card_history')) {
-                $dataCardHistory = InternetService::query()
+                $cardQuery = trim((string) $request->card_history);
+
+                $historyRows = InternetService::query()
                     ->with(['project', 'personInCharge', 'projectManager'])
-                    ->where('account_number', 'like', '%' . trim((string) $request->card_history) . '%')
-                    ->orderByDesc('service_start_date')
-                    ->orderByDesc('id')
+                    ->where('account_number', $cardQuery)
+                    ->orderBy('service_start_date')
+                    ->orderBy('id')
                     ->get();
+
+                // Fallback to partial match only when exact account match has no rows.
+                if ($historyRows->isEmpty()) {
+                    $historyRows = InternetService::query()
+                        ->with(['project', 'personInCharge', 'projectManager'])
+                        ->where('account_number', 'like', '%' . $cardQuery . '%')
+                        ->orderBy('service_start_date')
+                        ->orderBy('id')
+                        ->get();
+                }
+
+                // Build timeline events: assign -> return (if returned) -> assign again.
+                $timeline = collect([]);
+                foreach ($historyRows as $service) {
+                    $timeline->push((object) [
+                        'id' => $service->id,
+                        'account_number' => $service->account_number,
+                        'service_type' => $service->service_type,
+                        'project_name' => $service->project_name,
+                        'transaction_type' => 'assign',
+                        'service_start_date' => $service->service_start_date,
+                        'service_end_date' => $service->service_end_date,
+                        'status' => $service->service_end_date ? 'closed' : ($service->status ?? 'active'),
+                        'mrc' => $service->mrc,
+                        'cost' => $service->cost,
+                        'person_in_charge' => $service->person_in_charge,
+                        'person_in_charge_id' => $service->person_in_charge_id,
+                        'event_date' => $service->service_start_date,
+                        'event_order' => 1,
+                    ]);
+
+                    if (!empty($service->service_end_date)) {
+                        $timeline->push((object) [
+                            'id' => $service->id,
+                            'account_number' => $service->account_number,
+                            'service_type' => $service->service_type,
+                            'project_name' => $service->project_name,
+                            'transaction_type' => 'return',
+                            'service_start_date' => $service->service_start_date,
+                            'service_end_date' => $service->service_end_date,
+                            'status' => 'closed',
+                            'mrc' => $service->mrc,
+                            'cost' => $service->cost,
+                            'person_in_charge' => $service->person_in_charge,
+                            'person_in_charge_id' => $service->person_in_charge_id,
+                            'event_date' => $service->service_end_date,
+                            'event_order' => 2,
+                        ]);
+                    }
+                }
+
+                $dataCardHistory = $timeline
+                    ->sortBy(function ($item) {
+                        $eventDate = $item->event_date;
+                        $eventDateValue = $eventDate instanceof \Carbon\Carbon
+                            ? $eventDate->timestamp
+                            : strtotime((string) $eventDate);
+                        return ($eventDateValue ?: 0) . '-' . $item->event_order . '-' . $item->id;
+                    })
+                    ->values();
             }
             
             return view('internet-services.index', compact('internetServices', 'dataCardHistory'));

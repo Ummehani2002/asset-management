@@ -35,6 +35,7 @@
                 <option value="">All</option>
                 <option value="assigned" {{ ($selectedStatus ?? request('status')) === 'assigned' ? 'selected' : '' }}>Assigned</option>
                 <option value="available" {{ ($selectedStatus ?? request('status')) === 'available' ? 'selected' : '' }}>Available</option>
+                <option value="returned" {{ ($selectedStatus ?? request('status')) === 'returned' ? 'selected' : '' }}>Returned</option>
                 <option value="under_maintenance" {{ ($selectedStatus ?? request('status')) === 'under_maintenance' ? 'selected' : '' }}>Under Maintenance</option>
             </select>
         </div>
@@ -99,7 +100,9 @@
                                     <td>
                                         @if($asset->status === 'assigned')
                                             <span class="badge bg-primary">Assigned</span>
-                                        @elseif($asset->status === 'available' || $asset->status === 'returned')
+                                        @elseif(($asset->latestTransaction?->transaction_type ?? null) === 'return')
+                                            <span class="badge bg-info text-dark">Returned</span>
+                                        @elseif($asset->status === 'available')
                                             <span class="badge bg-success">Available</span>
                                         @else
                                             <span class="badge bg-secondary">{{ ucfirst($asset->status ?? 'N/A') }}</span>

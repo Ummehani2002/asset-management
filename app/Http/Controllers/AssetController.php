@@ -49,14 +49,22 @@ class AssetController extends Controller
             }
 
             $assets = collect([]);
+            $selectedStatus = $request->get('status');
             if ($hasAssets) {
                 try {
-                    $query = Asset::with(['category', 'brand', 'featureValues.feature', 'entity']);
+                    $query = Asset::with(['category', 'brand', 'featureValues.feature', 'entity', 'latestTransaction']);
                     if ($request->filled('category_id')) {
                         $query->where('asset_category_id', $request->category_id);
                     }
                     if ($request->filled('entity') && Schema::hasColumn('assets', 'entity_id')) {
                         $query->where('entity_id', $request->entity);
+                    }
+                    if ($selectedStatus === 'available') {
+                        $query->whereIn('status', ['available', 'returned']);
+                    } elseif ($selectedStatus === 'returned') {
+                        $query->where('status', 'returned');
+                    } elseif (in_array($selectedStatus, ['assigned', 'under_maintenance', 'scrap'], true)) {
+                        $query->where('status', $selectedStatus);
                     }
                     $assets = $query->orderBy('asset_id')->get();
                 } catch (\Exception $e) {
@@ -66,7 +74,7 @@ class AssetController extends Controller
 
             $categoryId = $request->get('category_id');
             $selectedEntityId = $request->get('entity');
-            return view('assets.index', compact('assets', 'categories', 'entities', 'categoryId', 'selectedEntityId'));
+            return view('assets.index', compact('assets', 'categories', 'entities', 'categoryId', 'selectedEntityId', 'selectedStatus'));
         } catch (\Exception $e) {
             Log::error('Asset index error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -75,7 +83,8 @@ class AssetController extends Controller
             $entities = collect([]);
             $categoryId = null;
             $selectedEntityId = null;
-            return view('assets.index', compact('assets', 'categories', 'entities', 'categoryId', 'selectedEntityId'))
+            $selectedStatus = null;
+            return view('assets.index', compact('assets', 'categories', 'entities', 'categoryId', 'selectedEntityId', 'selectedStatus'))
                 ->with('warning', 'Unable to load assets. Please ensure migrations are run: php artisan migrate --force');
         }
     }
@@ -119,6 +128,38 @@ public function destroy(Asset $asset)
     } catch (\Exception $e) {
         Log::error('Asset destroy error: ' . $e->getMessage());
         return redirect()->back()->with('error', 'Failed to delete asset.');
+    }
+}
+
+public function scrap(Request $request, Asset $asset)
+{
+    try {
+        $asset->loadMissing('latestTransaction');
+        $isScrapEligible = in_array($asset->status, ['available', 'returned'], true)
+            || (($asset->latestTransaction->transaction_type ?? null) === 'return');
+
+        if (!$isScrapEligible) {
+            return redirect()->back()->with('error', 'Only available or returned assets can be moved to scrap.');
+        }
+
+        $remarks = trim((string) $request->input('scrap_remarks', 'Scrapped from asset master'));
+        $asset->status = 'scrap';
+        $asset->save();
+
+        if (Schema::hasTable('asset_transactions')) {
+            AssetTransaction::create([
+                'transaction_type' => 'scrap',
+                'asset_id' => $asset->id,
+                'issue_date' => now()->format('Y-m-d'),
+                'status' => 'scrap',
+                'remarks' => $remarks,
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Asset {$asset->asset_id} moved to scrap.");
+    } catch (\Exception $e) {
+        Log::error('Asset scrap error: ' . $e->getMessage());
+        return redirect()->back()->with('error', 'Failed to mark asset as scrap.');
     }
 }
 
@@ -634,15 +675,19 @@ public function autocompleteSerialNumber(Request $request)
         }
     }
 
-    // Filter by status (assigned / available / under_maintenance / all)
+    // Filter by status (assigned / available / returned / under_maintenance / scrap / all)
     $selectedStatus = $request->get('status');
     if ($selectedStatus === 'assigned') {
         $query->where('status', 'assigned');
     } elseif ($selectedStatus === 'available') {
         // Treat both available and returned as available for this view
         $query->whereIn('status', ['available', 'returned']);
+    } elseif ($selectedStatus === 'returned') {
+        $query->where('status', 'returned');
     } elseif ($selectedStatus === 'under_maintenance') {
         $query->where('status', 'under_maintenance');
+    } elseif ($selectedStatus === 'scrap') {
+        $query->where('status', 'scrap');
     }
 
     // Filter by brand
@@ -676,7 +721,7 @@ public function getSerialNumbersApi(Request $request)
 public function filterAssetsApi(Request $request)
 {
     try {
-        $query = Asset::with(['category', 'brand', 'featureValues.feature']);
+        $query = Asset::with(['category', 'brand', 'featureValues.feature', 'latestTransaction']);
 
         if ($request->filled('category_id')) {
             $query->where('asset_category_id', $request->category_id);
@@ -714,6 +759,9 @@ public function filterAssetsApi(Request $request)
                 }
             }
             
+            $latestType = $asset->latestTransaction->transaction_type ?? null;
+            $isScrapEligible = in_array($asset->status, ['available', 'returned'], true) || ($latestType === 'return');
+
             return [
                 'id' => $asset->id,
                 'asset_id' => $asset->asset_id ?? 'N/A',
@@ -726,6 +774,9 @@ public function filterAssetsApi(Request $request)
                 'vendor_name' => $asset->vendor_name ?? '-',
                 'value' => $asset->value ? number_format($asset->value, 2) : '-',
                 'serial_number' => $asset->serial_number ?? 'N/A',
+                'status' => $asset->status ?? null,
+                'latest_transaction_type' => $latestType,
+                'can_scrap' => $isScrapEligible,
                 'features' => $features,
                 'invoice_path' => $asset->invoice_path ?? null,
                 'invoice_url' => $invoiceUrl,
