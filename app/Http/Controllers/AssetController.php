@@ -364,9 +364,11 @@ public function import(Request $request)
     $request->validate([
         'file' => 'required|mimes:csv,txt',
         'default_entity' => 'nullable|string|max:255',
+        'temporary_printer_format' => 'nullable|boolean',
     ]);
 
     $defaultEntityName = trim($request->default_entity ?? '');
+    $useTemporaryPrinterFormat = $request->boolean('temporary_printer_format');
     $file = $request->file('file');
 
     try {
@@ -395,10 +397,17 @@ public function import(Request $request)
             $skipped = [];
             $rowNum = 0;
 
-            $hasExpectedHeaders = function ($row) {
+            $hasExpectedHeaders = function ($row) use ($useTemporaryPrinterFormat) {
                 $trim = function ($h) { return trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $h)); };
                 $norm = function ($key) { return str_replace(' ', '', strtolower($key)); };
-                $targets = ['category', 'brand', 'serialnumber', 'servicetag', 'purchasedate', 'warrantysta', 'warrantyst', 'warrantyend', 'war'];
+                $targets = [
+                    'category', 'brand', 'serialnumber', 'servicetag', 'id',
+                    'purchasedate', 'warrantysta', 'warrantyst', 'warrantyend', 'war',
+                    'expdate', 'expirydate', 'site',
+                ];
+                if (!$useTemporaryPrinterFormat) {
+                    $targets = ['category', 'brand', 'serialnumber', 'servicetag', 'purchasedate', 'warrantysta', 'warrantyst', 'warrantyend', 'war'];
+                }
                 foreach ($row as $h) {
                     $n = $norm($trim($h));
                     if (in_array($n, $targets, true)) {
@@ -434,7 +443,7 @@ public function import(Request $request)
                     continue;
                 }
 
-                $result = $this->mapRowToAsset($data, $defaultEntityName);
+                $result = $this->mapRowToAsset($data, $defaultEntityName, $useTemporaryPrinterFormat);
             if ($result === null) {
                 continue;
             }
@@ -472,7 +481,7 @@ public function import(Request $request)
 /**
  * Map CSV row to asset data. Returns ['asset' => array] or ['error' => string] or null to skip row.
  */
-private function mapRowToAsset(array $data, $defaultEntityName)
+private function mapRowToAsset(array $data, $defaultEntityName, bool $useTemporaryPrinterFormat = false)
 {
     $normalize = function ($key) use ($data) {
         $keys = array_keys($data);
@@ -486,7 +495,13 @@ private function mapRowToAsset(array $data, $defaultEntityName)
         return $v === '' ? null : $v;
     };
 
-    $serialNumber = $normalize('Serial Number') ?: $normalize('Serial number') ?: $normalize('SERVICE TAG') ?: $normalize('Service Tag');
+    $serialNumber = $normalize('Serial Number')
+        ?: $normalize('Serial number')
+        ?: $normalize('SERVICE TAG')
+        ?: $normalize('Service Tag');
+    if ($useTemporaryPrinterFormat && empty($serialNumber)) {
+        $serialNumber = $normalize('ID');
+    }
     if (empty($serialNumber)) {
         return null;
     }
@@ -497,24 +512,53 @@ private function mapRowToAsset(array $data, $defaultEntityName)
     }
 
     $categoryName = $normalize('Category') ?: $normalize('CATEGORY');
+    $printerStyleRow = $useTemporaryPrinterFormat && (
+        !empty($normalize('SITE')) || !empty($normalize('MODEL')) || !empty($normalize('EXP DATE'))
+    );
+    if (empty($categoryName) && $printerStyleRow) {
+        // Support printer upload sheets where category is not provided.
+        $categoryName = 'Printer';
+    }
     if (empty($categoryName)) {
         return ['error' => 'Category is required'];
     }
     $category = AssetCategory::whereRaw('LOWER(TRIM(category_name)) = ?', [strtolower(trim($categoryName))])->first();
     if (!$category) {
-        return ['error' => "Category not found: {$categoryName}"];
+        if ($printerStyleRow && strtolower(trim($categoryName)) === 'printer') {
+            $category = AssetCategory::create(['category_name' => 'Printer']);
+        } else {
+            return ['error' => "Category not found: {$categoryName}"];
+        }
     }
 
-    $entityName = $normalize('Entity') ?: $normalize('Entity Name') ?: $normalize('Company') ?: $defaultEntityName;
+    $siteName = $useTemporaryPrinterFormat ? ($normalize('SITE') ?: $normalize('Site')) : null;
+    $siteEntityPrefix = null;
+    if (!empty($siteName)) {
+        // For values like "PROSCAPE (EMAR South)", use "PROSCAPE" for entity mapping.
+        $siteEntityPrefix = trim((string) preg_replace('/\s*\(.*$/', '', $siteName));
+    }
+
+    $entityName = $normalize('Entity')
+        ?: $normalize('Entity Name')
+        ?: $normalize('Company')
+        ?: $siteEntityPrefix
+        ?: $defaultEntityName;
     $entityId = null;
     if (!empty($entityName) && Schema::hasTable('entities')) {
-        $entity = Entity::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($entityName))])->first();
+        $entityNameNormalized = strtolower(trim($entityName));
+        $entity = Entity::whereRaw('LOWER(TRIM(name)) = ?', [$entityNameNormalized])->first();
+        if (!$entity) {
+            $entity = Entity::whereRaw('LOWER(TRIM(name)) LIKE ?', [$entityNameNormalized . '%'])->first();
+        }
         if ($entity) {
             $entityId = $entity->id;
         }
     }
 
     $brandName = $normalize('Brand') ?: $normalize('BRAND');
+    if (empty($brandName) && $printerStyleRow) {
+        $brandName = 'Generic';
+    }
     if (empty($brandName)) {
         return ['error' => 'Brand is required'];
     }
@@ -525,18 +569,41 @@ private function mapRowToAsset(array $data, $defaultEntityName)
     if (!$brand) {
         $brand = Brand::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($brandName))])->first();
     }
+    if ($brand && (int) $brand->asset_category_id !== (int) $category->id) {
+        $brand = Brand::where('asset_category_id', $category->id)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($brandName))])
+            ->first();
+    }
     if (!$brand) {
-        return ['error' => "Brand not found: {$brandName} (for category {$category->category_name})"];
+        // Auto-create fallback brand for printer-style imports.
+        if ($printerStyleRow && strtolower(trim($brandName)) === 'generic') {
+            $brand = Brand::create([
+                'name' => 'Generic',
+                'asset_category_id' => $category->id,
+            ]);
+        } else {
+            return ['error' => "Brand not found: {$brandName} (for category {$category->category_name})"];
+        }
     }
 
     $purchaseDate = $this->parseImportDate($normalize('Purchase Date') ?: $normalize('PURCHASE DATE'));
     $warrantyStart = $this->parseImportDate($normalize('Warranty Start') ?: $normalize('WARRANTY STA') ?: $normalize('WARRANTY ST') ?: $normalize('WARRANTY START'));
-    $warrantyEnd = $this->parseImportDate($normalize('Warranty End') ?: $normalize('WARRANTY END') ?: $normalize('WAR'));
+    $warrantyEndSource = $normalize('Warranty End')
+        ?: $normalize('WARRANTY END')
+        ?: $normalize('WAR');
+    if ($useTemporaryPrinterFormat && empty($warrantyEndSource)) {
+        $warrantyEndSource = $normalize('EXP DATE') ?: $normalize('Expiry Date');
+    }
+    $warrantyEnd = $this->parseImportDate($warrantyEndSource);
     if (!$warrantyStart && $purchaseDate) {
         $warrantyStart = $purchaseDate;
     }
     if (!$purchaseDate && $warrantyStart) {
         $purchaseDate = $warrantyStart;
+    }
+    if ($useTemporaryPrinterFormat && !$purchaseDate && $expiryDate) {
+        // If sheet only has expiry date, use it as a safe fallback.
+        $purchaseDate = $expiryDate;
     }
     if (!$purchaseDate) {
         return ['error' => 'Invalid or missing Purchase Date or Warranty Start'];
@@ -570,6 +637,13 @@ private function mapRowToAsset(array $data, $defaultEntityName)
         'expiry_date' => $expiryDate,
         'status' => 'available',
     ];
+
+    if ($useTemporaryPrinterFormat) {
+        $modelNumber = $normalize('MODEL') ?: $normalize('Model') ?: $normalize('Model No') ?: $normalize('MODEL NO');
+        if (!empty($modelNumber)) {
+            $assetData['model_number'] = $modelNumber;
+        }
+    }
 
     if (Schema::hasColumn('assets', 'warranty_years') && $warrantyStart && $expiryDate) {
         try {

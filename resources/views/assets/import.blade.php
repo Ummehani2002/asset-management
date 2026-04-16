@@ -72,6 +72,13 @@
                     <small class="text-muted">Upload a CSV file. In Excel: File → Save As → CSV UTF-8.</small>
                 </div>
 
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" value="1" id="temporary_printer_format" name="temporary_printer_format" {{ old('temporary_printer_format') ? 'checked' : '' }}>
+                    <label class="form-check-label" for="temporary_printer_format">
+                        Use temporary Printer sheet format for this upload only (ID -> Serial, EXP DATE -> Expiry, SITE prefix -> Entity).
+                    </label>
+                </div>
+
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-upload me-2"></i>Import Assets
