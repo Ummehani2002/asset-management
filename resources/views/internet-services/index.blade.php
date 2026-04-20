@@ -67,28 +67,13 @@
                     <label class="form-label">Service History (All Types)</label>
                     <input type="text" name="card_history" class="form-control" placeholder="Enter account number..." value="{{ request('card_history') }}">
                 </div>
-                <div class="col-md-2 mb-3 d-flex flex-wrap align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary">
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
                         <i class="bi bi-search me-1"></i>Search
                     </button>
                     <a href="{{ route('internet-services.index') }}" class="btn btn-secondary">
                         <i class="bi bi-x-circle me-1"></i>Clear
                     </a>
-                    @if(request()->filled('card_history') && isset($dataCardHistory) && $dataCardHistory->count() > 0)
-                        <div class="dropdown">
-                            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="historyDownloadToolbar" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-download me-1"></i>Download
-                            </button>
-                            <ul class="dropdown-menu" aria-labelledby="historyDownloadToolbar">
-                                <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status', 'card_history']), ['format' => 'pdf'])) }}">
-                                    <i class="bi bi-file-pdf me-2"></i>PDF
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status', 'card_history']), ['format' => 'csv'])) }}">
-                                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
-                                </a></li>
-                            </ul>
-                        </div>
-                    @endif
                 </div>
             </div>
         </form>
@@ -101,25 +86,27 @@
 
     @if($hasMainFilters && !$hasCardHistorySearch && $internetServices->count() > 0)
         <div class="master-table-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header">
                 <h5 style="color: white; margin: 0;"><i class="bi bi-list-ul me-2"></i>All Internet Services</h5>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-download"></i> Download
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
-                        <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status']), ['format' => 'pdf'])) }}">
-                            <i class="bi bi-file-pdf me-2"></i>PDF
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status']), ['format' => 'csv'])) }}">
-                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
-                        </a></li>
-                    </ul>
-                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table mb-0">
+                        <caption class="caption-top py-2 px-3 border-bottom text-end bg-light">
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="mainTableDownload" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-download me-1"></i>Download
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="mainTableDownload">
+                                    <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status']), ['format' => 'pdf'])) }}">
+                                        <i class="bi bi-file-pdf me-2"></i>PDF
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status']), ['format' => 'csv'])) }}">
+                                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </caption>
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -221,34 +208,34 @@
 
     @if(request('card_history'))
         <div class="master-table-card mt-4">
-            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="card-header">
                 <h5 style="color: white; margin: 0;">
                     <i class="bi bi-clock-history me-2"></i>Service History (All Types): {{ request('card_history') }}
                 </h5>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    @if($dataCardHistory->count() > 0)
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="historyDownloadCard" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-download"></i> Download
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="historyDownloadCard">
-                                <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status', 'card_history']), ['format' => 'pdf'])) }}">
-                                    <i class="bi bi-file-pdf me-2"></i>PDF
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status', 'card_history']), ['format' => 'csv'])) }}">
-                                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
-                                </a></li>
-                            </ul>
-                        </div>
-                    @endif
-                    <span class="badge bg-light text-dark">
-                        {{ $dataCardHistory->count() }} record(s)
-                    </span>
-                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table mb-0">
+                        <caption class="caption-top py-2 px-3 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <span class="badge bg-secondary">{{ $dataCardHistory->count() }} record(s)</span>
+                                @if($dataCardHistory->count() > 0)
+                                    <div class="dropdown ms-auto">
+                                        <button class="btn btn-sm btn-primary dropdown-toggle" type="button" id="historyTableDownload" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="bi bi-download me-1"></i>Download
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="historyTableDownload">
+                                            <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status', 'card_history']), ['format' => 'pdf'])) }}">
+                                                <i class="bi bi-file-pdf me-2"></i>PDF
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="{{ route('internet-services.export', array_merge(request()->only(['search', 'service_type', 'status', 'card_history']), ['format' => 'csv'])) }}">
+                                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
+                                            </a></li>
+                                        </ul>
+                                    </div>
+                                @endif
+                            </div>
+                        </caption>
                         <thead>
                             <tr>
                                 <th>#</th>
