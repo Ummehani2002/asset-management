@@ -53,77 +53,9 @@ class InternetServiceController extends Controller
 
             $internetServices = $query->latest()->get();
 
-            // Optional: show timeline/history for a particular account/card number (all service types)
             $dataCardHistory = collect([]);
             if ($request->filled('card_history')) {
-                $cardQuery = trim((string) $request->card_history);
-
-                $historyRows = InternetService::query()
-                    ->with(['project', 'personInCharge', 'projectManager'])
-                    ->where('account_number', $cardQuery)
-                    ->orderBy('service_start_date')
-                    ->orderBy('id')
-                    ->get();
-
-                // Fallback to partial match only when exact account match has no rows.
-                if ($historyRows->isEmpty()) {
-                    $historyRows = InternetService::query()
-                        ->with(['project', 'personInCharge', 'projectManager'])
-                        ->where('account_number', 'like', '%' . $cardQuery . '%')
-                        ->orderBy('service_start_date')
-                        ->orderBy('id')
-                        ->get();
-                }
-
-                // Build timeline events: assign -> return (if returned) -> assign again.
-                $timeline = collect([]);
-                foreach ($historyRows as $service) {
-                    $timeline->push((object) [
-                        'id' => $service->id,
-                        'account_number' => $service->account_number,
-                        'service_type' => $service->service_type,
-                        'project_name' => $service->project_name,
-                        'transaction_type' => 'assign',
-                        'service_start_date' => $service->service_start_date,
-                        'service_end_date' => $service->service_end_date,
-                        'status' => $service->service_end_date ? 'closed' : ($service->status ?? 'active'),
-                        'mrc' => $service->mrc,
-                        'cost' => $service->cost,
-                        'person_in_charge' => $service->person_in_charge,
-                        'person_in_charge_id' => $service->person_in_charge_id,
-                        'event_date' => $service->service_start_date,
-                        'event_order' => 1,
-                    ]);
-
-                    if (!empty($service->service_end_date)) {
-                        $timeline->push((object) [
-                            'id' => $service->id,
-                            'account_number' => $service->account_number,
-                            'service_type' => $service->service_type,
-                            'project_name' => $service->project_name,
-                            'transaction_type' => 'return',
-                            'service_start_date' => $service->service_start_date,
-                            'service_end_date' => $service->service_end_date,
-                            'status' => 'closed',
-                            'mrc' => $service->mrc,
-                            'cost' => $service->cost,
-                            'person_in_charge' => $service->person_in_charge,
-                            'person_in_charge_id' => $service->person_in_charge_id,
-                            'event_date' => $service->service_end_date,
-                            'event_order' => 2,
-                        ]);
-                    }
-                }
-
-                $dataCardHistory = $timeline
-                    ->sortBy(function ($item) {
-                        $eventDate = $item->event_date;
-                        $eventDateValue = $eventDate instanceof \Carbon\Carbon
-                            ? $eventDate->timestamp
-                            : strtotime((string) $eventDate);
-                        return ($eventDateValue ?: 0) . '-' . $item->event_order . '-' . $item->id;
-                    })
-                    ->values();
+                $dataCardHistory = $this->buildCardHistoryTimeline(trim((string) $request->card_history));
             }
             
             return view('internet-services.index', compact('internetServices', 'dataCardHistory'));
@@ -474,9 +406,102 @@ class InternetServiceController extends Controller
             ->with('success', 'Internet service deleted successfully.');
     }
 
+    /**
+     * Timeline rows for "Service History (All Types)" by account number (matches index view).
+     */
+    private function buildCardHistoryTimeline(string $cardQuery): Collection
+    {
+        if ($cardQuery === '') {
+            return collect([]);
+        }
+
+        $historyRows = InternetService::query()
+            ->with(['project', 'personInCharge', 'projectManager'])
+            ->where('account_number', $cardQuery)
+            ->orderBy('service_start_date')
+            ->orderBy('id')
+            ->get();
+
+        if ($historyRows->isEmpty()) {
+            $historyRows = InternetService::query()
+                ->with(['project', 'personInCharge', 'projectManager'])
+                ->where('account_number', 'like', '%' . $cardQuery . '%')
+                ->orderBy('service_start_date')
+                ->orderBy('id')
+                ->get();
+        }
+
+        $timeline = collect([]);
+        foreach ($historyRows as $service) {
+            $timeline->push((object) [
+                'id' => $service->id,
+                'account_number' => $service->account_number,
+                'service_type' => $service->service_type,
+                'project_name' => $service->project_name,
+                'transaction_type' => 'assign',
+                'service_start_date' => $service->service_start_date,
+                'service_end_date' => $service->service_end_date,
+                'status' => $service->service_end_date ? 'closed' : ($service->status ?? 'active'),
+                'mrc' => $service->mrc,
+                'cost' => $service->cost,
+                'person_in_charge' => $service->person_in_charge,
+                'person_in_charge_id' => $service->person_in_charge_id,
+                'event_date' => $service->service_start_date,
+                'event_order' => 1,
+            ]);
+
+            if (!empty($service->service_end_date)) {
+                $timeline->push((object) [
+                    'id' => $service->id,
+                    'account_number' => $service->account_number,
+                    'service_type' => $service->service_type,
+                    'project_name' => $service->project_name,
+                    'transaction_type' => 'return',
+                    'service_start_date' => $service->service_start_date,
+                    'service_end_date' => $service->service_end_date,
+                    'status' => 'closed',
+                    'mrc' => $service->mrc,
+                    'cost' => $service->cost,
+                    'person_in_charge' => $service->person_in_charge,
+                    'person_in_charge_id' => $service->person_in_charge_id,
+                    'event_date' => $service->service_end_date,
+                    'event_order' => 2,
+                ]);
+            }
+        }
+
+        return $timeline
+            ->sortBy(function ($item) {
+                $eventDate = $item->event_date;
+                $eventDateValue = $eventDate instanceof \Carbon\Carbon
+                    ? $eventDate->timestamp
+                    : strtotime((string) $eventDate);
+                return ($eventDateValue ?: 0) . '-' . $item->event_order . '-' . $item->id;
+            })
+            ->values();
+    }
+
     // Export to PDF or Excel
     public function export(Request $request)
     {
+        if ($request->filled('card_history')) {
+            $label = trim((string) $request->card_history);
+            $historyRows = $this->buildCardHistoryTimeline($label);
+            $format = $request->get('format', 'pdf');
+
+            if ($historyRows->isEmpty()) {
+                return redirect()
+                    ->route('internet-services.index', $request->only(['search', 'service_type', 'status', 'card_history']))
+                    ->with('error', 'No service history to download for this account.');
+            }
+
+            if ($format === 'excel' || $format === 'csv') {
+                return $this->exportHistoryCsv($historyRows, $label);
+            }
+
+            return $this->exportHistoryPdf($historyRows, $label);
+        }
+
         $query = InternetService::with(['project', 'personInCharge', 'projectManager']);
 
         // Apply same filters as index
@@ -565,6 +590,55 @@ class InternetServiceController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    private function exportHistoryCsv(Collection $historyRows, string $accountLabel): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $safe = preg_replace('/[^A-Za-z0-9._-]+/', '-', $accountLabel) ?: 'account';
+        $filename = 'service-history-' . $safe . '-' . date('Y-m-d') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($historyRows) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, [
+                '#', 'Account No.', 'Service Type', 'Project', 'Person in Charge', 'Transaction',
+                'Start Date', 'End Date', 'Status', 'MRC', 'Cost',
+            ]);
+
+            foreach ($historyRows as $index => $history) {
+                fputcsv($file, [
+                    $index + 1,
+                    $history->account_number ?? 'N/A',
+                    ucfirst((string) ($history->service_type ?? 'N/A')),
+                    $history->project_name ?? 'N/A',
+                    $history->person_in_charge ?? 'N/A',
+                    ucfirst((string) ($history->transaction_type ?? 'N/A')),
+                    $history->service_start_date ? $history->service_start_date->format('Y-m-d') : 'N/A',
+                    $history->service_end_date ? $history->service_end_date->format('Y-m-d') : 'Ongoing',
+                    ucfirst((string) ($history->status ?? 'N/A')),
+                    number_format($history->mrc ?? 0, 2, '.', ''),
+                    number_format($history->cost ?? 0, 2, '.', ''),
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    private function exportHistoryPdf(Collection $historyRows, string $accountLabel)
+    {
+        $pdf = \PDF::loadView('internet-services.export-history-pdf', [
+            'historyRows' => $historyRows,
+            'accountLabel' => $accountLabel,
+        ]);
+        $safe = preg_replace('/[^A-Za-z0-9._-]+/', '-', $accountLabel) ?: 'account';
+
+        return $pdf->download('service-history-' . $safe . '-' . date('Y-m-d') . '.pdf');
     }
 
     public function downloadForm($id)
