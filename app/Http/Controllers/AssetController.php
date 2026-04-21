@@ -692,7 +692,17 @@ private function parseImportDate($value)
 
     public function update(Request $request, Asset $asset)
     {
+        if ($request->has('serial_number')) {
+            $request->merge(['serial_number' => trim((string) $request->serial_number)]);
+        }
+
         $validated = $request->validate([
+            'serial_number' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('assets', 'serial_number')->ignore($asset->id),
+            ],
             'po_number' => 'nullable|string|max:255',
             'vendor_name' => 'nullable|string|max:255',
             'value' => 'nullable|numeric|min:0',

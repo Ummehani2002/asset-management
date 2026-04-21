@@ -375,10 +375,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mm = (date.getMonth() + 1).toString().padStart(2, '0');
                 const dd = date.getDate().toString().padStart(2, '0');
                 const expiryVal = yyyy + '-' + mm + '-' + dd;
-                expiryInput.value = expiryVal;
+                if (expiryInput._flatpickr) {
+                    expiryInput._flatpickr.setDate(expiryVal, true, 'Y-m-d');
+                } else {
+                    expiryInput.value = expiryVal;
+                }
             }
         } else {
-            expiryInput.value = '';
+            if (expiryInput._flatpickr) {
+                expiryInput._flatpickr.clear();
+            } else {
+                expiryInput.value = '';
+            }
         }
     }
 

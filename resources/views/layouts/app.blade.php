@@ -979,6 +979,21 @@
     <i class="bi bi-wifi"></i> Internet Services
 </a>
 
+<!-- NAS Storage -->
+<a href="{{ route('nas-storage.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('nas-storage.*') ? 'active' : '' }}">
+    <i class="bi bi-device-hdd-network"></i> NAS Storage
+</a>
+
+<!-- IT Consumables -->
+<a href="{{ route('it-consumables.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('it-consumables.*') ? 'active' : '' }}">
+    <i class="bi bi-box-seam"></i> IT Consumables
+</a>
+
+<!-- PR Tracking -->
+<a href="{{ route('pr-tracking.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('pr-tracking.*') ? 'active' : '' }}">
+    <i class="bi bi-journal-check"></i> PR Tracking
+</a>
+
 
 
 
@@ -1111,7 +1126,7 @@
             // All date inputs (type="date") get calendar picker
             document.querySelectorAll('input[type="date"]').forEach(function(el) {
                 if (el._flatpickr) return;
-                if (el.id === 'expiry_date' || el.hasAttribute('data-no-flatpickr')) return;
+                if (el.hasAttribute('data-no-flatpickr')) return;
                 var opts = {
                     dateFormat: 'Y-m-d',
                     altInput: true,

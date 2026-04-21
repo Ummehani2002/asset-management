@@ -298,6 +298,9 @@ Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->nam
 
 
 use App\Http\Controllers\InternetServiceController;
+use App\Http\Controllers\NasStorageController;
+use App\Http\Controllers\ItConsumableController;
+use App\Http\Controllers\PrTrackingController;
 // Internet Services - All authenticated users
 Route::middleware(['auth'])->group(function () {
     Route::get('internet-services', [InternetServiceController::class, 'index'])->name('internet-services.index');
@@ -311,6 +314,23 @@ Route::middleware(['auth'])->group(function () {
     Route::put('internet-services/{internetService}', [InternetServiceController::class, 'update'])->name('internet-services.update');
     Route::delete('internet-services/{internetService}', [InternetServiceController::class, 'destroy'])->name('internet-services.destroy');
     Route::get('internet-services/{id}/download-form', [InternetServiceController::class, 'downloadForm'])->name('internet-services.download-form');
+});
+
+// Additional IT Masters
+Route::middleware(['auth'])->group(function () {
+    Route::get('/nas-storage-master', [NasStorageController::class, 'index'])->name('nas-storage.index');
+    Route::post('/nas-storage-master', [NasStorageController::class, 'store'])->name('nas-storage.store');
+    Route::get('/nas-storage-master/{id}/edit', [NasStorageController::class, 'edit'])->name('nas-storage.edit');
+    Route::put('/nas-storage-master/{id}', [NasStorageController::class, 'update'])->name('nas-storage.update');
+    Route::delete('/nas-storage-master/{id}', [NasStorageController::class, 'destroy'])->name('nas-storage.destroy');
+
+    Route::get('/it-consumables-master', [ItConsumableController::class, 'index'])->name('it-consumables.index');
+    Route::post('/it-consumables-master', [ItConsumableController::class, 'store'])->name('it-consumables.store');
+    Route::get('/it-consumables-master/{id}/edit', [ItConsumableController::class, 'edit'])->name('it-consumables.edit');
+    Route::put('/it-consumables-master/{id}', [ItConsumableController::class, 'update'])->name('it-consumables.update');
+    Route::delete('/it-consumables-master/{id}', [ItConsumableController::class, 'destroy'])->name('it-consumables.destroy');
+
+    Route::get('/pr-tracking-master', [PrTrackingController::class, 'index'])->name('pr-tracking.index');
 });
 
 

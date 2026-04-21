@@ -5,7 +5,7 @@
     <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
             <h2 class="mb-1"><i class="bi bi-pencil-square me-2"></i>Edit Asset</h2>
-            <p class="mb-0 text-muted">Update PO number and commercial details for this asset.</p>
+            <p class="mb-0 text-muted">Update serial number, PO number, and commercial details for this asset.</p>
         </div>
         <a href="{{ route('assets.index') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left me-1"></i>Back to Asset Master
@@ -38,7 +38,10 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Serial Number</label>
-                    <input type="text" class="form-control" value="{{ $asset->serial_number ?? 'N/A' }}" readonly>
+                    <input type="text" name="serial_number" class="form-control @error('serial_number') is-invalid @enderror" value="{{ old('serial_number', $asset->serial_number) }}" placeholder="Enter serial number" autocomplete="off">
+                    @error('serial_number')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
 
