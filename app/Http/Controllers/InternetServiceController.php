@@ -539,7 +539,8 @@ class InternetServiceController extends Controller
 
     private function exportPdf($internetServices)
     {
-        $pdf = \PDF::loadView('internet-services.export-pdf', compact('internetServices'));
+        $pdf = \PDF::loadView('internet-services.export-pdf', compact('internetServices'))
+            ->setPaper('a4', 'portrait');
         return $pdf->download('internet-services-report-' . date('Y-m-d') . '.pdf');
     }
 
@@ -635,7 +636,7 @@ class InternetServiceController extends Controller
         $pdf = \PDF::loadView('internet-services.export-history-pdf', [
             'historyRows' => $historyRows,
             'accountLabel' => $accountLabel,
-        ]);
+        ])->setPaper('a4', 'portrait');
         $safe = preg_replace('/[^A-Za-z0-9._-]+/', '-', $accountLabel) ?: 'account';
 
         return $pdf->download('service-history-' . $safe . '-' . date('Y-m-d') . '.pdf');

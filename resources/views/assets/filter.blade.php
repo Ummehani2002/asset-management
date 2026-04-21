@@ -209,6 +209,7 @@
                     // Delete button
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                     const deleteUrl = '{{ url("assets") }}/' + asset.id;
+                    const scrapUrl = '{{ url("assets") }}/' + asset.id + '/scrap';
                     let deleteHtml = '';
                     if (asset.id) {
                         deleteHtml = `<form action="${deleteUrl}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this asset? This will also delete all related transactions.');">
@@ -216,6 +217,15 @@
                             <input type="hidden" name="_method" value="DELETE">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">
                                 <i class="bi bi-trash"></i>
+                            </button>
+                        </form>`;
+                    }
+                    let scrapHtml = '';
+                    if (asset.id && asset.can_scrap) {
+                        scrapHtml = `<form action="${scrapUrl}" method="POST" class="d-inline me-1" onsubmit="return confirm('Move this asset to scrap?');">
+                            <input type="hidden" name="_token" value="${csrfToken}">
+                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Move to scrap">
+                                <i class="bi bi-archive"></i>
                             </button>
                         </form>`;
                     }
@@ -229,6 +239,8 @@
                         statusHtml = '<span class="badge bg-success">Available</span>';
                     } else if (asset.status === 'under_maintenance') {
                         statusHtml = '<span class="badge bg-warning text-dark">Under Maintenance</span>';
+                    } else if (asset.status === 'scrap') {
+                        statusHtml = '<span class="badge bg-danger">Scrap</span>';
                     }
 
                     tableBody.append(`
@@ -248,7 +260,7 @@
                             <td>${featuresHtml}</td>
                             <td>${invoiceHtml}</td>
                             <td>${historyHtml}</td>
-                            <td>${editHtml}${deleteHtml}</td>
+                            <td>${editHtml}${scrapHtml}${deleteHtml}</td>
                         </tr>
                     `);
                 });
