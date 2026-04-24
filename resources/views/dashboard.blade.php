@@ -1,6 +1,19 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    .dashboard-asset-card {
+        overflow: visible;
+    }
+
+    .dashboard-asset-card .card-header {
+        overflow: visible;
+    }
+
+    .dashboard-asset-card .dropdown-menu {
+        z-index: 1060;
+    }
+</style>
 <div class="container-fluid">
 
     <!-- Page Header -->
@@ -29,7 +42,7 @@
     @endif
 
     <!-- Asset Categories Card -->
-    <div class="table-card">
+    <div class="table-card dashboard-asset-card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h5 style="color: white; margin: 0;"><i class="bi bi-grid-3x3-gap me-2"></i>Asset Categories @if(isset($selectedEntity)) ({{ ucwords($selectedEntity->name) }}) @endif</h5>
             <div class="d-flex gap-3 align-items-center">
