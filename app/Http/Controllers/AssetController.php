@@ -984,12 +984,14 @@ public function exportFiltered(Request $request)
 private function exportCategoryPdf($assets, $category)
 {
     $pdf = \PDF::loadView('assets.export-category-pdf', compact('assets', 'category'));
-    return $pdf->download('assets-category-' . $category->category_name . '-' . date('Y-m-d') . '.pdf');
+    $safeCategory = $this->safeFilenameSegment($category->category_name ?? 'category');
+    return $pdf->download('assets-category-' . $safeCategory . '-' . date('Y-m-d') . '.pdf');
 }
 
 private function exportCategoryExcel($assets, $category)
 {
-    $filename = 'assets-category-' . $category->category_name . '-' . date('Y-m-d') . '.csv';
+    $safeCategory = $this->safeFilenameSegment($category->category_name ?? 'category');
+    $filename = 'assets-category-' . $safeCategory . '-' . date('Y-m-d') . '.csv';
     $headers = [
         'Content-Type' => 'text/csv',
         'Content-Disposition' => 'attachment; filename="' . $filename . '"',
@@ -1024,6 +1026,13 @@ private function exportCategoryExcel($assets, $category)
     };
 
     return response()->stream($callback, 200, $headers);
+}
+
+private function safeFilenameSegment(string $value): string
+{
+    $safe = preg_replace('/[^A-Za-z0-9._-]+/', '-', trim($value));
+    $safe = trim((string) $safe, '-');
+    return $safe !== '' ? $safe : 'category';
 }
 
 public function store(Request $request)
