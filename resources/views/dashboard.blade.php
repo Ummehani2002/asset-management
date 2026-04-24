@@ -10,6 +10,11 @@
         overflow: visible;
     }
 
+    .dashboard-asset-card .table-responsive {
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
     .dashboard-asset-card .dropdown-menu {
         z-index: 1060;
     }
