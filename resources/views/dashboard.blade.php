@@ -40,27 +40,14 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li>
                             <a class="dropdown-item" href="{{ route('dashboard.assets-export', array_filter(['format' => 'pdf', 'entity' => $selectedEntityId ?? null])) }}">
-                                <i class="bi bi-file-pdf me-2"></i>{{ isset($selectedEntityId) && $selectedEntityId ? 'PDF (Selected Entity)' : 'PDF (All Entities)' }}
+                                <i class="bi bi-file-pdf me-2"></i>PDF
                             </a>
                         </li>
                         <li>
                             <a class="dropdown-item" href="{{ route('dashboard.assets-export', array_filter(['format' => 'csv', 'entity' => $selectedEntityId ?? null])) }}">
-                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ isset($selectedEntityId) && $selectedEntityId ? 'CSV (Selected Entity)' : 'CSV (All Entities)' }}
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
                             </a>
                         </li>
-                        @if(isset($selectedEntityId) && $selectedEntityId)
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item" href="{{ route('dashboard.assets-export', ['format' => 'pdf']) }}">
-                                    <i class="bi bi-file-pdf me-2"></i>PDF (All Entities)
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ route('dashboard.assets-export', ['format' => 'csv']) }}">
-                                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV (All Entities)
-                                </a>
-                            </li>
-                        @endif
                     </ul>
                 </div>
                 <span class="text-white"><i class="bi bi-box-seam me-1"></i><strong>Total:</strong> {{ number_format($totalAssets ?? 0) }}</span>
