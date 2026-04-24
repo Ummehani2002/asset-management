@@ -16,10 +16,6 @@
     <h2>Dashboard Report - Asset Categories</h2>
     <p><strong>Entity:</strong> {{ isset($selectedEntity) && $selectedEntity ? ucwords($selectedEntity->name) : 'All Entities' }}</p>
     <p>Generated on: {{ date('Y-m-d H:i:s') }}</p>
-    <p><strong>Total Categories:</strong> {{ $categoryCounts->count() }}</p>
-    <p><strong>Total Assets:</strong> {{ $categoryCounts->sum('assets_count') }}</p>
-    <p><strong>Available Assets:</strong> {{ $categoryCounts->sum('available_count') }}</p>
-    <p><strong>Assigned Assets:</strong> {{ $categoryCounts->sum('assigned_count') }}</p>
     
     <table>
         <thead>
