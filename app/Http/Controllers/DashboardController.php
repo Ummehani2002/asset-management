@@ -7,6 +7,7 @@ use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -162,6 +163,80 @@ class DashboardController extends Controller
                     $category->category_name,
                     $category->assets_count,
                     $category->available_count ?? 0,
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function exportAssets(Request $request)
+    {
+        $query = Asset::with(['category', 'brand', 'entity', 'location'])->orderBy('asset_id');
+
+        $selectedEntityId = $request->get('entity');
+        $selectedEntity = null;
+        if (!empty($selectedEntityId) && Schema::hasTable('entities')) {
+            $selectedEntity = Entity::find($selectedEntityId);
+        }
+
+        $entityName = $selectedEntity?->name;
+        $this->scopeAssetsByEntity($query, $selectedEntityId, $entityName);
+        $assets = $query->get();
+
+        $format = $request->get('format', 'pdf');
+        if ($format === 'csv') {
+            return $this->exportAssetsCsv($assets, $selectedEntity);
+        }
+
+        return $this->exportAssetsPdf($assets, $selectedEntity);
+    }
+
+    private function exportAssetsPdf($assets, $selectedEntity)
+    {
+        $pdf = \PDF::loadView('dashboard.export-assets-pdf', [
+            'assets' => $assets,
+            'selectedEntity' => $selectedEntity,
+        ])->setPaper('a4', 'landscape');
+
+        $entityPart = $selectedEntity ? str_replace(' ', '-', strtolower($selectedEntity->name)) : 'all-entities';
+        return $pdf->download('dashboard-assets-' . $entityPart . '-' . date('Y-m-d') . '.pdf');
+    }
+
+    private function exportAssetsCsv($assets, $selectedEntity): StreamedResponse
+    {
+        $entityPart = $selectedEntity ? str_replace(' ', '-', strtolower($selectedEntity->name)) : 'all-entities';
+        $filename = 'dashboard-assets-' . $entityPart . '-' . date('Y-m-d') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($assets) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, [
+                '#', 'Asset ID', 'Entity', 'Category', 'Brand', 'Serial Number',
+                'Status', 'Purchase Date', 'Warranty Start', 'Expiry Date',
+                'PO Number', 'Vendor Name', 'Value',
+            ]);
+
+            foreach ($assets as $index => $asset) {
+                fputcsv($file, [
+                    $index + 1,
+                    $asset->asset_id ?? 'N/A',
+                    $asset->entity->name ?? $asset->location->location_entity ?? 'N/A',
+                    $asset->category->category_name ?? 'N/A',
+                    $asset->brand->name ?? 'N/A',
+                    $asset->serial_number ?? 'N/A',
+                    $asset->status ?? 'N/A',
+                    $asset->purchase_date ?? 'N/A',
+                    $asset->warranty_start ?? 'N/A',
+                    $asset->expiry_date ?? 'N/A',
+                    $asset->po_number ?? 'N/A',
+                    $asset->vendor_name ?? '-',
+                    $asset->value ?? '-',
                 ]);
             }
 

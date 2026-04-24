@@ -45,6 +45,7 @@ Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middlewar
 use App\Http\Controllers\DashboardController;
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
 Route::get('/dashboard/export', [DashboardController::class, 'export'])->middleware('auth')->name('dashboard.export');
+Route::get('/dashboard/assets-export', [DashboardController::class, 'exportAssets'])->middleware('auth')->name('dashboard.assets-export');
 
 // Database diagnostic route (remove after debugging)
 use App\Http\Controllers\DatabaseCheckController;
@@ -300,7 +301,6 @@ Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->nam
 use App\Http\Controllers\InternetServiceController;
 use App\Http\Controllers\NasStorageController;
 use App\Http\Controllers\ItConsumableController;
-use App\Http\Controllers\PrTrackingController;
 // Internet Services - All authenticated users
 Route::middleware(['auth'])->group(function () {
     Route::get('internet-services', [InternetServiceController::class, 'index'])->name('internet-services.index');
@@ -330,7 +330,9 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/it-consumables-master/{id}', [ItConsumableController::class, 'update'])->name('it-consumables.update');
     Route::delete('/it-consumables-master/{id}', [ItConsumableController::class, 'destroy'])->name('it-consumables.destroy');
 
-    Route::get('/pr-tracking-master', [PrTrackingController::class, 'index'])->name('pr-tracking.index');
+    Route::get('/pr-tracking-master', [\App\Http\Controllers\PrTrackingController::class, 'index'])->name('pr-tracking.index');
+    Route::post('/pr-tracking-master', [\App\Http\Controllers\PrTrackingController::class, 'store'])->name('pr-tracking.store');
+    Route::post('/pr-tracking-master/{prTracking}/request-approval', [\App\Http\Controllers\PrTrackingController::class, 'requestApproval'])->name('pr-tracking.request-approval');
 });
 
 
@@ -345,6 +347,10 @@ Route::get('/asset/{id}/details', [PreventiveMaintenanceController::class, 'getA
 use App\Http\Controllers\ReportController;
 Route::get('/reports/internet', [ReportController::class, 'internet'])->name('reports.internet');
 Route::get('/reports/asset-summary', [ReportController::class, 'assetSummary'])->name('reports.asset-summary');
+
+// PR Tracking signed approval links (no auth required)
+Route::get('/pr-tracking/{id}/approve/{approver}', [\App\Http\Controllers\PrTrackingController::class, 'approveSigned'])->name('pr-tracking.approve-signed');
+Route::get('/pr-tracking/{id}/reject/{approver}', [\App\Http\Controllers\PrTrackingController::class, 'rejectSigned'])->name('pr-tracking.reject-signed');
 
 // Debug routes - REMOVE AFTER FIXING
 Route::get('/debug', function() {

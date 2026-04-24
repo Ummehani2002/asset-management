@@ -33,6 +33,36 @@
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h5 style="color: white; margin: 0;"><i class="bi bi-grid-3x3-gap me-2"></i>Asset Categories @if(isset($selectedEntity)) ({{ ucwords($selectedEntity->name) }}) @endif</h5>
             <div class="d-flex gap-3 align-items-center">
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-download me-1"></i>Download Assets
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{{ route('dashboard.assets-export', array_filter(['format' => 'pdf', 'entity' => $selectedEntityId ?? null])) }}">
+                                <i class="bi bi-file-pdf me-2"></i>{{ isset($selectedEntityId) && $selectedEntityId ? 'PDF (Selected Entity)' : 'PDF (All Entities)' }}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('dashboard.assets-export', array_filter(['format' => 'csv', 'entity' => $selectedEntityId ?? null])) }}">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ isset($selectedEntityId) && $selectedEntityId ? 'CSV (Selected Entity)' : 'CSV (All Entities)' }}
+                            </a>
+                        </li>
+                        @if(isset($selectedEntityId) && $selectedEntityId)
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('dashboard.assets-export', ['format' => 'pdf']) }}">
+                                    <i class="bi bi-file-pdf me-2"></i>PDF (All Entities)
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('dashboard.assets-export', ['format' => 'csv']) }}">
+                                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV (All Entities)
+                                </a>
+                            </li>
+                        @endif
+                    </ul>
+                </div>
                 <span class="text-white"><i class="bi bi-box-seam me-1"></i><strong>Total:</strong> {{ number_format($totalAssets ?? 0) }}</span>
                 <span class="text-white"><i class="bi bi-check-circle me-1"></i><strong>Available:</strong> {{ number_format($availableAssets ?? 0) }}</span>
                 <span class="text-white"><i class="bi bi-trash3 me-1"></i><strong>Scrap:</strong> {{ number_format($scrapAssets ?? 0) }}</span>
@@ -80,10 +110,29 @@
                                 </td>
 
                                 <td class="text-center">
-                                    <a href="{{ route('assets.byCategory', $category->id) }}{{ isset($selectedEntityId) ? '?entity=' . $selectedEntityId : '' }}"
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> View Assets
-                                    </a>
+                                    <div class="d-inline-flex gap-1">
+                                        <a href="{{ route('assets.byCategory', $category->id) }}{{ isset($selectedEntityId) ? '?entity=' . $selectedEntityId : '' }}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View Assets
+                                        </a>
+                                        <div class="dropdown d-inline-block">
+                                            <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="bi bi-download"></i> Download
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('assets.byCategory.export', array_filter(['id' => $category->id, 'format' => 'pdf', 'entity' => $selectedEntityId ?? null])) }}">
+                                                        <i class="bi bi-file-pdf me-2"></i>PDF
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('assets.byCategory.export', array_filter(['id' => $category->id, 'format' => 'csv', 'entity' => $selectedEntityId ?? null])) }}">
+                                                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
