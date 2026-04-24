@@ -15,6 +15,13 @@
         overflow-y: visible;
     }
 
+    .dashboard-asset-card table,
+    .dashboard-asset-card tbody,
+    .dashboard-asset-card tr,
+    .dashboard-asset-card td {
+        overflow: visible !important;
+    }
+
     .dashboard-asset-card .dropdown-menu {
         z-index: 1060;
     }
