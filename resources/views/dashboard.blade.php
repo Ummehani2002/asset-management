@@ -39,12 +39,12 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li>
-                            <a class="dropdown-item" href="{{ route('dashboard.assets-export', array_filter(['format' => 'pdf', 'entity' => $selectedEntityId ?? null])) }}">
+                            <a class="dropdown-item" href="{{ route('dashboard.export', array_filter(['format' => 'pdf', 'entity' => $selectedEntityId ?? null])) }}">
                                 <i class="bi bi-file-pdf me-2"></i>PDF
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="{{ route('dashboard.assets-export', array_filter(['format' => 'csv', 'entity' => $selectedEntityId ?? null])) }}">
+                            <a class="dropdown-item" href="{{ route('dashboard.export', array_filter(['format' => 'csv', 'entity' => $selectedEntityId ?? null])) }}">
                                 <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
                             </a>
                         </li>

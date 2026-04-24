@@ -121,30 +121,52 @@ class DashboardController extends Controller
 
     public function export(Request $request)
     {
+        $entities = Schema::hasTable('entities') ? Entity::orderBy('name')->get() : collect([]);
+        $selectedEntityId = $request->get('entity');
+        $selectedEntity = null;
+        $entityName = null;
+        if ($selectedEntityId && $entities->isNotEmpty()) {
+            $selectedEntity = $entities->firstWhere('id', $selectedEntityId);
+            $entityName = $selectedEntity ? $selectedEntity->name : null;
+        }
+
         $categoryCounts = AssetCategory::withCount([
-            'assets',
-            'assets as available_count' => function ($q) {
+            'assets as assets_count' => function ($q) use ($selectedEntityId, $entityName) {
+                $q->whereIn('status', ['assigned', 'available', 'returned']);
+                $this->scopeAssetsByEntity($q, $selectedEntityId, $entityName);
+            },
+            'assets as available_count' => function ($q) use ($selectedEntityId, $entityName) {
                 $q->whereIn('status', ['available', 'returned']);
+                $this->scopeAssetsByEntity($q, $selectedEntityId, $entityName);
+            },
+            'assets as assigned_count' => function ($q) use ($selectedEntityId, $entityName) {
+                $q->where('status', 'assigned');
+                $this->scopeAssetsByEntity($q, $selectedEntityId, $entityName);
             }
-        ])->get();
+        ])->get()
+            ->filter(fn ($c) => ($c->assets_count ?? 0) > 0)
+            ->values();
+
         $format = $request->get('format', 'pdf');
 
         if ($format === 'csv') {
-            return $this->exportCsv($categoryCounts);
+            return $this->exportCsv($categoryCounts, $selectedEntity);
         } else {
-            return $this->exportPdf($categoryCounts);
+            return $this->exportPdf($categoryCounts, $selectedEntity);
         }
     }
 
-    private function exportPdf($categoryCounts)
+    private function exportPdf($categoryCounts, $selectedEntity = null)
     {
-        $pdf = \PDF::loadView('dashboard.export-pdf', compact('categoryCounts'));
-        return $pdf->download('dashboard-report-' . date('Y-m-d') . '.pdf');
+        $pdf = \PDF::loadView('dashboard.export-pdf', compact('categoryCounts', 'selectedEntity'));
+        $entityPart = $selectedEntity ? str_replace(' ', '-', strtolower($selectedEntity->name)) : 'all-entities';
+        return $pdf->download('dashboard-report-' . $entityPart . '-' . date('Y-m-d') . '.pdf');
     }
 
-    private function exportCsv($categoryCounts)
+    private function exportCsv($categoryCounts, $selectedEntity = null)
     {
-        $filename = 'dashboard-report-' . date('Y-m-d') . '.csv';
+        $entityPart = $selectedEntity ? str_replace(' ', '-', strtolower($selectedEntity->name)) : 'all-entities';
+        $filename = 'dashboard-report-' . $entityPart . '-' . date('Y-m-d') . '.csv';
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
@@ -154,7 +176,7 @@ class DashboardController extends Controller
             $file = fopen('php://output', 'w');
             
             // Headers
-            fputcsv($file, ['#', 'Category Name', 'Total Assets', 'Available']);
+            fputcsv($file, ['#', 'Category Name', 'Total Assets', 'Available', 'Assigned']);
 
             // Data
             foreach ($categoryCounts as $index => $category) {
@@ -163,6 +185,7 @@ class DashboardController extends Controller
                     $category->category_name,
                     $category->assets_count,
                     $category->available_count ?? 0,
+                    $category->assigned_count ?? 0,
                 ]);
             }
 
