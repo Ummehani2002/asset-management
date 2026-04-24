@@ -369,3 +369,4 @@ Route::get('/debug', function() {
 Route::get('/test', function() {
     return 'Laravel is working!';
 });
+Route::get('/up', fn () => response('OK', 200));
