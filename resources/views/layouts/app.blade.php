@@ -830,7 +830,8 @@
 <div class="sidebar">
     {{-- Logo Section (sidebar color) --}}
     <div class="text-center mb-4 pb-3" style="border-bottom: 1px solid rgba(168, 212, 224, 0.3); padding: 15px 10px;">
-        <div style="background: white; border: 1px solid rgba(168, 212, 224, 0.5); border-radius: 10px; padding: 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);">
+        <a href="{{ route('dashboard') }}" style="display: block; text-decoration: none;">
+        <div style="background: white; border: 1px solid rgba(168, 212, 224, 0.5); border-radius: 10px; padding: 10px 8px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); cursor: pointer;">
             <img src="{{ asset('images/logo.png') }}" alt="Tanseeq Logo" 
                  style="max-width: 100px; width: 100%; height: auto; display: block; margin-left: auto; margin-right: auto;"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -840,6 +841,7 @@
                 </h4>
             </div>
         </div>
+        </a>
  
     </div>
     <h4 class="text-center mb-3" style="font-size: 16px; color: var(--sidebar-master-text);">Menu</h4>
