@@ -938,13 +938,19 @@ public function exportByCategory($id, Request $request)
 {
     $category = AssetCategory::findOrFail($id);
     $query = Asset::with('category', 'brand')
-                ->where('asset_category_id', $id);
+                ->where('asset_category_id', $id)
+                ->where('status', 'assigned');
 
-    if ($request->filled('entity') && Schema::hasTable('entities') && Schema::hasTable('locations')) {
+    if ($request->filled('entity') && Schema::hasTable('entities')) {
         $entity = \App\Models\Entity::find($request->entity);
         if ($entity) {
-            $locationIds = \App\Models\Location::where('location_entity', $entity->name)->pluck('id');
-            $query->whereIn('location_id', $locationIds);
+            // Prefer direct entity filter when assets.entity_id exists, fallback to location-based matching.
+            if (Schema::hasColumn('assets', 'entity_id')) {
+                $query->where('entity_id', $entity->id);
+            } elseif (Schema::hasTable('locations')) {
+                $locationIds = \App\Models\Location::where('location_entity', $entity->name)->pluck('id');
+                $query->whereIn('location_id', $locationIds);
+            }
         }
     }
 
