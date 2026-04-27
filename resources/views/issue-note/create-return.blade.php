@@ -111,8 +111,20 @@
 
         <div class="row mt-3">
             <div class="col-md-6">
-                <label>Returned By (Employee Name)</label>
-                <input type="text" name="returned_by_employee_name" class="form-control" placeholder="Who returned the asset">
+                <label>Returned By (Employee ID - Name)</label>
+                @if($employees->isEmpty())
+                    <input type="hidden" name="returned_by_employee_id" value="">
+                    <div class="form-control bg-light text-muted">No employees available</div>
+                @else
+                    <select name="returned_by_employee_id" class="form-control employee-select" data-placeholder="Type to search...">
+                        <option value="">-- Select Employee --</option>
+                        @foreach ($employees as $emp)
+                            <option value="{{ $emp->id }}">
+                                {{ $emp->employee_id ?? $emp->id }} - {{ $emp->name ?? $emp->entity_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                @endif
             </div>
         </div>
 

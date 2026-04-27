@@ -24,8 +24,10 @@ class IssueNote extends Model
     'user_signature',
     'manager_signature',
     'received_by_employee_name',
+    'received_by_employee_id',
     'received_by_user_signature',
     'returned_by_employee_name',
+    'returned_by_employee_id',
     'returned_by_user_signature',
     'data_backup',
     'issue_note_id', // Reference to original issue note
@@ -50,5 +52,15 @@ class IssueNote extends Model
     public function returnNotes()
     {
         return $this->hasMany(IssueNote::class, 'issue_note_id');
+    }
+
+    public function receivedByEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'received_by_employee_id');
+    }
+
+    public function returnedByEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'returned_by_employee_id');
     }
 }

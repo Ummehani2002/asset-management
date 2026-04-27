@@ -56,7 +56,7 @@ class IssueNoteController extends Controller
                 'issued_date' => 'nullable|date',
                 'software_installed' => 'nullable|string',
                 'items' => 'nullable|array',
-                'received_by_employee_name' => 'nullable|string|max:255',
+                'received_by_employee_id' => 'nullable|exists:employees,id',
                 'received_by_user_signature' => 'nullable|string',
                 'user_signature' => 'nullable|string',
                 'manager_signature' => 'nullable|string',
@@ -77,6 +77,15 @@ class IssueNoteController extends Controller
             // Save employee_id if provided
             if ($request->employee_id) {
                 $validated['employee_id'] = $request->employee_id;
+            }
+
+            if (!empty($validated['received_by_employee_id'])) {
+                $receivedBy = Employee::find($validated['received_by_employee_id']);
+                if ($receivedBy) {
+                    $empCode = $receivedBy->employee_id ?: $receivedBy->id;
+                    $empName = $receivedBy->name ?: $receivedBy->entity_name;
+                    $validated['received_by_employee_name'] = trim($empCode . ' - ' . $empName, ' -');
+                }
             }
             
             Log::info('Creating issue note with data:', array_merge($validated, ['items' => $validated['items'] ?? []]));
@@ -162,7 +171,7 @@ class IssueNoteController extends Controller
                 'issue_note_id' => 'required|exists:issue_notes,id',
                 'return_date' => 'required|date',
                 'data_backup' => 'nullable|string|max:255',
-                'returned_by_employee_name' => 'nullable|string|max:255',
+                'returned_by_employee_id' => 'nullable|exists:employees,id',
                 'returned_by_user_signature' => 'nullable|string',
                 'user_signature' => 'nullable|string',
                 'manager_signature' => 'nullable|string',
@@ -185,11 +194,21 @@ class IssueNoteController extends Controller
                 'items' => $issueNote->items,
                 'data_backup' => $validated['data_backup'] ?? null,
                 'received_by_employee_name' => $issueNote->received_by_employee_name,
+                'received_by_employee_id' => $issueNote->received_by_employee_id,
                 'received_by_user_signature' => $issueNote->received_by_user_signature,
-                'returned_by_employee_name' => $validated['returned_by_employee_name'] ?? null,
+                'returned_by_employee_id' => $validated['returned_by_employee_id'] ?? null,
                 'note_type' => 'return',
                 'issue_note_id' => $issueNote->id,
             ];
+
+            if (!empty($validated['returned_by_employee_id'])) {
+                $returnedBy = Employee::find($validated['returned_by_employee_id']);
+                if ($returnedBy) {
+                    $empCode = $returnedBy->employee_id ?: $returnedBy->id;
+                    $empName = $returnedBy->name ?: $returnedBy->entity_name;
+                    $returnData['returned_by_employee_name'] = trim($empCode . ' - ' . $empName, ' -');
+                }
+            }
 
             // SAVE SIGNATURE FUNCTION
             try {
@@ -250,6 +269,7 @@ class IssueNoteController extends Controller
             'printer_code' => $issueNote->printer_code ?? '',
             'software_installed' => $issueNote->software_installed ?? '',
             'received_by_employee_name' => $issueNote->received_by_employee_name ?? '',
+            'received_by_employee_id' => $issueNote->received_by_employee_id ?? null,
             'data_backup' => $issueNote->data_backup ?? '',
             'issued_date' => $issueNote->issued_date ? $issueNote->issued_date->format('Y-m-d') : '',
             'items' => $issueNote->items ?? [],
