@@ -30,6 +30,7 @@
         <h5 class="mb-3" style="color: var(--primary); font-weight: 600;">Allocated Item Details</h5>
         <div class="row">
             <div class="col-md-3 mb-2"><strong>ID No:</strong> {{ $item->id_no }}</div>
+            <div class="col-md-3 mb-2"><strong>TKT Ref No:</strong> {{ $item->tkt_ref_no ?? '-' }}</div>
             <div class="col-md-5 mb-2"><strong>Item:</strong> {{ $item->item_description }}</div>
             <div class="col-md-4 mb-2"><strong>Allocation Date:</strong> {{ optional($item->issued_date)->format('d-m-Y') }}</div>
             <div class="col-md-3 mb-2"><strong>Allocated Qty:</strong> {{ $item->allocated_qty }}</div>
@@ -46,10 +47,6 @@
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Issue To <span class="text-danger">*</span></label>
                     <input type="text" name="issue_to_name" class="form-control" value="{{ old('issue_to_name') }}" required>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">TKT Ref No <span class="text-danger">*</span></label>
-                    <input type="text" name="tkt_ref_no" class="form-control" value="{{ old('tkt_ref_no') }}" {{ $remainingQty <= 0 ? 'disabled' : '' }} required>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Issue Qty <span class="text-danger">*</span></label>
@@ -84,7 +81,6 @@
                         <tr>
                             <th>#</th>
                             <th>Issue To</th>
-                            <th>TKT Ref No</th>
                             <th>Qty</th>
                             <th>Issue Date</th>
                             <th>Remarks</th>
@@ -95,14 +91,13 @@
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
                                 <td>{{ $issue->issue_to_name }}</td>
-                                <td>{{ $issue->tkt_ref_no ?? '-' }}</td>
                                 <td>{{ $issue->quantity }}</td>
                                 <td>{{ optional($issue->issue_date)->format('d-m-Y') }}</td>
                                 <td>{{ $issue->remarks ?? '-' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No issues created yet.</td>
+                                <td colspan="5" class="text-center text-muted py-4">No issues created yet.</td>
                             </tr>
                         @endforelse
                     </tbody>

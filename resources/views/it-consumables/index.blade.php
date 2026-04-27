@@ -22,6 +22,10 @@
                     <label class="form-label">ID No <span class="text-danger">*</span></label>
                     <input type="text" name="id_no" class="form-control" value="{{ old('id_no') }}" required>
                 </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">TKT Ref No <span class="text-danger">*</span></label>
+                    <input type="text" name="tkt_ref_no" class="form-control" value="{{ old('tkt_ref_no') }}" required>
+                </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Item Description <span class="text-danger">*</span></label>
                     <input type="text" name="item_description" class="form-control" value="{{ old('item_description') }}" required>
@@ -51,6 +55,22 @@
         <div class="card-header">
             <h5 style="color: white; margin: 0;"><i class="bi bi-list-ul me-2"></i>IT Consumables List</h5>
         </div>
+        <div class="card-body border-bottom">
+            <form method="GET" action="{{ route('it-consumables.index') }}" class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label">Search by ID No / TKT Ref No</label>
+                    <input type="text" name="search" class="form-control" placeholder="Type ID No or TKT Ref No..." value="{{ $search ?? '' }}">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search me-1"></i>Search
+                    </button>
+                    <a href="{{ route('it-consumables.index') }}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle me-1"></i>Clear
+                    </a>
+                </div>
+            </form>
+        </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table mb-0">
@@ -58,6 +78,7 @@
                         <tr>
                             <th>#</th>
                             <th>ID No</th>
+                            <th>TKT Ref No</th>
                             <th>Item Description</th>
                             <th class="text-center">Allocated</th>
                             <th class="text-center">Issued</th>
@@ -72,6 +93,7 @@
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
                                 <td>{{ $item->id_no }}</td>
+                                <td>{{ $item->tkt_ref_no ?? '-' }}</td>
                                 <td>{{ $item->item_description }}</td>
                                 <td class="text-center">{{ $item->allocated_qty ?? 0 }}</td>
                                 <td class="text-center">{{ $item->issued_qty ?? 0 }}</td>
@@ -99,7 +121,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-4">No IT Consumables records found.</td>
+                                <td colspan="10" class="text-center text-muted py-4">No IT Consumables records found.</td>
                             </tr>
                         @endforelse
                     </tbody>

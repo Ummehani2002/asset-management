@@ -8,6 +8,7 @@ class ItConsumable extends Model
 {
     protected $fillable = [
         'id_no',
+        'tkt_ref_no',
         'item_description',
         'allocated_qty',
         'issued_date',

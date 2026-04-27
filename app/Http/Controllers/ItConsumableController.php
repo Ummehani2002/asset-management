@@ -13,13 +13,31 @@ class ItConsumableController extends Controller
     {
         $issuesTableExists = Schema::hasTable('it_consumable_issues');
         $hasAllocatedQty = Schema::hasColumn('it_consumables', 'allocated_qty');
+        $hasTktRefNo = Schema::hasColumn('it_consumables', 'tkt_ref_no');
+        $search = trim((string) request('search', ''));
 
         if ($issuesTableExists) {
-            $items = ItConsumable::withSum('issues as issued_qty', 'quantity')
-                ->latest()
-                ->get();
+            $query = ItConsumable::withSum('issues as issued_qty', 'quantity');
+            if ($search !== '') {
+                $query->where(function ($q) use ($search, $hasTktRefNo) {
+                    $q->where('id_no', 'like', '%' . $search . '%');
+                    if ($hasTktRefNo) {
+                        $q->orWhere('tkt_ref_no', 'like', '%' . $search . '%');
+                    }
+                });
+            }
+            $items = $query->latest()->get();
         } else {
-            $items = ItConsumable::latest()->get();
+            $query = ItConsumable::query();
+            if ($search !== '') {
+                $query->where(function ($q) use ($search, $hasTktRefNo) {
+                    $q->where('id_no', 'like', '%' . $search . '%');
+                    if ($hasTktRefNo) {
+                        $q->orWhere('tkt_ref_no', 'like', '%' . $search . '%');
+                    }
+                });
+            }
+            $items = $query->latest()->get();
             $items->each(function ($item) use ($hasAllocatedQty) {
                 $item->issued_qty = 0;
                 if (!$hasAllocatedQty) {
@@ -28,7 +46,7 @@ class ItConsumableController extends Controller
             });
         }
 
-        return view('it-consumables.index', compact('items'));
+        return view('it-consumables.index', compact('items', 'search'));
     }
 
     public function store(Request $request)
@@ -39,6 +57,12 @@ class ItConsumableController extends Controller
             'issued_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',
         ]);
+        $validated['tkt_ref_no'] = Schema::hasColumn('it_consumables', 'tkt_ref_no')
+            ? (string) $request->input('tkt_ref_no', '')
+            : null;
+        if (Schema::hasColumn('it_consumables', 'tkt_ref_no') && trim((string) $validated['tkt_ref_no']) === '') {
+            return redirect()->back()->withInput()->withErrors(['tkt_ref_no' => 'TKT Ref No is required.']);
+        }
         $validated['allocated_qty'] = Schema::hasColumn('it_consumables', 'allocated_qty')
             ? (int) $request->input('allocated_qty', 1)
             : 1;
@@ -76,6 +100,12 @@ class ItConsumableController extends Controller
             'issued_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',
         ]);
+        $validated['tkt_ref_no'] = Schema::hasColumn('it_consumables', 'tkt_ref_no')
+            ? (string) $request->input('tkt_ref_no', '')
+            : null;
+        if (Schema::hasColumn('it_consumables', 'tkt_ref_no') && trim((string) $validated['tkt_ref_no']) === '') {
+            return redirect()->back()->withInput()->withErrors(['tkt_ref_no' => 'TKT Ref No is required.']);
+        }
         $validated['allocated_qty'] = $hasAllocatedQty
             ? (int) $request->input('allocated_qty', max(1, $issuedQty))
             : 1;
@@ -140,7 +170,6 @@ class ItConsumableController extends Controller
 
         $validated = $request->validate([
             'issue_to_name' => 'required|string|max:255',
-            'tkt_ref_no' => 'required|string|max:100',
             'quantity' => 'required|integer|min:1|max:' . $remainingQty,
             'issue_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',

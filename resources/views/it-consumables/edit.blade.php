@@ -16,6 +16,10 @@
                     <input type="text" name="id_no" class="form-control" value="{{ old('id_no', $item->id_no) }}" required>
                 </div>
                 <div class="col-md-4 mb-3">
+                    <label class="form-label">TKT Ref No <span class="text-danger">*</span></label>
+                    <input type="text" name="tkt_ref_no" class="form-control" value="{{ old('tkt_ref_no', $item->tkt_ref_no) }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Item Description <span class="text-danger">*</span></label>
                     <input type="text" name="item_description" class="form-control" value="{{ old('item_description', $item->item_description) }}" required>
                 </div>
