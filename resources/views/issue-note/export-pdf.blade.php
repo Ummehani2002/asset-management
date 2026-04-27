@@ -35,6 +35,9 @@
                 <th>Return Date</th>
                 <th>Items</th>
                 <th>Software Installed</th>
+                <th>Received By</th>
+                <th>Returned By</th>
+                <th>Data Backup</th>
             </tr>
         </thead>
         <tbody>
@@ -64,6 +67,9 @@
                         @endif
                     </td>
                     <td>{{ $note->software_installed ?? 'N/A' }}</td>
+                    <td>{{ $note->received_by_employee_name ?? 'N/A' }}</td>
+                    <td>{{ $note->returned_by_employee_name ?? 'N/A' }}</td>
+                    <td>{{ $note->data_backup ?? 'N/A' }}</td>
                 </tr>
             @endforeach
         </tbody>

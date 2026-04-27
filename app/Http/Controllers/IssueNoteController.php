@@ -56,6 +56,8 @@ class IssueNoteController extends Controller
                 'issued_date' => 'nullable|date',
                 'software_installed' => 'nullable|string',
                 'items' => 'nullable|array',
+                'received_by_employee_name' => 'nullable|string|max:255',
+                'received_by_user_signature' => 'nullable|string',
                 'user_signature' => 'nullable|string',
                 'manager_signature' => 'nullable|string',
             ]);
@@ -67,6 +69,7 @@ class IssueNoteController extends Controller
             try {
                 $validated['user_signature'] = $this->saveSignature($request->user_signature);
                 $validated['manager_signature'] = $this->saveSignature($request->manager_signature);
+                $validated['received_by_user_signature'] = $this->saveSignature($request->received_by_user_signature);
             } catch (\Exception $e) {
                 Log::warning('Error saving signatures: ' . $e->getMessage());
             }
@@ -158,6 +161,9 @@ class IssueNoteController extends Controller
             $validated = $request->validate([
                 'issue_note_id' => 'required|exists:issue_notes,id',
                 'return_date' => 'required|date',
+                'data_backup' => 'nullable|string|max:255',
+                'returned_by_employee_name' => 'nullable|string|max:255',
+                'returned_by_user_signature' => 'nullable|string',
                 'user_signature' => 'nullable|string',
                 'manager_signature' => 'nullable|string',
             ]);
@@ -177,6 +183,10 @@ class IssueNoteController extends Controller
                 'issued_date' => $issueNote->issued_date,
                 'return_date' => $validated['return_date'],
                 'items' => $issueNote->items,
+                'data_backup' => $validated['data_backup'] ?? null,
+                'received_by_employee_name' => $issueNote->received_by_employee_name,
+                'received_by_user_signature' => $issueNote->received_by_user_signature,
+                'returned_by_employee_name' => $validated['returned_by_employee_name'] ?? null,
                 'note_type' => 'return',
                 'issue_note_id' => $issueNote->id,
             ];
@@ -185,6 +195,7 @@ class IssueNoteController extends Controller
             try {
                 $returnData['user_signature'] = $this->saveSignature($request->user_signature);
                 $returnData['manager_signature'] = $this->saveSignature($request->manager_signature);
+                $returnData['returned_by_user_signature'] = $this->saveSignature($request->returned_by_user_signature);
             } catch (\Exception $e) {
                 Log::warning('Error saving signatures: ' . $e->getMessage());
             }
@@ -238,6 +249,8 @@ class IssueNoteController extends Controller
             'system_code' => $issueNote->system_code ?? '',
             'printer_code' => $issueNote->printer_code ?? '',
             'software_installed' => $issueNote->software_installed ?? '',
+            'received_by_employee_name' => $issueNote->received_by_employee_name ?? '',
+            'data_backup' => $issueNote->data_backup ?? '',
             'issued_date' => $issueNote->issued_date ? $issueNote->issued_date->format('Y-m-d') : '',
             'items' => $issueNote->items ?? [],
         ]);
@@ -408,7 +421,8 @@ class IssueNoteController extends Controller
             fputcsv($file, [
                 '#', 'Type', 'Employee', 'Department', 'Entity', 'Location', 
                 'Serial Number', 'Printer Code', 'Issued Date', 'Return Date', 
-                'Items', 'Software Installed'
+                'Items', 'Software Installed', 'Received By Employee Name',
+                'Returned By Employee Name', 'Data Backup'
             ]);
 
             // Data
@@ -428,6 +442,9 @@ class IssueNoteController extends Controller
                     $note->return_date ? $note->return_date->format('Y-m-d') : 'N/A',
                     $items,
                     $note->software_installed ?? 'N/A',
+                    $note->received_by_employee_name ?? 'N/A',
+                    $note->returned_by_employee_name ?? 'N/A',
+                    $note->data_backup ?? 'N/A',
                 ]);
             }
 
@@ -443,6 +460,8 @@ class IssueNoteController extends Controller
         // Embed signatures as base64 (DomPDF needs no whitespace in data URI)
         $userSigBase64 = null;
         $managerSigBase64 = null;
+        $receivedBySigBase64 = null;
+        $returnedBySigBase64 = null;
         if ($issueNote->user_signature) {
             $p = storage_path('app/public/' . $issueNote->user_signature);
             if (file_exists($p)) {
@@ -457,8 +476,22 @@ class IssueNoteController extends Controller
                 $managerSigBase64 = preg_replace('/\s+/', '', $raw);
             }
         }
+        if ($issueNote->received_by_user_signature) {
+            $p = storage_path('app/public/' . $issueNote->received_by_user_signature);
+            if (file_exists($p)) {
+                $raw = base64_encode(file_get_contents($p));
+                $receivedBySigBase64 = preg_replace('/\s+/', '', $raw);
+            }
+        }
+        if ($issueNote->returned_by_user_signature) {
+            $p = storage_path('app/public/' . $issueNote->returned_by_user_signature);
+            if (file_exists($p)) {
+                $raw = base64_encode(file_get_contents($p));
+                $returnedBySigBase64 = preg_replace('/\s+/', '', $raw);
+            }
+        }
         $footerNote = 'This is auto-generated. Do not reply.';
-        $pdf = \PDF::loadView('issue-note.download-form', compact('issueNote', 'userSigBase64', 'managerSigBase64', 'footerNote'));
+        $pdf = \PDF::loadView('issue-note.download-form', compact('issueNote', 'userSigBase64', 'managerSigBase64', 'receivedBySigBase64', 'returnedBySigBase64', 'footerNote'));
         return $pdf->download('issue-note-' . $issueNote->id . '-' . date('Y-m-d') . '.pdf');
     }
 }

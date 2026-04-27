@@ -23,6 +23,11 @@ class IssueNote extends Model
     'items',
     'user_signature',
     'manager_signature',
+    'received_by_employee_name',
+    'received_by_user_signature',
+    'returned_by_employee_name',
+    'returned_by_user_signature',
+    'data_backup',
     'issue_note_id', // Reference to original issue note
 ];
 

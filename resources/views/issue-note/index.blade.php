@@ -94,6 +94,9 @@
                                 <th>Printer Code</th>
                                 <th>Issued Date</th>
                                 <th>Return Date</th>
+                                <th>Received By</th>
+                                <th>Returned By</th>
+                                <th>Data Backup</th>
                                 <th>Items</th>
                             </tr>
                         </thead>
@@ -116,6 +119,9 @@
                                     <td>{{ $note->printer_code ?? 'N/A' }}</td>
                                     <td>{{ $note->issued_date ? $note->issued_date->format('Y-m-d') : 'N/A' }}</td>
                                     <td>{{ $note->return_date ? $note->return_date->format('Y-m-d') : 'N/A' }}</td>
+                                    <td>{{ $note->received_by_employee_name ?? 'N/A' }}</td>
+                                    <td>{{ $note->returned_by_employee_name ?? 'N/A' }}</td>
+                                    <td>{{ $note->data_backup ?? 'N/A' }}</td>
                                     <td>
                                         @if(is_array($note->items) && count($note->items) > 0)
                                             <ul class="mb-0" style="font-size: 0.85rem;">

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Issue Note - {{ $issueNote->id }}</title>
+    <title>{{ $issueNote->note_type === 'return' ? 'Return Note' : 'Issue Note' }} - {{ $issueNote->id }}</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; }
         h2 { color: #1F2A44; border-bottom: 2px solid #C6A87D; padding-bottom: 10px; }
@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h2>System Issue Note</h2>
+    <h2>{{ $issueNote->note_type === 'return' ? 'System Return Note' : 'System Issue Note' }}</h2>
     
     <table>
         <tr>
@@ -54,6 +54,22 @@
             <td>{{ $issueNote->software_installed ?? 'N/A' }}</td>
         </tr>
         <tr>
+            <td><strong>Received By (Employee Name)</strong></td>
+            <td>{{ $issueNote->received_by_employee_name ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+            <td><strong>Returned By (Employee Name)</strong></td>
+            <td>{{ $issueNote->returned_by_employee_name ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+            <td><strong>Data Backup</strong></td>
+            <td>{{ $issueNote->data_backup ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+            <td><strong>Note Type</strong></td>
+            <td>{{ ucfirst($issueNote->note_type ?? 'issue') }}</td>
+        </tr>
+        <tr>
             <td><strong>Issued Items</strong></td>
             <td>
                 @if($issueNote->items && is_array($issueNote->items))
@@ -75,6 +91,18 @@
         <div class="signature-block">
             <strong>IT Manager Signature:</strong><br>
             <img src="data:image/png;base64,{{ $managerSigBase64 }}" class="signature" alt="Manager Signature" />
+        </div>
+    @endif
+    @if(!empty($receivedBySigBase64))
+        <div class="signature-block">
+            <strong>Received By User Signature:</strong><br>
+            <img src="data:image/png;base64,{{ $receivedBySigBase64 }}" class="signature" alt="Received By Signature" />
+        </div>
+    @endif
+    @if(!empty($returnedBySigBase64))
+        <div class="signature-block">
+            <strong>Returned By User Signature:</strong><br>
+            <img src="data:image/png;base64,{{ $returnedBySigBase64 }}" class="signature" alt="Returned By Signature" />
         </div>
     @endif
 
