@@ -140,6 +140,7 @@ class ItConsumableController extends Controller
 
         $validated = $request->validate([
             'issue_to_name' => 'required|string|max:255',
+            'tkt_ref_no' => 'required|string|max:100',
             'quantity' => 'required|integer|min:1|max:' . $remainingQty,
             'issue_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',

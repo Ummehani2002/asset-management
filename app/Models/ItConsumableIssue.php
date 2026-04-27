@@ -9,6 +9,7 @@ class ItConsumableIssue extends Model
     protected $fillable = [
         'it_consumable_id',
         'issue_to_name',
+        'tkt_ref_no',
         'quantity',
         'issue_date',
         'remarks',

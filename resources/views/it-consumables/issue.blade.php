@@ -48,6 +48,10 @@
                     <input type="text" name="issue_to_name" class="form-control" value="{{ old('issue_to_name') }}" required>
                 </div>
                 <div class="col-md-3 mb-3">
+                    <label class="form-label">TKT Ref No <span class="text-danger">*</span></label>
+                    <input type="text" name="tkt_ref_no" class="form-control" value="{{ old('tkt_ref_no') }}" {{ $remainingQty <= 0 ? 'disabled' : '' }} required>
+                </div>
+                <div class="col-md-3 mb-3">
                     <label class="form-label">Issue Qty <span class="text-danger">*</span></label>
                     <input type="number" name="quantity" min="1" max="{{ $remainingQty }}" class="form-control" value="{{ old('quantity') }}" {{ $remainingQty <= 0 ? 'disabled' : '' }} required>
                     <small class="text-muted">Max allowed: {{ $remainingQty }}</small>
@@ -80,6 +84,7 @@
                         <tr>
                             <th>#</th>
                             <th>Issue To</th>
+                            <th>TKT Ref No</th>
                             <th>Qty</th>
                             <th>Issue Date</th>
                             <th>Remarks</th>
@@ -90,13 +95,14 @@
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
                                 <td>{{ $issue->issue_to_name }}</td>
+                                <td>{{ $issue->tkt_ref_no ?? '-' }}</td>
                                 <td>{{ $issue->quantity }}</td>
                                 <td>{{ optional($issue->issue_date)->format('d-m-Y') }}</td>
                                 <td>{{ $issue->remarks ?? '-' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">No issues created yet.</td>
+                                <td colspan="6" class="text-center text-muted py-4">No issues created yet.</td>
                             </tr>
                         @endforelse
                     </tbody>
