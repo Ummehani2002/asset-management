@@ -9,6 +9,7 @@ class ItConsumable extends Model
     protected $fillable = [
         'id_no',
         'item_description',
+        'allocated_qty',
         'issued_date',
         'remarks',
     ];
@@ -16,4 +17,9 @@ class ItConsumable extends Model
     protected $casts = [
         'issued_date' => 'date',
     ];
+
+    public function issues()
+    {
+        return $this->hasMany(ItConsumableIssue::class, 'it_consumable_id');
+    }
 }

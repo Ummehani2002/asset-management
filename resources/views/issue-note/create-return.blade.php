@@ -95,10 +95,6 @@
 
         <div class="row mt-3">
             <div class="col-md-6">
-                <label>Received By (Employee Name)</label>
-                <input type="text" id="received_by_employee_name" class="form-control" readonly>
-            </div>
-            <div class="col-md-6">
                 <label>Data Backup</label>
                 <select name="data_backup" id="data_backup" class="form-control">
                     <option value="">-- Select --</option>
@@ -111,7 +107,7 @@
 
         <div class="row mt-3">
             <div class="col-md-6">
-                <label>Returned By (Employee ID - Name)</label>
+                <label>Returned To (Employee ID - Name)</label>
                 @if($employees->isEmpty())
                     <input type="hidden" name="returned_by_employee_id" value="">
                     <div class="form-control bg-light text-muted">No employees available</div>
@@ -132,17 +128,6 @@
             <label>Issued Items</label><br>
             <div id="items-container">
                 <!-- Items will be populated here -->
-            </div>
-        </div>
-
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <label><strong>Returned By User Signature</strong></label>
-                <div id="returned-signature-container" style="border:1px solid #ccc; width:100%; height:200px; position: relative; background: white;">
-                    <canvas id="returned-pad" style="width: 100%; height: 100%; display: block; touch-action: none;"></canvas>
-                </div>
-                <button type="button" id="returned-clear" class="btn btn-secondary mt-2">Clear</button>
-                <input type="hidden" name="returned_by_user_signature" id="returned_by_user_signature">
             </div>
         </div>
 
@@ -196,7 +181,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('system_code').value = data.system_code || '';
                     document.getElementById('printer_code').value = data.printer_code || '';
                     document.getElementById('software_installed').value = data.software_installed || '';
-                    document.getElementById('received_by_employee_name').value = data.received_by_employee_name || '';
                     document.getElementById('data_backup').value = data.data_backup || '';
                     document.getElementById('issued_date').value = data.issued_date || '';
 
@@ -222,7 +206,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('system_code').value = '';
             document.getElementById('printer_code').value = '';
             document.getElementById('software_installed').value = '';
-            document.getElementById('received_by_employee_name').value = '';
             document.getElementById('data_backup').value = '';
             document.getElementById('issued_date').value = '';
             document.getElementById('items-container').innerHTML = '';
@@ -252,13 +235,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const userContainer = document.getElementById('user-signature-container');
     const managerCanvas = document.getElementById('manager-pad');
     const managerContainer = document.getElementById('manager-signature-container');
-    const returnedCanvas = document.getElementById('returned-pad');
-    const returnedContainer = document.getElementById('returned-signature-container');
     
     // Resize canvases first
     resizeCanvas(userCanvas, userContainer);
     resizeCanvas(managerCanvas, managerContainer);
-    resizeCanvas(returnedCanvas, returnedContainer);
     
     // Initialize SignaturePad instances
     const userPad = new SignaturePad(userCanvas, {
@@ -275,13 +255,6 @@ document.addEventListener('DOMContentLoaded', function() {
         maxWidth: 3,
     });
 
-    const returnedPad = new SignaturePad(returnedCanvas, {
-        backgroundColor: 'rgb(255, 255, 255)',
-        penColor: 'rgb(0, 0, 0)',
-        minWidth: 1,
-        maxWidth: 3,
-    });
-
     // Clear buttons
     document.getElementById('user-clear').addEventListener('click', () => {
         userPad.clear();
@@ -289,10 +262,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('manager-clear').addEventListener('click', () => {
         managerPad.clear();
-    });
-
-    document.getElementById('returned-clear').addEventListener('click', () => {
-        returnedPad.clear();
     });
 
     // Resize signature pads when window is resized
@@ -303,25 +272,19 @@ document.addEventListener('DOMContentLoaded', function() {
             // Save current signatures
             const userData = userPad.toData();
             const managerData = managerPad.toData();
-            const returnedData = returnedPad.toData();
             
             // Resize canvases
             resizeCanvas(userCanvas, userContainer);
             resizeCanvas(managerCanvas, managerContainer);
-            resizeCanvas(returnedCanvas, returnedContainer);
             
             // Clear and restore signatures
             userPad.clear();
             managerPad.clear();
-            returnedPad.clear();
             if (userData && userData.length > 0) {
                 userPad.fromData(userData);
             }
             if (managerData && managerData.length > 0) {
                 managerPad.fromData(managerData);
-            }
-            if (returnedData && returnedData.length > 0) {
-                returnedPad.fromData(returnedData);
             }
         }, 250);
     });
@@ -333,9 +296,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (!managerPad.isEmpty()) {
             document.getElementById('manager_signature').value = managerPad.toDataURL("image/png");
-        }
-        if (!returnedPad.isEmpty()) {
-            document.getElementById('returned_by_user_signature').value = returnedPad.toDataURL("image/png");
         }
     });
 

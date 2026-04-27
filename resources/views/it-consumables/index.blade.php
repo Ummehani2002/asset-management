@@ -26,18 +26,22 @@
                     <label class="form-label">Item Description <span class="text-danger">*</span></label>
                     <input type="text" name="item_description" class="form-control" value="{{ old('item_description') }}" required>
                 </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">No. of Items <span class="text-danger">*</span></label>
+                    <input type="number" min="1" name="allocated_qty" class="form-control" value="{{ old('allocated_qty', 1) }}" required>
+                </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Issued Date <span class="text-danger">*</span></label>
                     <input type="date" name="issued_date" class="form-control" value="{{ old('issued_date') }}" required>
+                </div>
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Remarks</label>
+                    <textarea name="remarks" class="form-control" rows="2">{{ old('remarks') }}</textarea>
                 </div>
                 <div class="col-md-2 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-success w-100">
                         <i class="bi bi-plus-circle me-1"></i>Add
                     </button>
-                </div>
-                <div class="col-md-12 mb-3">
-                    <label class="form-label">Remarks</label>
-                    <textarea name="remarks" class="form-control" rows="2">{{ old('remarks') }}</textarea>
                 </div>
             </div>
         </form>
@@ -55,6 +59,9 @@
                             <th>#</th>
                             <th>ID No</th>
                             <th>Item Description</th>
+                            <th class="text-center">Allocated</th>
+                            <th class="text-center">Issued</th>
+                            <th class="text-center">Remaining</th>
                             <th>Issued Date</th>
                             <th>Remarks</th>
                             <th>Actions</th>
@@ -66,9 +73,18 @@
                                 <td>{{ $loop->iteration }}</td>
                                 <td>{{ $item->id_no }}</td>
                                 <td>{{ $item->item_description }}</td>
+                                <td class="text-center">{{ $item->allocated_qty ?? 0 }}</td>
+                                <td class="text-center">{{ $item->issued_qty ?? 0 }}</td>
+                                <td class="text-center">
+                                    @php($remaining = max(0, (int)($item->allocated_qty ?? 0) - (int)($item->issued_qty ?? 0)))
+                                    <span class="badge {{ $remaining > 0 ? 'bg-success' : 'bg-secondary' }}">{{ $remaining }}</span>
+                                </td>
                                 <td>{{ optional($item->issued_date)->format('d-m-Y') }}</td>
                                 <td>{{ $item->remarks ?? '-' }}</td>
                                 <td>
+                                    <a href="{{ route('it-consumables.issue-form', $item->id) }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-box-arrow-right"></i> Issue
+                                    </a>
                                     <a href="{{ route('it-consumables.edit', $item->id) }}" class="btn btn-sm btn-warning">
                                         <i class="bi bi-pencil"></i> Edit
                                     </a>
@@ -83,7 +99,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No IT Consumables records found.</td>
+                                <td colspan="9" class="text-center text-muted py-4">No IT Consumables records found.</td>
                             </tr>
                         @endforelse
                     </tbody>

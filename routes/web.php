@@ -328,6 +328,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/it-consumables-master', [ItConsumableController::class, 'store'])->name('it-consumables.store');
     Route::get('/it-consumables-master/{id}/edit', [ItConsumableController::class, 'edit'])->name('it-consumables.edit');
     Route::put('/it-consumables-master/{id}', [ItConsumableController::class, 'update'])->name('it-consumables.update');
+    Route::get('/it-consumables-master/{id}/issue', [ItConsumableController::class, 'issueForm'])->name('it-consumables.issue-form');
+    Route::post('/it-consumables-master/{id}/issue', [ItConsumableController::class, 'issueStore'])->name('it-consumables.issue-store');
     Route::delete('/it-consumables-master/{id}', [ItConsumableController::class, 'destroy'])->name('it-consumables.destroy');
 
     Route::get('/pr-tracking-master', [\App\Http\Controllers\PrTrackingController::class, 'index'])->name('pr-tracking.index');

@@ -58,7 +58,7 @@
             <td>{{ $issueNote->received_by_employee_name ?? 'N/A' }}</td>
         </tr>
         <tr>
-            <td><strong>Returned By (Employee Name)</strong></td>
+            <td><strong>Returned To (Employee Name)</strong></td>
             <td>{{ $issueNote->returned_by_employee_name ?? 'N/A' }}</td>
         </tr>
         <tr>

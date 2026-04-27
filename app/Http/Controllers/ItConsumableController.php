@@ -3,13 +3,31 @@
 namespace App\Http\Controllers;
 
 use App\Models\ItConsumable;
+use App\Models\ItConsumableIssue;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ItConsumableController extends Controller
 {
     public function index()
     {
-        $items = ItConsumable::latest()->get();
+        $issuesTableExists = Schema::hasTable('it_consumable_issues');
+        $hasAllocatedQty = Schema::hasColumn('it_consumables', 'allocated_qty');
+
+        if ($issuesTableExists) {
+            $items = ItConsumable::withSum('issues as issued_qty', 'quantity')
+                ->latest()
+                ->get();
+        } else {
+            $items = ItConsumable::latest()->get();
+            $items->each(function ($item) use ($hasAllocatedQty) {
+                $item->issued_qty = 0;
+                if (!$hasAllocatedQty) {
+                    $item->allocated_qty = 1;
+                }
+            });
+        }
+
         return view('it-consumables.index', compact('items'));
     }
 
@@ -21,6 +39,9 @@ class ItConsumableController extends Controller
             'issued_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',
         ]);
+        $validated['allocated_qty'] = Schema::hasColumn('it_consumables', 'allocated_qty')
+            ? (int) $request->input('allocated_qty', 1)
+            : 1;
 
         ItConsumable::create($validated);
 
@@ -32,12 +53,22 @@ class ItConsumableController extends Controller
     public function edit($id)
     {
         $item = ItConsumable::findOrFail($id);
-        return view('it-consumables.edit', compact('item'));
+        $issuedQty = Schema::hasTable('it_consumable_issues')
+            ? (int) $item->issues()->sum('quantity')
+            : 0;
+        if (!isset($item->allocated_qty)) {
+            $item->allocated_qty = 1;
+        }
+        return view('it-consumables.edit', compact('item', 'issuedQty'));
     }
 
     public function update(Request $request, $id)
     {
         $item = ItConsumable::findOrFail($id);
+        $hasAllocatedQty = Schema::hasColumn('it_consumables', 'allocated_qty');
+        $issuedQty = Schema::hasTable('it_consumable_issues')
+            ? (int) $item->issues()->sum('quantity')
+            : 0;
 
         $validated = $request->validate([
             'id_no' => 'required|string|max:100|unique:it_consumables,id_no,' . $item->id,
@@ -45,6 +76,15 @@ class ItConsumableController extends Controller
             'issued_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',
         ]);
+        $validated['allocated_qty'] = $hasAllocatedQty
+            ? (int) $request->input('allocated_qty', max(1, $issuedQty))
+            : 1;
+        if ($validated['allocated_qty'] < max(1, $issuedQty)) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['allocated_qty' => 'Allocated quantity cannot be less than already issued quantity.']);
+        }
 
         $item->update($validated);
 
@@ -61,5 +101,55 @@ class ItConsumableController extends Controller
         return redirect()
             ->route('it-consumables.index')
             ->with('success', 'IT Consumable deleted successfully.');
+    }
+
+    public function issueForm($id)
+    {
+        if (!Schema::hasTable('it_consumable_issues') || !Schema::hasColumn('it_consumables', 'allocated_qty')) {
+            return redirect()
+                ->route('it-consumables.index')
+                ->withErrors(['error' => 'Please run migrations first to use the consumable issue form.']);
+        }
+
+        $item = ItConsumable::with(['issues' => function ($q) {
+            $q->latest();
+        }])->findOrFail($id);
+        $issuedQty = (int) $item->issues()->sum('quantity');
+        $remainingQty = max(0, (int) $item->allocated_qty - $issuedQty);
+
+        return view('it-consumables.issue', compact('item', 'issuedQty', 'remainingQty'));
+    }
+
+    public function issueStore(Request $request, $id)
+    {
+        if (!Schema::hasTable('it_consumable_issues') || !Schema::hasColumn('it_consumables', 'allocated_qty')) {
+            return redirect()
+                ->route('it-consumables.index')
+                ->withErrors(['error' => 'Please run migrations first to issue consumables.']);
+        }
+
+        $item = ItConsumable::findOrFail($id);
+        $issuedQty = (int) $item->issues()->sum('quantity');
+        $remainingQty = max(0, (int) $item->allocated_qty - $issuedQty);
+
+        if ($remainingQty <= 0) {
+            return redirect()
+                ->route('it-consumables.issue-form', $item->id)
+                ->withErrors(['quantity' => 'No remaining quantity available to issue.']);
+        }
+
+        $validated = $request->validate([
+            'issue_to_name' => 'required|string|max:255',
+            'quantity' => 'required|integer|min:1|max:' . $remainingQty,
+            'issue_date' => 'required|date',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $validated['it_consumable_id'] = $item->id;
+        ItConsumableIssue::create($validated);
+
+        return redirect()
+            ->route('it-consumables.issue-form', $item->id)
+            ->with('success', 'Consumable issued successfully.');
     }
 }

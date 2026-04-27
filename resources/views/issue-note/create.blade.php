@@ -122,17 +122,6 @@
 
         {{-- SIGNATURE PAD --}}
         <div class="row mt-4">
-            <div class="col-md-6">
-                <label><strong>Received By User Signature</strong></label>
-                <div id="received-signature-container" style="border:1px solid #ccc; width:100%; height:200px; position: relative; background: white;">
-                    <canvas id="received-pad" style="width: 100%; height: 100%; display: block; touch-action: none;"></canvas>
-                </div>
-                <button type="button" id="received-clear" class="btn btn-secondary mt-2">Clear</button>
-                <input type="hidden" name="received_by_user_signature" id="received_by_user_signature">
-            </div>
-        </div>
-
-        <div class="row mt-4">
             {{-- USER SIGNATURE --}}
             <div class="col-md-6">
                 <label><strong>User Signature</strong></label>
@@ -249,13 +238,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const userContainer = document.getElementById('user-signature-container');
     const managerCanvas = document.getElementById('manager-pad');
     const managerContainer = document.getElementById('manager-signature-container');
-    const receivedCanvas = document.getElementById('received-pad');
-    const receivedContainer = document.getElementById('received-signature-container');
     
     // Resize canvases first
     resizeCanvas(userCanvas, userContainer);
     resizeCanvas(managerCanvas, managerContainer);
-    resizeCanvas(receivedCanvas, receivedContainer);
     
     // Initialize SignaturePad instances
     const userPad = new SignaturePad(userCanvas, {
@@ -272,12 +258,6 @@ document.addEventListener('DOMContentLoaded', function() {
         maxWidth: 3,
     });
 
-    const receivedPad = new SignaturePad(receivedCanvas, {
-        backgroundColor: 'rgb(255, 255, 255)',
-        penColor: 'rgb(0, 0, 0)',
-        minWidth: 1,
-        maxWidth: 3,
-    });
 
     // Clear buttons
     document.getElementById('user-clear').addEventListener('click', () => {
@@ -288,9 +268,6 @@ document.addEventListener('DOMContentLoaded', function() {
         managerPad.clear();
     });
 
-    document.getElementById('received-clear').addEventListener('click', () => {
-        receivedPad.clear();
-    });
 
     // Resize signature pads when window is resized
     let resizeTimeout;
@@ -300,25 +277,19 @@ document.addEventListener('DOMContentLoaded', function() {
             // Save current signatures
             const userData = userPad.toData();
             const managerData = managerPad.toData();
-            const receivedData = receivedPad.toData();
             
             // Resize canvases
             resizeCanvas(userCanvas, userContainer);
             resizeCanvas(managerCanvas, managerContainer);
-            resizeCanvas(receivedCanvas, receivedContainer);
             
             // Clear and restore signatures
             userPad.clear();
             managerPad.clear();
-            receivedPad.clear();
             if (userData && userData.length > 0) {
                 userPad.fromData(userData);
             }
             if (managerData && managerData.length > 0) {
                 managerPad.fromData(managerData);
-            }
-            if (receivedData && receivedData.length > 0) {
-                receivedPad.fromData(receivedData);
             }
         }, 250);
     });
@@ -330,9 +301,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (!managerPad.isEmpty()) {
             document.getElementById('manager_signature').value = managerPad.toDataURL("image/png");
-        }
-        if (!receivedPad.isEmpty()) {
-            document.getElementById('received_by_user_signature').value = receivedPad.toDataURL("image/png");
         }
     });
 

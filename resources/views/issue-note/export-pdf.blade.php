@@ -36,7 +36,7 @@
                 <th>Items</th>
                 <th>Software Installed</th>
                 <th>Received By</th>
-                <th>Returned By</th>
+                <th>Returned To</th>
                 <th>Data Backup</th>
             </tr>
         </thead>

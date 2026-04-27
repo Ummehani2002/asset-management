@@ -95,7 +95,7 @@
                                 <th>Issued Date</th>
                                 <th>Return Date</th>
                                 <th>Received By</th>
-                                <th>Returned By</th>
+                                <th>Returned To</th>
                                 <th>Data Backup</th>
                                 <th>Items</th>
                             </tr>

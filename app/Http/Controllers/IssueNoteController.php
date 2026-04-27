@@ -172,7 +172,6 @@ class IssueNoteController extends Controller
                 'return_date' => 'required|date',
                 'data_backup' => 'nullable|string|max:255',
                 'returned_by_employee_id' => 'nullable|exists:employees,id',
-                'returned_by_user_signature' => 'nullable|string',
                 'user_signature' => 'nullable|string',
                 'manager_signature' => 'nullable|string',
             ]);
@@ -214,7 +213,6 @@ class IssueNoteController extends Controller
             try {
                 $returnData['user_signature'] = $this->saveSignature($request->user_signature);
                 $returnData['manager_signature'] = $this->saveSignature($request->manager_signature);
-                $returnData['returned_by_user_signature'] = $this->saveSignature($request->returned_by_user_signature);
             } catch (\Exception $e) {
                 Log::warning('Error saving signatures: ' . $e->getMessage());
             }
@@ -442,7 +440,7 @@ class IssueNoteController extends Controller
                 '#', 'Type', 'Employee', 'Department', 'Entity', 'Location', 
                 'Serial Number', 'Printer Code', 'Issued Date', 'Return Date', 
                 'Items', 'Software Installed', 'Received By Employee Name',
-                'Returned By Employee Name', 'Data Backup'
+                'Returned To Employee Name', 'Data Backup'
             ]);
 
             // Data
