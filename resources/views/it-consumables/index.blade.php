@@ -58,8 +58,8 @@
         <div class="card-body border-bottom">
             <form method="GET" action="{{ route('it-consumables.index') }}" class="row g-2 align-items-end">
                 <div class="col-md-5">
-                    <label class="form-label">Search by ID No / TKT Ref No</label>
-                    <input type="text" name="search" class="form-control" placeholder="Type ID No or TKT Ref No..." value="{{ $search ?? '' }}">
+                    <label class="form-label">Search by ID No / TKT Ref No / Description</label>
+                    <input type="text" name="search" class="form-control" placeholder="Type ID No, TKT Ref No, or description..." value="{{ $search ?? '' }}">
                 </div>
                 <div class="col-md-3 d-flex gap-2">
                     <button type="submit" class="btn btn-primary">

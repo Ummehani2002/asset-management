@@ -90,6 +90,7 @@
                     <thead>
                         <tr>
                             <th>Category</th>
+                            <th class="text-center">Entity</th>
                             <th class="text-center">Total Assets</th>
                             <th class="text-center">Available</th>
                             <th class="text-center">Assigned</th>
@@ -101,6 +102,9 @@
                             <tr>
                                 <td class="fw-medium">
                                     {{ $category->category_name }}
+                                </td>
+                                <td class="text-center">
+                                    {{ isset($selectedEntity) && $selectedEntity ? ucwords($selectedEntity->name) : 'All Entities' }}
                                 </td>
 
                                 <td class="text-center">
@@ -151,7 +155,7 @@
 
                         @if($categoryCounts->isEmpty())
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
+                                <td colspan="6" class="text-center text-muted py-4">
                                     No categories found
                                 </td>
                             </tr>

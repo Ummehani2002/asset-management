@@ -24,6 +24,7 @@ class ItConsumableController extends Controller
                     if ($hasTktRefNo) {
                         $q->orWhere('tkt_ref_no', 'like', '%' . $search . '%');
                     }
+                    $q->orWhere('item_description', 'like', '%' . $search . '%');
                 });
             }
             $items = $query->latest()->get();
@@ -35,6 +36,7 @@ class ItConsumableController extends Controller
                     if ($hasTktRefNo) {
                         $q->orWhere('tkt_ref_no', 'like', '%' . $search . '%');
                     }
+                    $q->orWhere('item_description', 'like', '%' . $search . '%');
                 });
             }
             $items = $query->latest()->get();

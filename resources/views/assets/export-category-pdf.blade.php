@@ -21,6 +21,7 @@
             <tr>
                 <th>#</th>
                 <th>Asset ID</th>
+                <th>Entity</th>
                 <th>Brand</th>
                 <th>Purchase Date</th>
                 <th>Warranty Start</th>
@@ -36,6 +37,7 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $asset->asset_id ?? 'N/A' }}</td>
+                    <td>{{ $asset->entity->name ?? $asset->location->location_entity ?? 'N/A' }}</td>
                     <td>{{ $asset->brand->name ?? 'N/A' }}</td>
                     <td>{{ $asset->purchase_date ?? 'N/A' }}</td>
                     <td>{{ $asset->warranty_start ?? 'N/A' }}</td>

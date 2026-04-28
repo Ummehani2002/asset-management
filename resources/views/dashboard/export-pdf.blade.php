@@ -21,6 +21,7 @@
         <thead>
             <tr>
                 <th>#</th>
+                <th>Entity</th>
                 <th>Category Name</th>
                 <th class="text-center">Total Assets</th>
                 <th class="text-center">Available</th>
@@ -31,6 +32,7 @@
             @foreach($categoryCounts as $index => $category)
                 <tr>
                     <td>{{ $index + 1 }}</td>
+                    <td>{{ isset($selectedEntity) && $selectedEntity ? ucwords($selectedEntity->name) : 'All Entities' }}</td>
                     <td>{{ $category->category_name }}</td>
                     <td class="text-center">{{ $category->assets_count }}</td>
                     <td class="text-center">{{ $category->available_count ?? 0 }}</td>

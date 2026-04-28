@@ -166,22 +166,24 @@ class DashboardController extends Controller
     private function exportCsv($categoryCounts, $selectedEntity = null)
     {
         $entityPart = $selectedEntity ? str_replace(' ', '-', strtolower($selectedEntity->name)) : 'all-entities';
+        $entityLabel = $selectedEntity ? ucwords($selectedEntity->name) : 'All Entities';
         $filename = 'dashboard-report-' . $entityPart . '-' . date('Y-m-d') . '.csv';
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function() use ($categoryCounts) {
+        $callback = function () use ($categoryCounts, $entityLabel) {
             $file = fopen('php://output', 'w');
             
             // Headers
-            fputcsv($file, ['#', 'Category Name', 'Total Assets', 'Available', 'Assigned']);
+            fputcsv($file, ['#', 'Entity', 'Category Name', 'Total Assets', 'Available', 'Assigned']);
 
             // Data
             foreach ($categoryCounts as $index => $category) {
                 fputcsv($file, [
                     $index + 1,
+                    $entityLabel,
                     $category->category_name,
                     $category->assets_count,
                     $category->available_count ?? 0,

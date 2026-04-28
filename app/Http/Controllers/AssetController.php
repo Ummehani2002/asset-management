@@ -937,7 +937,7 @@ public function getAssetsByCategoryApi($id)
 public function exportByCategory($id, Request $request)
 {
     $category = AssetCategory::findOrFail($id);
-    $query = Asset::with('category', 'brand')
+    $query = Asset::with('category', 'brand', 'entity', 'location')
                 ->where('asset_category_id', $id)
                 ->where('status', 'assigned');
 
@@ -1008,7 +1008,7 @@ private function exportCategoryExcel($assets, $category)
         
         // Headers
         fputcsv($file, [
-            '#', 'Asset ID', 'Brand', 'Purchase Date', 'Warranty Start', 
+            '#', 'Asset ID', 'Entity', 'Brand', 'Purchase Date', 'Warranty Start', 
             'Expiry Date', 'PO Number', 'Vendor Name', 'Value', 'Serial Number'
         ]);
 
@@ -1017,6 +1017,7 @@ private function exportCategoryExcel($assets, $category)
             fputcsv($file, [
                 $index + 1,
                 $asset->asset_id ?? 'N/A',
+                $asset->entity->name ?? $asset->location->location_entity ?? 'N/A',
                 $asset->brand->name ?? 'N/A',
                 $asset->purchase_date ?? 'N/A',
                 $asset->warranty_start ?? 'N/A',
