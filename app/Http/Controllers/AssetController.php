@@ -166,6 +166,7 @@ public function scrap(Request $request, Asset $asset)
 public function create()
 {
     try {
+        $relaxedAssetEntryMode = $this->isRelaxedAssetEntryMode();
         // Check if required tables exist
         $hasAssets = Schema::hasTable('assets');
         $hasAssetCategories = Schema::hasTable('asset_categories');
@@ -193,7 +194,7 @@ public function create()
             }
         }
 
-        return view('assets.create', compact('autoAssetId', 'categories', 'entities'))
+        return view('assets.create', compact('autoAssetId', 'categories', 'entities', 'relaxedAssetEntryMode'))
             ->with('warning', $hasAssetCategories ? null : 'Database tables not found. Please run migrations: php artisan migrate --force');
     } catch (\Exception $e) {
         Log::error('Asset create error: ' . $e->getMessage());
@@ -203,7 +204,8 @@ public function create()
         $autoAssetId = '';
         $categories = collect([]);
         $entities = collect([]);
-        return view('assets.create', compact('autoAssetId', 'categories', 'entities'))
+        $relaxedAssetEntryMode = $this->isRelaxedAssetEntryMode();
+        return view('assets.create', compact('autoAssetId', 'categories', 'entities', 'relaxedAssetEntryMode'))
             ->with('warning', 'Unable to load form data. Please ensure migrations are run: php artisan migrate --force');
     }
 }
@@ -692,17 +694,16 @@ private function parseImportDate($value)
 
     public function update(Request $request, Asset $asset)
     {
+        $relaxedAssetEntryMode = $this->isRelaxedAssetEntryMode();
         if ($request->has('serial_number')) {
-            $request->merge(['serial_number' => trim((string) $request->serial_number)]);
+            $serial = trim((string) $request->serial_number);
+            $request->merge(['serial_number' => $serial !== '' ? $serial : null]);
         }
 
         $validated = $request->validate([
-            'serial_number' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('assets', 'serial_number')->ignore($asset->id),
-            ],
+            'serial_number' => $relaxedAssetEntryMode
+                ? ['nullable', 'string', 'max:100', Rule::unique('assets', 'serial_number')->ignore($asset->id)]
+                : ['required', 'string', 'max:100', Rule::unique('assets', 'serial_number')->ignore($asset->id)],
             'po_number' => 'nullable|string|max:255',
             'vendor_name' => 'nullable|string|max:255',
             'value' => 'nullable|numeric|min:0',
@@ -1045,8 +1046,10 @@ private function safeFilenameSegment(string $value): string
 public function store(Request $request)
 {
     try {
+        $relaxedAssetEntryMode = $this->isRelaxedAssetEntryMode();
         if ($request->has('serial_number')) {
-            $request->merge(['serial_number' => trim((string) $request->serial_number)]);
+            $serial = trim((string) $request->serial_number);
+            $request->merge(['serial_number' => $serial !== '' ? $serial : null]);
         }
 
         // Test database connection first
@@ -1123,12 +1126,9 @@ public function store(Request $request)
             'po_number' => 'nullable|string',
             'vendor_name' => 'nullable|string|max:255',
             'value' => 'nullable|numeric|min:0',
-            'serial_number' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('assets', 'serial_number'),
-            ],
+            'serial_number' => $relaxedAssetEntryMode
+                ? ['nullable', 'string', 'max:100', Rule::unique('assets', 'serial_number')]
+                : ['required', 'string', 'max:100', Rule::unique('assets', 'serial_number')],
             'invoice' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'features' => 'nullable|array',
             'features.*' => 'nullable',
@@ -1468,6 +1468,11 @@ public function getAssetsByLocation($id)
     });
 
     return response()->json($assets);
+}
+
+private function isRelaxedAssetEntryMode(): bool
+{
+    return filter_var(env('ASSET_RELAXED_ENTRY_MODE', true), FILTER_VALIDATE_BOOL);
 }
 
 
