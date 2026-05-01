@@ -74,7 +74,7 @@
                 <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded"
                      style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
             </div>
-            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type serial number or asset ID to see matching assets. If left blank during Assign, system will auto-pick a random available asset from this category (for Return: only currently assigned assets are listed).' }}</small>
+            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type serial number or asset ID to see matching assets. If left blank during Assign, system creates a new asset ID automatically from selected category; serial/model can be updated later (for Return: only currently assigned assets are listed).' }}</small>
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}
@@ -738,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!infoEl) return;
         const displayStatus = (data.status === 'returned') ? 'available' : (data.status || '');
         if (displayStatus === 'under_maintenance') {
-            infoEl.textContent = 'Asset is under maintenance. You can assign it (return from maintenance to same employee).';
+            infoEl.textContent = 'Asset is under maintenance and cannot be assigned from this form.';
             infoEl.className = 'text-warning';
         } else if (displayStatus === 'assigned') {
             infoEl.textContent = 'Asset is currently assigned. You can return it. Use System Maintenance form to send for maintenance.';
