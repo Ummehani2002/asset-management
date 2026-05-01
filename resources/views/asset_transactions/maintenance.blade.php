@@ -185,7 +185,7 @@
                 {{-- Asset Selection - Entity & AM auto-fill from asset's location (Location Master) --}}
                 <div class="master-form-card mb-4">
                     <h5 class="mb-3"><i class="bi bi-tag me-2"></i>Select Asset</h5>
-                    <p class="text-muted small mb-3">Select category and serial number. Entity and Asset Manager will auto-fill from the asset's location.</p>
+                    <p class="text-muted small mb-3">Select category and asset. Serial number is optional. Entity and Asset Manager will auto-fill from the asset's location.</p>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="asset_category_id">Asset Category <span class="text-danger">*</span></label>
@@ -198,7 +198,7 @@
                         </div>
 
                         <div class="col-md-6 mb-3" id="asset_selection_section" style="display:none;">
-                            <label for="asset_search_input">Asset (Serial Number) <span class="text-danger">*</span></label>
+                            <label for="asset_search_input">Asset <span class="text-danger">*</span></label>
                             <div class="position-relative" id="asset_search_wrap">
                                 <input type="text" id="asset_search_input" class="form-control" placeholder="Select Asset" autocomplete="off">
                                 <input type="hidden" name="asset_id" id="asset_id" value="" required>
@@ -424,7 +424,7 @@
                         </div>
 
                         <div class="col-md-6 mb-3" id="reassign_asset_section" style="display:none;">
-                            <label for="reassign_asset_search_input">Asset (Serial Number) <span class="text-danger">*</span></label>
+                            <label for="reassign_asset_search_input">Asset <span class="text-danger">*</span></label>
                             <div class="position-relative" id="reassign_asset_search_wrap">
                                 <input type="text" id="reassign_asset_search_input" class="form-control" placeholder="Select Asset" autocomplete="off">
                                 <input type="hidden" name="asset_id" id="reassign_asset_id" value="" required>
@@ -661,7 +661,8 @@ $(document).ready(function() {
                         $('#asset_dropdown').html('<div class="list-group-item text-muted">No matching assets</div>').show();
                     } else {
                         const html = assigned.map(function(a) {
-                            const text = `${a.serial_number} (${a.asset_id}) - Assigned`;
+                            const serial = (a.serial_number && String(a.serial_number).trim() !== '') ? a.serial_number : 'No Serial';
+                            const text = `${serial} (${a.asset_id}) - Assigned`;
                             return `<a href="#" class="list-group-item list-group-item-action asset-send-item" data-id="${a.id}" data-status="${(a.original_status || '').replace(/"/g, '&quot;')}">${text.replace(/</g, '&lt;')}</a>`;
                         }).join('');
                         $('#asset_dropdown').html(html).show();
@@ -837,7 +838,8 @@ $(document).ready(function() {
                         $('#assign_asset_dropdown').html('<div class="list-group-item text-muted">No matching assets under maintenance</div>').show();
                     } else {
                         const html = list.map(function(a) {
-                            const text = `${a.serial_number} (${a.asset_id}) - Under Maintenance`;
+                            const serial = (a.serial_number && String(a.serial_number).trim() !== '') ? a.serial_number : 'No Serial';
+                            const text = `${serial} (${a.asset_id}) - Under Maintenance`;
                             return `<a href="#" class="list-group-item list-group-item-action assign-asset-item" data-id="${a.id}" data-transaction-id="${a.transaction_id || ''}">${text.replace(/</g, '&lt;')}</a>`;
                         }).join('');
                         $('#assign_asset_dropdown').html(html).show();
@@ -930,7 +932,8 @@ $(document).ready(function() {
                         $('#reassign_asset_dropdown').html('<div class="list-group-item text-muted">No matching assets under maintenance</div>').show();
                     } else {
                         const html = underMaint.map(function(a) {
-                            const text = `${a.serial_number} (${a.asset_id}) - Under Maintenance`;
+                            const serial = (a.serial_number && String(a.serial_number).trim() !== '') ? a.serial_number : 'No Serial';
+                            const text = `${serial} (${a.asset_id}) - Under Maintenance`;
                             return `<a href="#" class="list-group-item list-group-item-action reassign-asset-item" data-id="${a.id}" data-status="${(a.original_status || '').replace(/"/g, '&quot;')}">${text.replace(/</g, '&lt;')}</a>`;
                         }).join('');
                         $('#reassign_asset_dropdown').html(html).show();
