@@ -74,7 +74,7 @@
                 <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded"
                      style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
             </div>
-            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type serial number or asset ID to see matching assets. Serial number is optional (for Return: only currently assigned assets are listed).' }}</small>
+            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type serial number or asset ID to see matching assets. If left blank during Assign, system will auto-pick a random available asset from this category (for Return: only currently assigned assets are listed).' }}</small>
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}

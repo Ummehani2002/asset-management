@@ -1557,7 +1557,7 @@ class AssetTransactionController extends Controller
     // 🔹 Validation rules
     $rules = [
         'asset_category_id' => 'required|exists:asset_categories,id',
-        'asset_id' => 'required|exists:assets,id',
+        'asset_id' => 'nullable|exists:assets,id',
         'transaction_type' => 'required|in:assign,return',
         'employee_id' => 'nullable|exists:employees,id',
         'location_id' => 'nullable|exists:locations,id',
@@ -1573,6 +1573,7 @@ class AssetTransactionController extends Controller
     }
 
     if ($request->transaction_type === 'return') {
+        $rules['asset_id'] = 'required|exists:assets,id';
         $rules['return_date'] = 'required|date';
         // When asset was assigned to project (no employee), return does not require employee_id
         $returnAsset = $request->asset_id ? Asset::with('latestTransaction')->find($request->asset_id) : null;
@@ -1597,9 +1598,37 @@ class AssetTransactionController extends Controller
         }
     }
 
-    $request->validate($rules, [
-        'asset_id.required' => 'Please select an asset from the dropdown (or type exact asset ID / serial number).',
-    ]);
+    $request->validate($rules);
+
+    // For assign: if asset was not selected, auto-pick first assignable asset from category.
+    if ($request->transaction_type === 'assign' && !$request->filled('asset_id')) {
+        $autoPickQuery = Asset::with('assetCategory')
+            ->where('asset_category_id', $request->asset_category_id)
+            ->whereIn('status', ['available', 'under_maintenance']);
+
+        // If user typed something, try to honor it first.
+        if ($request->filled('asset_search')) {
+            $typed = trim((string) $request->asset_search);
+            if ($typed !== '') {
+                $like = '%' . addcslashes($typed, '%_\\') . '%';
+                $autoPickQuery->where(function ($q) use ($typed, $like) {
+                    $q->where('asset_id', $typed)
+                        ->orWhere('serial_number', $typed)
+                        ->orWhere('asset_id', 'LIKE', $like)
+                        ->orWhere('serial_number', 'LIKE', $like);
+                });
+            }
+        }
+
+        $autoPickedAsset = $autoPickQuery->inRandomOrder()->first();
+        if ($autoPickedAsset) {
+            $request->merge(['asset_id' => $autoPickedAsset->id]);
+        } else {
+            throw ValidationException::withMessages([
+                'asset_id' => 'No assignable asset found in this category.',
+            ]);
+        }
+    }
 
     $asset   = Asset::with('assetCategory')->findOrFail($request->asset_id);
     $latest  = $asset->latestTransaction;
