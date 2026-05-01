@@ -1493,6 +1493,33 @@ class AssetTransactionController extends Controller
 {
     \Log::info('=== Asset Transaction Store Request ===', $request->all());
 
+    // If user typed asset text but didn't click dropdown, resolve asset_id automatically.
+    if (!$request->filled('asset_id') && $request->filled('asset_search')) {
+        $typed = trim((string) $request->asset_search);
+        if ($typed !== '') {
+            // Handles formats like "SER123 (LTOP0001) - Status: available"
+            if (preg_match('/\(([^)]+)\)/', $typed, $m)) {
+                $candidateAssetId = trim((string) ($m[1] ?? ''));
+                if ($candidateAssetId !== '') {
+                    $resolved = Asset::where('asset_id', $candidateAssetId)->first();
+                    if ($resolved) {
+                        $request->merge(['asset_id' => $resolved->id]);
+                    }
+                }
+            }
+
+            // Fallback: direct match by asset_id or serial_number from user input.
+            if (!$request->filled('asset_id')) {
+                $resolved = Asset::where('asset_id', $typed)
+                    ->orWhere('serial_number', $typed)
+                    ->first();
+                if ($resolved) {
+                    $request->merge(['asset_id' => $resolved->id]);
+                }
+            }
+        }
+    }
+
     // 🔹 For return transactions, get employee_id from latest assignment if not provided
     if ($request->transaction_type === 'return') {
         // First, try to use employee_id_return if employee_id is not set
@@ -1570,7 +1597,9 @@ class AssetTransactionController extends Controller
         }
     }
 
-    $request->validate($rules);
+    $request->validate($rules, [
+        'asset_id.required' => 'Please select an asset from the dropdown (or type exact asset ID / serial number).',
+    ]);
 
     $asset   = Asset::with('assetCategory')->findOrFail($request->asset_id);
     $latest  = $asset->latestTransaction;
