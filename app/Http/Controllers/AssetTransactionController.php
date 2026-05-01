@@ -1232,7 +1232,7 @@ class AssetTransactionController extends Controller
             ?? Employee::find($entity->asset_manager_id)?->email
             ?? config('mail.from.address');
         $emailSent = false;
-        if (!empty($assetManagerEmail) && config('mail.notifications_enabled', false)) {
+        if (!empty($assetManagerEmail) && $this->emailNotificationsEnabled()) {
             try {
                 $approvalRequest->load(['asset.assetCategory', 'requestedByUser']);
                 Mail::to($assetManagerEmail)->send(new MaintenanceApprovalRequestMail($approvalRequest));
@@ -1299,7 +1299,7 @@ class AssetTransactionController extends Controller
 
         // Send email notification to the requester (if notifications enabled)
         $approverName = $req->assignedToEmployee->name ?? 'Asset Manager';
-        if (config('mail.notifications_enabled', false) && $req->requestedByUser && $req->requestedByUser->email) {
+        if ($this->emailNotificationsEnabled() && $req->requestedByUser && $req->requestedByUser->email) {
             try {
                 Mail::to($req->requestedByUser->email)->send(new MaintenanceApprovedNotificationMail($req, $approverName));
             } catch (\Exception $e) {
@@ -1347,7 +1347,7 @@ class AssetTransactionController extends Controller
 
         // Send email notification to the requester (if notifications enabled)
         $approverName = $req->assignedToEmployee->name ?? $user->name ?? 'Asset Manager';
-        if (config('mail.notifications_enabled', false) && $req->requestedByUser && $req->requestedByUser->email) {
+        if ($this->emailNotificationsEnabled() && $req->requestedByUser && $req->requestedByUser->email) {
             try {
                 Mail::to($req->requestedByUser->email)->send(new MaintenanceApprovedNotificationMail($req, $approverName));
             } catch (\Exception $e) {
@@ -1936,7 +1936,7 @@ private function sendAssetEmail($transaction)
         }
         
         try {
-            if (!config('mail.notifications_enabled', false)) {
+            if (!$this->emailNotificationsEnabled()) {
                 \Log::info('Email notifications disabled; skipping asset transaction email to: ' . $employee->email);
                 return;
             }
@@ -1966,6 +1966,11 @@ private function sendAssetEmail($transaction)
     \Log::info('=== End Email Debug ===');
 }
 
+private function emailNotificationsEnabled(): bool
+{
+    // Temporary hard-disable requested.
+    return false;
+}
 
     public function destroy($id)
     {
