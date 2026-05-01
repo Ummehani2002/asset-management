@@ -63,18 +63,18 @@
             @endif
         </div>
 
-        {{-- 3. Asset (Serial Number) – type to search, dropdown of similar --}}
+        {{-- 3. Asset (Serial Number optional) – type to search, dropdown of similar --}}
         <div class="mb-3" id="asset_selection_section" style="{{ $isEdit ? 'display:block;' : 'display:none;' }}">
-            <label for="asset_search">Asset (Serial Number) <span class="text-danger">*</span></label>
+            <label for="asset_search">Asset <span class="text-danger">*</span></label>
             <div class="position-relative" id="asset_search_wrap">
                 <input type="text" id="asset_search" class="form-control" placeholder="Type serial number or asset ID..."
-                       value="{{ $isEdit && $transaction->asset ? $transaction->asset->serial_number . ' (' . ($transaction->asset->asset_id ?? '') . ')' : '' }}"
+                       value="{{ $isEdit && $transaction->asset ? (($transaction->asset->serial_number ?: 'No Serial') . ' (' . ($transaction->asset->asset_id ?? '') . ')') : '' }}"
                        autocomplete="off" {{ $isEdit ? 'disabled' : '' }}>
                 <input type="hidden" name="asset_id" id="asset_id" value="{{ old('asset_id', $transaction->asset_id ?? $transaction->asset->id ?? '') }}" required>
                 <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded"
                      style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
             </div>
-            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type serial number or asset ID to see matching assets (for Return: only currently assigned assets are listed).' }}</small>
+            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type serial number or asset ID to see matching assets. Serial number is optional (for Return: only currently assigned assets are listed).' }}</small>
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}
@@ -419,7 +419,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 assetDropdownEl.innerHTML = '<div class="list-group-item text-muted">No matching assets</div>';
             } else {
                 assetDropdownEl.innerHTML = items.map(function(asset) {
-                    var text = (asset.serial_number || '') + ' (' + (asset.asset_id || '') + ') - Status: ' + (asset.status || '');
+                    var serialText = (asset.serial_number && asset.serial_number.trim() !== '') ? asset.serial_number : 'No Serial';
+                    var text = serialText + ' (' + (asset.asset_id || '') + ') - Status: ' + (asset.status || '');
                     return '<a href="#" class="list-group-item list-group-item-action asset-suggestion" data-id="' + asset.id + '" data-status="' + (asset.original_status || asset.status || '').replace(/"/g, '&quot;') + '" data-category="' + (asset.category_name || '').replace(/"/g, '&quot;') + '">' + text.replace(/</g, '&lt;') + '</a>';
                 }).join('');
             }
