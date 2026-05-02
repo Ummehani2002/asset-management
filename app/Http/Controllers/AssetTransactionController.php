@@ -11,8 +11,6 @@ use App\Models\Location;
 use App\Models\MaintenanceAssignment;
 use App\Models\MaintenanceApprovalRequest;
 use App\Models\Project;
-use App\Models\AssetCategory;
-use App\Models\Brand;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use App\Mail\AssetAssigned;
@@ -1415,12 +1413,9 @@ class AssetTransactionController extends Controller
         if ($transactionType === 'return') {
             $query->where('status', 'assigned');
         }
-        // For assign: only assets that are truly new/unassigned (available)
+        // For assign: only assets that are available
         if ($transactionType === 'assign') {
-            $query->where('status', 'available')
-                ->whereDoesntHave('transactions', function ($q) {
-                    $q->where('transaction_type', 'assign');
-                });
+            $query->where('status', 'available');
         }
         $search = trim($request->get('q', ''));
         if ($search !== '') {
@@ -1498,44 +1493,6 @@ class AssetTransactionController extends Controller
 {
     \Log::info('=== Asset Transaction Store Request ===', $request->all());
 
-    // If user typed asset text but didn't click dropdown, resolve asset_id automatically.
-    if (!$request->filled('asset_id') && $request->filled('asset_search')) {
-        $typed = trim((string) $request->asset_search);
-        if ($typed !== '') {
-            $resolveQuery = Asset::query();
-            if ($request->transaction_type === 'assign') {
-                $resolveQuery->where('status', 'available')
-                    ->whereDoesntHave('transactions', function ($q) {
-                        $q->where('transaction_type', 'assign');
-                    });
-            }
-
-            // Handles formats like "SER123 (LTOP0001) - Status: available"
-            if (preg_match('/\(([^)]+)\)/', $typed, $m)) {
-                $candidateAssetId = trim((string) ($m[1] ?? ''));
-                if ($candidateAssetId !== '') {
-                    $resolved = (clone $resolveQuery)->where('asset_id', $candidateAssetId)->first();
-                    if ($resolved) {
-                        $request->merge(['asset_id' => $resolved->id]);
-                    }
-                }
-            }
-
-            // Fallback: direct match by asset_id or serial_number from user input.
-            if (!$request->filled('asset_id')) {
-                $resolved = (clone $resolveQuery)
-                    ->where(function ($q) use ($typed) {
-                        $q->where('asset_id', $typed)
-                            ->orWhere('serial_number', $typed);
-                    })
-                    ->first();
-                if ($resolved) {
-                    $request->merge(['asset_id' => $resolved->id]);
-                }
-            }
-        }
-    }
-
     // 🔹 For return transactions, get employee_id from latest assignment if not provided
     if ($request->transaction_type === 'return') {
         // First, try to use employee_id_return if employee_id is not set
@@ -1573,7 +1530,7 @@ class AssetTransactionController extends Controller
     // 🔹 Validation rules
     $rules = [
         'asset_category_id' => 'required|exists:asset_categories,id',
-        'asset_id' => 'nullable|exists:assets,id',
+        'asset_id' => 'required|exists:assets,id',
         'transaction_type' => 'required|in:assign,return',
         'employee_id' => 'nullable|exists:employees,id',
         'location_id' => 'nullable|exists:locations,id',
@@ -1589,7 +1546,6 @@ class AssetTransactionController extends Controller
     }
 
     if ($request->transaction_type === 'return') {
-        $rules['asset_id'] = 'required|exists:assets,id';
         $rules['return_date'] = 'required|date';
         // When asset was assigned to project (no employee), return does not require employee_id
         $returnAsset = $request->asset_id ? Asset::with('latestTransaction')->find($request->asset_id) : null;
@@ -1614,43 +1570,9 @@ class AssetTransactionController extends Controller
         }
     }
 
-    $request->validate($rules);
-
-    // For assign: if asset was not selected, create a fresh asset ID automatically.
-    if ($request->transaction_type === 'assign' && !$request->filled('asset_id')) {
-        $category = AssetCategory::find($request->asset_category_id);
-        if (!$category) {
-            throw ValidationException::withMessages([
-                'asset_category_id' => 'Invalid category selected for assignment.',
-            ]);
-        }
-
-        $nextAssetId = $this->generateNextAssetIdByCategoryName($category->category_name ?? '');
-
-        // assets.brand_id exists in this project and is required in DB in many environments.
-        $brandId = Brand::where('asset_category_id', $category->id)->value('id') ?? Brand::query()->value('id');
-        if (!$brandId) {
-            throw ValidationException::withMessages([
-                'asset_id' => 'No brand found. Please add a brand before assigning without asset details.',
-            ]);
-        }
-
-        $newAssetData = [
-            'asset_id' => $nextAssetId,
-            'asset_category_id' => $category->id,
-            'brand_id' => $brandId,
-            // Temporary placeholder to satisfy DB constraints; user can edit later with real serial.
-            'serial_number' => 'PENDING-' . $nextAssetId,
-            'status' => 'available',
-        ];
-
-        if (Schema::hasColumn('assets', 'location_id') && $request->filled('location_id')) {
-            $newAssetData['location_id'] = $request->location_id;
-        }
-
-        $autoCreatedAsset = Asset::create($newAssetData);
-        $request->merge(['asset_id' => $autoCreatedAsset->id]);
-    }
+    $request->validate($rules, [
+        'asset_id.required' => 'Please select an asset from the dropdown.',
+    ]);
 
     $asset   = Asset::with('assetCategory')->findOrFail($request->asset_id);
     $latest  = $asset->latestTransaction;
@@ -1663,17 +1585,6 @@ class AssetTransactionController extends Controller
         ]);
     }
 
-    if ($request->transaction_type === 'assign') {
-        $alreadyAssignedBefore = AssetTransaction::where('asset_id', $asset->id)
-            ->where('transaction_type', 'assign')
-            ->exists();
-        if ($alreadyAssignedBefore) {
-            throw ValidationException::withMessages([
-                'asset_id' => 'Only newly added asset IDs can be assigned from this form.',
-            ]);
-        }
-    }
-
     if ($request->transaction_type === 'return' && $asset->status !== 'assigned') {
         throw ValidationException::withMessages([
             'asset_id' => 'Only assigned assets can be returned.',
@@ -1683,6 +1594,24 @@ class AssetTransactionController extends Controller
     // 🔹 Resolve assignment data
     $data = $this->resolveAssignment($asset, $latest, $request, $category);
     $status = $this->getStatusForTransaction($request->transaction_type);
+
+    // Block duplicate category assignment to same employee.
+    if ($request->transaction_type === 'assign' && !empty($data['employee_id'])) {
+        $alreadyHasSameCategory = Asset::where('asset_category_id', $asset->asset_category_id)
+            ->where('id', '!=', $asset->id)
+            ->where('status', 'assigned')
+            ->whereHas('latestTransaction', function ($q) use ($data) {
+                $q->where('transaction_type', 'assign')
+                    ->where('employee_id', $data['employee_id']);
+            })
+            ->exists();
+
+        if ($alreadyHasSameCategory) {
+            throw ValidationException::withMessages([
+                'employee_id' => 'This employee already has an assigned asset from the same category.',
+            ]);
+        }
+    }
 
     // 🔹 Image uploads
     $imageData = $this->handleImageUploads($request);
@@ -1968,8 +1897,7 @@ private function sendAssetEmail($transaction)
 
 private function emailNotificationsEnabled(): bool
 {
-    // Temporary hard-disable requested.
-    return false;
+    return config('mail.notifications_enabled', false);
 }
 
     public function destroy($id)
@@ -2144,48 +2072,6 @@ private function emailNotificationsEnabled(): bool
         return response()->json($data);
     }
 
-private function generateNextAssetIdByCategoryName(string $categoryName): string
-{
-    $categoryName = strtolower(trim($categoryName));
-    $prefixMap = [
-        'laptop' => 'LPT',
-        'monitor' => 'MNT',
-        'printer' => 'PRT',
-        'desktop' => 'DST',
-        'keyboard' => 'KYB',
-        'mouse' => 'MSE',
-        'scanner' => 'SCN',
-        'projector' => 'PRJ',
-        'tablet' => 'TBL',
-        'phone' => 'PHN',
-        'server' => 'SVR',
-        'router' => 'RTR',
-        'switch' => 'SWT',
-        'access point' => 'AP',
-        'camera' => 'CAM',
-        'speaker' => 'SPK',
-        'headphone' => 'HDP',
-        'ups' => 'UPS',
-        'hard drive' => 'HDD',
-        'ssd' => 'SSD',
-    ];
-
-    $prefix = $prefixMap[$categoryName] ?? strtoupper(substr(preg_replace('/[^a-z]/i', '', $categoryName), 0, 3));
-    $prefix = $prefix !== '' ? $prefix : 'AST';
-    $prefixLen = strlen($prefix);
-
-    $assets = Asset::where('asset_id', 'like', $prefix . '%')->get(['asset_id']);
-    $maxNumber = 0;
-    foreach ($assets as $asset) {
-        $numPart = preg_replace('/[^0-9]/', '', substr((string) $asset->asset_id, $prefixLen));
-        $num = intval($numPart);
-        if ($num > $maxNumber) {
-            $maxNumber = $num;
-        }
-    }
-
-    return $prefix . str_pad((string) ($maxNumber + 1), 5, '0', STR_PAD_LEFT);
-}
 
     /**
      * Handle image uploads for different transaction types

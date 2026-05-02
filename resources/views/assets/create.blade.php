@@ -28,10 +28,6 @@
     </div>
 @endif
 
-@php
-    $relaxedAssetEntryMode = $relaxedAssetEntryMode ?? true;
-@endphp
-
     <form action="{{ route('assets.store') }}" method="POST" enctype="multipart/form-data" autocomplete="off">
         @csrf
 
@@ -90,11 +86,8 @@
                     <input type="text" name="asset_id" class="form-control" value="{{ $autoAssetId }}" readonly>
                 </div>
                 <div class="mb-3">
-                    <label for="serial_number">Serial Number @if(!$relaxedAssetEntryMode)<span class="text-danger">*</span>@else<span class="text-muted">(optional)</span>@endif</label>
-                    <input type="text" name="serial_number" id="serial_number" class="form-control" @if(!$relaxedAssetEntryMode) required @endif autocomplete="off">
-                    @if($relaxedAssetEntryMode)
-                        <small class="text-muted">Temporary relaxed mode is ON. You can leave this blank and fill later.</small>
-                    @endif
+                    <label for="serial_number">Serial Number <span class="text-danger">*</span></label>
+                    <input type="text" name="serial_number" id="serial_number" class="form-control" required autocomplete="off">
                 </div>
 
                 <div class="mb-3">

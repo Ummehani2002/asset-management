@@ -66,11 +66,15 @@
         </div>
 
         <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
                 <label for="expense_amount">Amount (before VAT)</label>
-                <input type="number" step="0.01" id="expense_amount" name="expense_amount" class="form-control" required value="{{ old('expense_amount', $amountBeforeVat) }}" placeholder="Amount excluding VAT">
+                <input type="number" step="0.01" id="expense_amount" name="expense_amount" class="form-control" required value="{{ old('expense_amount', $unitAmountBeforeVat ?? $amountBeforeVat) }}" placeholder="Amount excluding VAT">
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
+                <label for="quantity">Quantity</label>
+                <input type="number" min="1" step="1" id="quantity" name="quantity" class="form-control" required value="{{ old('quantity', $quantity ?? 1) }}">
+            </div>
+            <div class="col-md-4 mb-3">
                 <label for="expense_date">Expense Date</label>
                 <input type="date" id="expense_date" name="expense_date" class="form-control" required value="{{ old('expense_date', $expense->expense_date ? date('Y-m-d', strtotime($expense->expense_date)) : '') }}">
             </div>
@@ -113,6 +117,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const isContractingCheck = document.getElementById('is_contracting');
     const expenseAmount = document.getElementById('expense_amount');
+    const quantityInput = document.getElementById('quantity');
     const vatPercentLabel = document.getElementById('vat_percent_label');
     const vatAmountPreview = document.getElementById('vat_amount_preview');
     const totalWithVatPreview = document.getElementById('total_with_vat_preview');
@@ -121,15 +126,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function getVatPercent() { return isContractingCheck.checked ? 15 : 5; }
     function updateVatPreview() {
         const amount = parseFloat(expenseAmount.value) || 0;
+        const quantity = Math.max(parseInt(quantityInput.value || '1', 10) || 1, 1);
+        const lineAmount = amount * quantity;
         const vatPct = getVatPercent();
-        const vatAmount = Math.round(amount * vatPct / 100 * 100) / 100;
-        const total = amount + vatAmount;
+        const vatAmount = Math.round(lineAmount * vatPct / 100 * 100) / 100;
+        const total = lineAmount + vatAmount;
         vatPercentLabel.textContent = vatPct;
         vatAmountPreview.textContent = vatAmount.toFixed(2);
         totalWithVatPreview.textContent = total.toFixed(2);
         if (totalWithVatDisplay) totalWithVatDisplay.textContent = total.toFixed(2);
     }
     expenseAmount.addEventListener('input', updateVatPreview);
+    quantityInput.addEventListener('input', updateVatPreview);
     isContractingCheck.addEventListener('change', updateVatPreview);
     updateVatPreview();
 

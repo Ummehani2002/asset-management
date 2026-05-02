@@ -11,6 +11,7 @@ class BudgetExpense extends Model
         'entity_budget_id',
         'cost_head',
         'expense_amount',
+        'quantity',
         'expense_date',
         'description',
         'is_contracting',
@@ -21,6 +22,7 @@ class BudgetExpense extends Model
 
     protected $casts = [
         'is_contracting' => 'boolean',
+        'quantity' => 'integer',
     ];
 
     public function entityBudget()

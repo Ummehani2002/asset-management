@@ -119,13 +119,16 @@ class BudgetExpenseController extends Controller
             $validated = $request->validate([
                 'entity_budget_id' => 'required|exists:entity_budgets,id',
                 'cost_head' => 'nullable|string',
-                'expense_amount' => 'required|numeric|min:0', // amount before VAT
+                'expense_amount' => 'required|numeric|min:0', // unit amount before VAT
+                'quantity' => 'required|integer|min:1',
                 'expense_date' => 'required|string',
                 'description' => 'nullable|string',
                 'is_contracting' => 'nullable|in:0,1'
             ]);
 
-            $amountBeforeVat = (float) $validated['expense_amount'];
+            $unitAmountBeforeVat = (float) $validated['expense_amount'];
+            $quantity = (int) $validated['quantity'];
+            $amountBeforeVat = round($unitAmountBeforeVat * $quantity, 2);
 
             // Parse DD-MM-YYYY (or similar) to Y-m-d
             $rawDate = $validated['expense_date'];
@@ -149,7 +152,7 @@ class BudgetExpenseController extends Controller
                 throw new \Exception('Insufficient budget balance. Total including VAT (' . number_format($totalWithVat, 2) . ') exceeds available balance.');
             }
 
-            $expense = BudgetExpense::create([
+            $expenseData = [
                 'entity_budget_id' => $validated['entity_budget_id'],
                 'cost_head' => $validated['cost_head'] ?? null,
                 'expense_amount' => $totalWithVat, // stored total (amount + VAT) for balance deduction
@@ -159,7 +162,11 @@ class BudgetExpenseController extends Controller
                 'amount_before_vat' => $amountBeforeVat,
                 'vat_percent' => $vatPercent,
                 'vat_amount' => $vatAmount,
-            ]);
+            ];
+            if (Schema::hasColumn('budget_expenses', 'quantity')) {
+                $expenseData['quantity'] = $quantity;
+            }
+            $expense = BudgetExpense::create($expenseData);
 
             // Build fresh response payload instead of reusing getBudgetDetails (POST does not contain all its params)
             $updatedTotalExpenses = $totalExpenses + $totalWithVat;
@@ -169,6 +176,7 @@ class BudgetExpenseController extends Controller
                 'id' => $expense->id,
                 'expense_date' => date('Y-m-d', strtotime($expense->expense_date)),
                 'expense_amount' => number_format($expense->expense_amount, 2),
+                'quantity' => (int) ($expense->quantity ?? 1),
                 'description' => $expense->description ?: '-',
                 'entity_name' => $budget->employee->entity_name ?? 'N/A',
                 'cost_head' => $validated['cost_head'] ?: ($budget->cost_head ?? '—'),
@@ -249,9 +257,11 @@ class BudgetExpenseController extends Controller
             $costHeads = $predefinedNames;
         }
 
+        $quantity = (int) ($expense->quantity ?? 1);
         $amountBeforeVat = $expense->amount_before_vat !== null
             ? (float) $expense->amount_before_vat
             : (float) $expense->expense_amount - (float) ($expense->vat_amount ?? 0);
+        $unitAmountBeforeVat = $quantity > 0 ? round($amountBeforeVat / $quantity, 2) : $amountBeforeVat;
 
         $currentYear = (int) date('Y');
         $yearColumn = 'budget_' . $currentYear;
@@ -259,7 +269,7 @@ class BudgetExpenseController extends Controller
         $totalExpensesAll = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
         $availableBalance = $budgetAmount - $totalExpensesAll;
 
-        return view('budget_expenses.edit', compact('expense', 'entities', 'costHeads', 'costHeadsWithTypes', 'expenseTypes', 'budget', 'amountBeforeVat', 'budgetAmount', 'totalExpensesAll', 'availableBalance'));
+        return view('budget_expenses.edit', compact('expense', 'entities', 'costHeads', 'costHeadsWithTypes', 'expenseTypes', 'budget', 'amountBeforeVat', 'unitAmountBeforeVat', 'quantity', 'budgetAmount', 'totalExpensesAll', 'availableBalance'));
     }
 
     /**
@@ -275,7 +285,8 @@ class BudgetExpenseController extends Controller
         $validated = $request->validate([
             'entity_budget_id' => 'required|exists:entity_budgets,id',
             'cost_head' => 'nullable|string',
-            'expense_amount' => 'required|numeric|min:0',
+            'expense_amount' => 'required|numeric|min:0', // unit amount before VAT
+            'quantity' => 'required|integer|min:1',
             'expense_date' => 'required|string',
             'description' => 'nullable|string',
             'is_contracting' => 'nullable|in:0,1'
@@ -285,7 +296,9 @@ class BudgetExpenseController extends Controller
             return response()->json(['success' => false, 'message' => 'Budget mismatch'], 422);
         }
 
-        $amountBeforeVat = (float) $validated['expense_amount'];
+        $unitAmountBeforeVat = (float) $validated['expense_amount'];
+        $quantity = (int) $validated['quantity'];
+        $amountBeforeVat = round($unitAmountBeforeVat * $quantity, 2);
 
         $rawDate = $validated['expense_date'];
         $parsedDate = $this->parseHumanDate($rawDate);
@@ -313,7 +326,7 @@ class BudgetExpenseController extends Controller
             ], 422);
         }
 
-        $expense->update([
+        $expenseData = [
             'cost_head' => $validated['cost_head'] ?? null,
             'expense_amount' => $totalWithVat,
             'expense_date' => $parsedDate,
@@ -322,7 +335,11 @@ class BudgetExpenseController extends Controller
             'amount_before_vat' => $amountBeforeVat,
             'vat_percent' => $vatPercent,
             'vat_amount' => $vatAmount,
-        ]);
+        ];
+        if (Schema::hasColumn('budget_expenses', 'quantity')) {
+            $expenseData['quantity'] = $quantity;
+        }
+        $expense->update($expenseData);
 
         if ($request->wantsJson()) {
             $printUrl = route('budget-expenses.print', $expense->id);
