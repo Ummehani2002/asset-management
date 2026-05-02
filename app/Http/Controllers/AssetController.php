@@ -734,32 +734,27 @@ public function autocompleteSerialNumber(Request $request)
     }
 }
 
-   public function assetsByCategory(Request $request, $id)
+/**
+ * Entity, status, and brand filters for the category assets list and exports.
+ */
+private function applyAssetsByCategoryFilters(\Illuminate\Database\Eloquent\Builder $query, Request $request): void
 {
-    $category = AssetCategory::findOrFail($id);
-    $query = Asset::with('category', 'brand', 'location', 'entity', 'latestTransaction.employee')
-                ->where('asset_category_id', $id);
-
-    $selectedEntity = null;
     if ($request->filled('entity') && Schema::hasTable('entities')) {
-        $selectedEntity = \App\Models\Entity::find($request->entity);
-        if ($selectedEntity) {
-            // Filter by entity_id directly if column exists, otherwise fall back to location
+        $entity = \App\Models\Entity::find($request->entity);
+        if ($entity) {
             if (Schema::hasColumn('assets', 'entity_id')) {
-                $query->where('entity_id', $selectedEntity->id);
+                $query->where('entity_id', $entity->id);
             } elseif (Schema::hasTable('locations')) {
-                $locationIds = \App\Models\Location::where('location_entity', $selectedEntity->name)->pluck('id');
+                $locationIds = \App\Models\Location::where('location_entity', $entity->name)->pluck('id');
                 $query->whereIn('location_id', $locationIds);
             }
         }
     }
 
-    // Filter by status (assigned / available / returned / under_maintenance / scrap / all)
     $selectedStatus = $request->get('status');
     if ($selectedStatus === 'assigned') {
         $query->where('status', 'assigned');
     } elseif ($selectedStatus === 'available') {
-        // Treat both available and returned as available for this view
         $query->whereIn('status', ['available', 'returned']);
     } elseif ($selectedStatus === 'returned') {
         $query->where('status', 'returned');
@@ -769,11 +764,37 @@ public function autocompleteSerialNumber(Request $request)
         $query->where('status', 'scrap');
     }
 
-    // Filter by brand
     $selectedBrandId = $request->get('brand_id');
     if (!empty($selectedBrandId)) {
         $query->where('brand_id', $selectedBrandId);
     }
+}
+
+/**
+ * Same label as assets/by_category "Employee Details" (latest transaction employee).
+ */
+private function assetEmployeeDetailsLabel(Asset $asset): string
+{
+    $emp = $asset->latestTransaction?->employee;
+    if (!$emp) {
+        return 'N/A';
+    }
+
+    return ($emp->employee_id ?? 'N/A') . ' - ' . ($emp->name ?? 'N/A');
+}
+
+   public function assetsByCategory(Request $request, $id)
+{
+    $category = AssetCategory::findOrFail($id);
+    $query = Asset::with('category', 'brand', 'location', 'entity', 'latestTransaction.employee')
+                ->where('asset_category_id', $id);
+
+    $selectedEntity = null;
+    if ($request->filled('entity') && Schema::hasTable('entities')) {
+        $selectedEntity = \App\Models\Entity::find($request->entity);
+    }
+
+    $this->applyAssetsByCategoryFilters($query, $request);
 
     $assets = $query->get();
 
@@ -932,22 +953,10 @@ public function getAssetsByCategoryApi($id)
 public function exportByCategory($id, Request $request)
 {
     $category = AssetCategory::findOrFail($id);
-    $query = Asset::with('category', 'brand', 'entity', 'location')
-                ->where('asset_category_id', $id)
-                ->where('status', 'assigned');
+    $query = Asset::with('category', 'brand', 'entity', 'location', 'latestTransaction.employee')
+                ->where('asset_category_id', $id);
 
-    if ($request->filled('entity') && Schema::hasTable('entities')) {
-        $entity = \App\Models\Entity::find($request->entity);
-        if ($entity) {
-            // Prefer direct entity filter when assets.entity_id exists, fallback to location-based matching.
-            if (Schema::hasColumn('assets', 'entity_id')) {
-                $query->where('entity_id', $entity->id);
-            } elseif (Schema::hasTable('locations')) {
-                $locationIds = \App\Models\Location::where('location_entity', $entity->name)->pluck('id');
-                $query->whereIn('location_id', $locationIds);
-            }
-        }
-    }
+    $this->applyAssetsByCategoryFilters($query, $request);
 
     $assets = $query->get();
     $format = $request->get('format', 'pdf');
@@ -961,7 +970,7 @@ public function exportByCategory($id, Request $request)
 
 public function exportFiltered(Request $request)
 {
-    $query = Asset::with('category', 'brand');
+    $query = Asset::with(['category', 'brand', 'entity', 'location', 'latestTransaction.employee']);
     if ($request->filled('category_id')) {
         $query->where('asset_category_id', $request->category_id);
     }
@@ -984,7 +993,8 @@ public function exportFiltered(Request $request)
 
 private function exportCategoryPdf($assets, $category)
 {
-    $pdf = \PDF::loadView('assets.export-category-pdf', compact('assets', 'category'));
+    $pdf = \PDF::loadView('assets.export-category-pdf', compact('assets', 'category'))
+        ->setPaper('a4', 'landscape');
     $safeCategory = $this->safeFilenameSegment($category->category_name ?? 'category');
     return $pdf->download('assets-category-' . $safeCategory . '-' . date('Y-m-d') . '.pdf');
 }
@@ -1003,8 +1013,8 @@ private function exportCategoryExcel($assets, $category)
         
         // Headers
         fputcsv($file, [
-            '#', 'Asset ID', 'Entity', 'Brand', 'Purchase Date', 'Warranty Start', 
-            'Expiry Date', 'PO Number', 'Vendor Name', 'Value', 'Serial Number'
+            '#', 'Asset ID', 'Entity', 'Brand', 'Purchase Date', 'Warranty Start',
+            'Expiry Date', 'PO Number', 'Employee Details', 'Vendor Name', 'Value', 'Serial Number',
         ]);
 
         // Data
@@ -1018,6 +1028,7 @@ private function exportCategoryExcel($assets, $category)
                 $asset->warranty_start ?? 'N/A',
                 $asset->expiry_date ?? 'N/A',
                 $asset->po_number ?? 'N/A',
+                $this->assetEmployeeDetailsLabel($asset),
                 $asset->vendor_name ?? '-',
                 $asset->value ? number_format($asset->value, 2) : '-',
                 $asset->serial_number ?? 'N/A',

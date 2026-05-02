@@ -27,6 +27,7 @@
                 <th>Warranty Start</th>
                 <th>Expiry Date</th>
                 <th>PO Number</th>
+                <th>Employee Details</th>
                 <th>Vendor Name</th>
                 <th>Value</th>
                 <th>Serial Number</th>
@@ -43,6 +44,16 @@
                     <td>{{ $asset->warranty_start ?? 'N/A' }}</td>
                     <td>{{ $asset->expiry_date ?? 'N/A' }}</td>
                     <td>{{ $asset->po_number ?? 'N/A' }}</td>
+                    <td>
+                        @php
+                            $latestTxnEmployee = $asset->latestTransaction?->employee;
+                        @endphp
+                        @if($latestTxnEmployee)
+                            {{ $latestTxnEmployee->employee_id ?? 'N/A' }} - {{ $latestTxnEmployee->name ?? 'N/A' }}
+                        @else
+                            N/A
+                        @endif
+                    </td>
                     <td>{{ $asset->vendor_name ?? '-' }}</td>
                     <td>{{ $asset->value ? number_format($asset->value, 2) : '-' }}</td>
                     <td>{{ $asset->serial_number ?? 'N/A' }}</td>
