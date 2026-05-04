@@ -612,9 +612,11 @@ class BudgetExpenseController extends Controller
             ->values();
 
         if ($requestedIds->isNotEmpty()) {
+            // Multi-line save: print only the rows created in that save.
             $expensesQuery->whereIn('id', $requestedIds->all());
-        } elseif (!empty($expense->cost_head)) {
-            $expensesQuery->whereRaw('LOWER(cost_head) = LOWER(?)', [$expense->cost_head]);
+        } else {
+            // Single print: print only the selected expense row.
+            $expensesQuery->where('id', $expense->id);
         }
         $expenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->get();
 
