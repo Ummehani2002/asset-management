@@ -156,6 +156,7 @@
         <thead>
             <tr>
                 <th>Date</th>
+                <th>Qty</th>
                 <th>Amount (excl. VAT)</th>
                 <th>VAT</th>
                 <th>Total Amount</th>
@@ -164,16 +165,18 @@
         </thead>
         <tbody>
             @if(count($rows) > 0)
-                @php $row = $rows[0]; @endphp
-                <tr>
-                    <td>{{ $row['expense_date'] }}</td>
-                    <td>{{ $row['amount_before_vat'] ?? $row['expense_amount'] }}</td>
-                    <td>{{ $row['vat_amount'] ?? '0.00' }}</td>
-                    <td>{{ $row['expense_amount'] }}</td>
-                    <td>{{ $row['description'] }}</td>
-                </tr>
+                @foreach($rows as $row)
+                    <tr>
+                        <td>{{ $row['expense_date'] }}</td>
+                        <td>{{ $row['quantity'] ?? 1 }}</td>
+                        <td>{{ $row['amount_before_vat'] ?? $row['expense_amount'] }}</td>
+                        <td>{{ $row['vat_amount'] ?? '0.00' }}</td>
+                        <td>{{ $row['expense_amount'] }}</td>
+                        <td>{{ $row['description'] }}</td>
+                    </tr>
+                @endforeach
             @else
-                <tr><td colspan="5" class="text-center">No expense</td></tr>
+                <tr><td colspan="6" class="text-center">No expense</td></tr>
             @endif
         </tbody>
     </table>

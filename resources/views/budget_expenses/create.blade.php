@@ -87,20 +87,48 @@
             </label>
         </div>
 
-        <div class="row">
-            <div class="col-md-4 mb-3">
-                <label for="expense_amount">Amount (before VAT)</label>
-                <input type="number" step="0.01" id="expense_amount" name="expense_amount" class="form-control" required placeholder="Amount excluding VAT">
-            </div>
-            <div class="col-md-4 mb-3">
-                <label for="quantity">Quantity</label>
-                <input type="number" min="1" step="1" id="quantity" name="quantity" class="form-control" required value="{{ old('quantity', 1) }}">
-            </div>
-            <div class="col-md-4 mb-3">
-                <label for="expense_date">Expense Date</label>
-                <input type="date" id="expense_date" name="expense_date" class="form-control" required value="{{ old('expense_date', date('Y-m-d')) }}" placeholder="Select date">
-            </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0">Expense Lines</h5>
+            <button type="button" id="addLineBtn" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-circle me-1"></i>Add Line
+            </button>
         </div>
+
+        <div class="table-responsive mb-3">
+            <table class="table table-bordered align-middle mb-0" id="expenseLinesTable">
+                <thead>
+                    <tr>
+                        <th style="min-width: 180px;">Amount (before VAT)</th>
+                        <th style="min-width: 120px;">Quantity</th>
+                        <th style="min-width: 170px;">Expense Date</th>
+                        <th>Description</th>
+                        <th style="width: 80px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="expense-lines-body">
+                    <tr class="expense-line-row">
+                        <td>
+                            <input type="number" step="0.01" min="0" name="line_items[0][expense_amount]" class="form-control expense-amount" required placeholder="Amount excluding VAT">
+                        </td>
+                        <td>
+                            <input type="number" min="1" step="1" name="line_items[0][quantity]" class="form-control expense-quantity" required value="1">
+                        </td>
+                        <td>
+                            <input type="date" name="line_items[0][expense_date]" class="form-control expense-date" required value="{{ date('Y-m-d') }}">
+                        </td>
+                        <td>
+                            <textarea name="line_items[0][description]" class="form-control expense-description" rows="1" placeholder="Description"></textarea>
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn" disabled>
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
         <div class="row mb-3">
             <div class="col-md-4">
                 <p class="mb-0"><strong>VAT (<span id="vat_percent_label">5</span>%):</strong> <span id="vat_amount_preview">0.00</span></p>
@@ -165,8 +193,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const entitySelect = document.getElementById('entity_id');
     const costHeadSelect = document.getElementById('cost_head');
     const expenseTypeSelect = document.getElementById('expense_type');
-    const expenseAmount = document.getElementById('expense_amount');
-    const quantityInput = document.getElementById('quantity');
+    const expenseLinesBody = document.getElementById('expense-lines-body');
+    const addLineBtn = document.getElementById('addLineBtn');
     const entityBudgetId = document.getElementById('entity_budget_id');
     const budgetAmountEl = document.getElementById('budget_amount');
     const totalExpensesEl = document.getElementById('total_expenses');
@@ -179,8 +207,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const vatAmountPreview = document.getElementById('vat_amount_preview');
     const totalWithVatPreview = document.getElementById('total_with_vat_preview');
     const detailsUrl = "{{ route('budget-expenses.get-details') }}";
-    const storeUrl = form.action;
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_token"]').value;
     const flashPlaceholder = document.getElementById('flash-placeholder');
     const savedExpenseFromSession = @json(session('saved_expense'));
 
@@ -309,28 +335,85 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getVatPercent() { return isContractingCheck.checked ? 15 : 5; }
-    function getTotalWithVat() {
-        const amount = parseFloat(expenseAmount.value) || 0;
-        const quantity = Math.max(parseInt(quantityInput.value || '1', 10) || 1, 1);
-        const lineAmount = amount * quantity;
+
+    function getLineRows() {
+        return Array.from(expenseLinesBody.querySelectorAll('.expense-line-row'));
+    }
+
+    function refreshLineIndexes() {
+        const rows = getLineRows();
+        rows.forEach((row, index) => {
+            row.querySelector('.expense-amount').name = `line_items[${index}][expense_amount]`;
+            row.querySelector('.expense-quantity').name = `line_items[${index}][quantity]`;
+            row.querySelector('.expense-date').name = `line_items[${index}][expense_date]`;
+            row.querySelector('.expense-description').name = `line_items[${index}][description]`;
+            const removeBtn = row.querySelector('.remove-line-btn');
+            if (removeBtn) {
+                removeBtn.disabled = rows.length === 1;
+            }
+        });
+    }
+
+    function addLineItem(defaults = {}) {
+        const row = document.createElement('tr');
+        row.className = 'expense-line-row';
+        row.innerHTML = `
+            <td>
+                <input type="number" step="0.01" min="0" class="form-control expense-amount" required placeholder="Amount excluding VAT" value="${defaults.expense_amount ?? ''}">
+            </td>
+            <td>
+                <input type="number" min="1" step="1" class="form-control expense-quantity" required value="${defaults.quantity ?? 1}">
+            </td>
+            <td>
+                <input type="date" class="form-control expense-date" required value="${defaults.expense_date ?? '{{ date('Y-m-d') }}'}">
+            </td>
+            <td>
+                <textarea class="form-control expense-description" rows="1" placeholder="Description">${defaults.description ?? ''}</textarea>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        expenseLinesBody.appendChild(row);
+        refreshLineIndexes();
+        updateBalance();
+    }
+
+    function getTotals() {
         const vatPct = getVatPercent();
-        return Math.round((lineAmount * (1 + vatPct / 100)) * 100) / 100;
+        let beforeVatTotal = 0;
+        let vatTotal = 0;
+
+        getLineRows().forEach((row) => {
+            const amount = parseFloat(row.querySelector('.expense-amount').value) || 0;
+            const quantity = Math.max(parseInt(row.querySelector('.expense-quantity').value || '1', 10) || 1, 1);
+            const lineAmount = amount * quantity;
+            beforeVatTotal += lineAmount;
+            vatTotal += (lineAmount * vatPct / 100);
+        });
+
+        beforeVatTotal = Math.round(beforeVatTotal * 100) / 100;
+        vatTotal = Math.round(vatTotal * 100) / 100;
+        return {
+            vatPct,
+            beforeVatTotal,
+            vatTotal,
+            totalWithVat: Math.round((beforeVatTotal + vatTotal) * 100) / 100,
+        };
     }
 
     function updateVatPreview() {
-        const amount = parseFloat(expenseAmount.value) || 0;
-        const quantity = Math.max(parseInt(quantityInput.value || '1', 10) || 1, 1);
-        const lineAmount = amount * quantity;
-        const vatPct = getVatPercent();
-        const vatAmount = Math.round(lineAmount * vatPct / 100 * 100) / 100;
-        const total = lineAmount + vatAmount;
-        vatPercentLabel.textContent = vatPct;
-        vatAmountPreview.textContent = vatAmount.toFixed(2);
-        totalWithVatPreview.textContent = total.toFixed(2);
+        const totals = getTotals();
+        vatPercentLabel.textContent = totals.vatPct;
+        vatAmountPreview.textContent = totals.vatTotal.toFixed(2);
+        totalWithVatPreview.textContent = totals.totalWithVat.toFixed(2);
     }
 
     function updateBalance() {
-        const totalNewExpense = getTotalWithVat();
+        const totals = getTotals();
+        const totalNewExpense = totals.totalWithVat;
         const budgetAmount = parseFloat(String(budgetAmountEl.textContent).replace(/[,]/g, '')) || 0;
         const totalExpenses = parseFloat(String(totalExpensesEl.textContent).replace(/[,]/g, '')) || 0;
         newExpenseEl.textContent = totalNewExpense.toFixed(2);
@@ -360,10 +443,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     entitySelect.addEventListener('change', fetchDetails);
     costHeadSelect.addEventListener('change', fetchDetails);
+    addLineBtn.addEventListener('click', function () {
+        addLineItem();
+    });
+    expenseLinesBody.addEventListener('click', function (event) {
+        const removeBtn = event.target.closest('.remove-line-btn');
+        if (!removeBtn) return;
+        const row = removeBtn.closest('.expense-line-row');
+        if (row && getLineRows().length > 1) {
+            row.remove();
+            refreshLineIndexes();
+            updateBalance();
+        }
+    });
+    expenseLinesBody.addEventListener('input', function (event) {
+        if (event.target.closest('.expense-line-row')) {
+            updateBalance();
+        }
+    });
     updateViewHistoryLink();
-    expenseAmount.addEventListener('input', updateBalance);
-    quantityInput.addEventListener('input', updateBalance);
     isContractingCheck.addEventListener('change', updateBalance);
+    refreshLineIndexes();
     updateVatPreview();
 
     // Let the form submit normally.
