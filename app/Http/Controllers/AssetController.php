@@ -797,6 +797,8 @@ private function assetEmployeeDetailsLabel(Asset $asset): string
     $this->applyAssetsByCategoryFilters($query, $request);
 
     $assets = $query->get();
+    $selectedStatus = $request->get('status');
+    $selectedBrandId = $request->get('brand_id');
 
     // Brand list for this category (for filter dropdown)
     $brands = Brand::where('asset_category_id', $id)->orderBy('name')->get();
