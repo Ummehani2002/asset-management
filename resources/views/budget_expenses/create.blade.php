@@ -209,6 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const detailsUrl = "{{ route('budget-expenses.get-details') }}";
     const flashPlaceholder = document.getElementById('flash-placeholder');
     const savedExpenseFromSession = @json(session('saved_expense'));
+    const savedPrintUrlFromSession = @json(session('print_url'));
 
     function renderFlash(message, type = 'success', printUrl = null) {
         let html = `<div class="alert alert-${type}">${message}`;
@@ -310,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         expenses.forEach(exp => {
             const editUrl = exp.id ? (editExpenseBase + '/' + exp.id + '/edit') : '#';
-            const printUrl = exp.id ? (editExpenseBase + '/' + exp.id + '/print') : '#';
+            const printUrl = exp.print_url ? exp.print_url : (exp.id ? (editExpenseBase + '/' + exp.id + '/print') : '#');
             tbody.innerHTML += `
                 <tr>
                     <td>${exp.expense_date}</td>
@@ -327,6 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (savedExpenseFromSession && savedExpenseFromSession.id) {
+        savedExpenseFromSession.print_url = savedPrintUrlFromSession || savedExpenseFromSession.print_url || null;
         renderExpenses([savedExpenseFromSession], {
             entity_name: savedExpenseFromSession.entity_name,
             cost_head: savedExpenseFromSession.cost_head,

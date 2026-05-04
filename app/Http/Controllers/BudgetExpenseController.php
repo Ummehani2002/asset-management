@@ -219,11 +219,13 @@ class BudgetExpenseController extends Controller
                 'cost_head' => $validated['cost_head'] ?: ($budget->cost_head ?? '—'),
                 'expense_type' => $budget->expense_type,
                 'balance_after' => number_format($availableBalance, 2),
+                'print_url' => null,
             ];
 
             $savedExpenseIds = $savedExpenses->pluck('id')->map(fn ($id) => (int) $id)->values();
             $idsQuery = $savedExpenseIds->implode(',');
             $printUrl = route('budget-expenses.print', $latestSavedExpense->id) . ($idsQuery !== '' ? ('?ids=' . $idsQuery) : '');
+            $latestExpense['print_url'] = $printUrl;
 
             $payload = [
                 'success' => true,
