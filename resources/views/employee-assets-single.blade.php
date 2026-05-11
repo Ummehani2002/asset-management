@@ -17,6 +17,7 @@
                 <th>Asset ID</th>
                 <th>Category</th>
                 <th>Brand</th>
+                <th>Entity</th>
                 <th>Serial Number</th>
                 <th>PO Number</th>
                 <th>Location Name</th>
@@ -25,7 +26,7 @@
             </tr>
         </thead>
         <tbody id="assetTableBody">
-            <tr><td colspan="9" class="text-center text-muted">Search an employee to view their assets.</td></tr>
+            <tr><td colspan="10" class="text-center text-muted">Search an employee to view their assets.</td></tr>
         </tbody>
     </table>
 </div>
@@ -81,6 +82,7 @@ $(document).ready(function(){
                                 <td>${asset.asset_id}</td>
                                 <td>${asset.category}</td>
                                 <td>${asset.brand}</td>
+                                <td>${asset.entity || '-'}</td>
                                 <td>${asset.serial_number}</td>
                                 <td>${asset.po_number}</td>
                                 <td>${asset.location}</td>
@@ -90,7 +92,7 @@ $(document).ready(function(){
                         `);
                     });
                 } else {
-                    tableBody.append('<tr><td colspan="9" class="text-center text-muted">No assets assigned to this employee.</td></tr>');
+                    tableBody.append('<tr><td colspan="10" class="text-center text-muted">No assets assigned to this employee.</td></tr>');
                 }
             },
             error: function(){

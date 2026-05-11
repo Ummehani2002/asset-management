@@ -14,6 +14,9 @@
 <body>
     <h2>Employee Assets Report</h2>
     <p><strong>Employee:</strong> {{ $employeeName }}</p>
+    @if(!empty($employeeEntity))
+        <p><strong>Employee entity:</strong> {{ $employeeEntity }}</p>
+    @endif
     <p>Generated on: {{ date('Y-m-d H:i:s') }}</p>
     <p><strong>Total Assets:</strong> {{ count($assets) }}</p>
     
@@ -24,6 +27,7 @@
                 <th>Asset ID</th>
                 <th>Category</th>
                 <th>Brand</th>
+                <th>Entity</th>
                 <th>Serial Number</th>
                 <th>PO Number</th>
                 <th>Location Name</th>
@@ -38,6 +42,7 @@
                     <td>{{ $asset['asset_id'] }}</td>
                     <td>{{ $asset['category'] }}</td>
                     <td>{{ $asset['brand'] }}</td>
+                    <td>{{ $asset['entity'] ?? '-' }}</td>
                     <td>{{ $asset['serial_number'] }}</td>
                     <td>{{ $asset['po_number'] }}</td>
                     <td>{{ $asset['location'] }}</td>

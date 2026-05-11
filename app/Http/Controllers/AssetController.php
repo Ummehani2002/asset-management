@@ -783,10 +783,48 @@ private function assetEmployeeDetailsLabel(Asset $asset): string
     return ($emp->employee_id ?? 'N/A') . ' - ' . ($emp->name ?? 'N/A');
 }
 
+/**
+ * Model label: explicit model_number, else first feature whose name contains "model".
+ */
+private function assetModelDisplay(Asset $asset): string
+{
+    if (!empty($asset->model_number)) {
+        return trim((string) $asset->model_number);
+    }
+    foreach ($asset->featureValues ?? [] as $fv) {
+        $name = strtolower((string) ($fv->feature->feature_name ?? ''));
+        if (str_contains($name, 'model')) {
+            $v = trim((string) ($fv->feature_value ?? ''));
+            if ($v !== '') {
+                return $v;
+            }
+        }
+    }
+
+    return 'N/A';
+}
+
+/**
+ * Semicolon-separated "Feature: value" for CSV/PDF cells.
+ */
+private function assetFeaturesSummary(Asset $asset): string
+{
+    $parts = [];
+    foreach ($asset->featureValues ?? [] as $fv) {
+        $label = $fv->feature->feature_name ?? 'Feature';
+        $val = trim((string) ($fv->feature_value ?? ''));
+        if ($val !== '') {
+            $parts[] = $label . ': ' . $val;
+        }
+    }
+
+    return $parts === [] ? 'N/A' : implode('; ', $parts);
+}
+
    public function assetsByCategory(Request $request, $id)
 {
     $category = AssetCategory::findOrFail($id);
-    $query = Asset::with('category', 'brand', 'location', 'entity', 'latestTransaction.employee')
+    $query = Asset::with('category', 'brand', 'location', 'entity', 'latestTransaction.employee', 'featureValues.feature')
                 ->where('asset_category_id', $id);
 
     $selectedEntity = null;
@@ -955,7 +993,7 @@ public function getAssetsByCategoryApi($id)
 public function exportByCategory($id, Request $request)
 {
     $category = AssetCategory::findOrFail($id);
-    $query = Asset::with('category', 'brand', 'entity', 'location', 'latestTransaction.employee')
+    $query = Asset::with('category', 'brand', 'entity', 'location', 'latestTransaction.employee', 'featureValues.feature')
                 ->where('asset_category_id', $id);
 
     $this->applyAssetsByCategoryFilters($query, $request);
@@ -972,7 +1010,7 @@ public function exportByCategory($id, Request $request)
 
 public function exportFiltered(Request $request)
 {
-    $query = Asset::with(['category', 'brand', 'entity', 'location', 'latestTransaction.employee']);
+    $query = Asset::with(['category', 'brand', 'entity', 'location', 'latestTransaction.employee', 'featureValues.feature']);
     if ($request->filled('category_id')) {
         $query->where('asset_category_id', $request->category_id);
     }
@@ -1015,7 +1053,7 @@ private function exportCategoryExcel($assets, $category)
         
         // Headers
         fputcsv($file, [
-            '#', 'Asset ID', 'Entity', 'Brand', 'Purchase Date', 'Warranty Start',
+            '#', 'Asset ID', 'Entity', 'Brand', 'Model', 'Features', 'Purchase Date', 'Warranty Start',
             'Expiry Date', 'PO Number', 'Employee Details', 'Vendor Name', 'Value', 'Serial Number',
         ]);
 
@@ -1026,6 +1064,8 @@ private function exportCategoryExcel($assets, $category)
                 $asset->asset_id ?? 'N/A',
                 $asset->entity->name ?? $asset->location->location_entity ?? 'N/A',
                 $asset->brand->name ?? 'N/A',
+                $this->assetModelDisplay($asset),
+                $this->assetFeaturesSummary($asset),
                 $asset->purchase_date ?? 'N/A',
                 $asset->warranty_start ?? 'N/A',
                 $asset->expiry_date ?? 'N/A',
@@ -1394,7 +1434,7 @@ public function getAssetsByEmployee($id)
 
     // Get all assets with status 'assigned'
     $assignedAssets = \App\Models\Asset::where('status', 'assigned')
-        ->with(['category', 'brand', 'location', 'latestTransaction.location'])
+        ->with(['category', 'brand', 'location', 'entity', 'latestTransaction.location'])
         ->get();
 
     \Log::info("Total assigned assets: " . $assignedAssets->count());
@@ -1435,10 +1475,14 @@ public function getAssetsByEmployee($id)
                 $locationName = $asset->location->location_name;
             }
         }
+        $entityLabel = $asset->entity->name ?? ($employee->entity_name ?? '-');
+
         return [
+            'employee_entity' => $employee->entity_name ?? '-',
             'asset_id' => $asset->asset_id ?? '-',
             'category' => $asset->category ? $asset->category->category_name : '-',
             'brand' => $asset->brand ? $asset->brand->name : '-',
+            'entity' => $entityLabel,
             'serial_number' => $asset->serial_number ?? '-',
             'po_number' => $asset->po_number ?? '-',
             'location' => $locationName,

@@ -23,6 +23,8 @@
                 <th>Asset ID</th>
                 <th>Entity</th>
                 <th>Brand</th>
+                <th>Model</th>
+                <th>Features</th>
                 <th>Purchase Date</th>
                 <th>Warranty Start</th>
                 <th>Expiry Date</th>
@@ -40,6 +42,27 @@
                     <td>{{ $asset->asset_id ?? 'N/A' }}</td>
                     <td>{{ $asset->entity->name ?? $asset->location->location_entity ?? 'N/A' }}</td>
                     <td>{{ $asset->brand->name ?? 'N/A' }}</td>
+                    <td>
+                        @php
+                            $modelCell = $asset->model_number;
+                            if (empty($modelCell)) {
+                                foreach ($asset->featureValues ?? [] as $fv) {
+                                    if (str_contains(strtolower((string) ($fv->feature->feature_name ?? '')), 'model')) {
+                                        $modelCell = $fv->feature_value;
+                                        break;
+                                    }
+                                }
+                            }
+                        @endphp
+                        {{ $modelCell ?: 'N/A' }}
+                    </td>
+                    <td style="font-size: 10px; max-width: 220px;">
+                        @forelse($asset->featureValues ?? [] as $fv)
+                            <div><strong>{{ $fv->feature->feature_name ?? 'N/A' }}</strong>: {{ $fv->feature_value ?? '—' }}</div>
+                        @empty
+                            N/A
+                        @endforelse
+                    </td>
                     <td>{{ $asset->purchase_date ?? 'N/A' }}</td>
                     <td>{{ $asset->warranty_start ?? 'N/A' }}</td>
                     <td>{{ $asset->expiry_date ?? 'N/A' }}</td>

@@ -32,6 +32,8 @@
        
     </div>
 
+    <p id="employeeEntitySummary" class="text-muted small mb-2" style="display: none;"></p>
+
     <div class="form-group position-relative mb-4">
         <label for="employee_name" class="form-label fw-semibold">Search Employee</label>
         <input type="text" id="employee_name" class="form-control form-control-lg" 
@@ -63,6 +65,7 @@
                             <th>Asset ID</th>
                             <th>Category</th>
                             <th>Brand</th>
+                            <th>Entity</th>
                             <th>Serial Number</th>
                             <th>PO Number</th>
                             <th>Location Name</th>
@@ -71,7 +74,7 @@
                         </tr>
                     </thead>
                     <tbody id="assetTableBody">
-                        <tr><td colspan="9" class="text-center text-muted py-4">Search an employee to view their assets.</td></tr>
+                        <tr><td colspan="10" class="text-center text-muted py-4">Search an employee to view their assets.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -108,9 +111,10 @@ $(document).ready(function(){
                             data.forEach(function(employee){
                                 let displayName = employee.name || employee.entity_name || 'N/A';
                                 let employeeId = employee.employee_id || '';
+                                let ent = employee.entity_name || '';
                                 let dept = employee.department_name || '';
                                 let designation = employee.designation || '';
-                                let extra = [employeeId, dept, designation].filter(Boolean).join(' · ');
+                                let extra = [employeeId, ent, dept, designation].filter(Boolean).join(' · ');
                                 let highlight = query.length > 0 ? displayName.replace(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '<strong>$&</strong>') : displayName;
                                 
                                 employeeList.append(`
@@ -155,8 +159,13 @@ $(document).ready(function(){
             success: function(data){
                 let tableBody = $('#assetTableBody');
                 tableBody.empty();
+                $('#employeeEntitySummary').hide().text('');
 
                 if (data.length > 0) {
+                    const ee = data[0].employee_entity || '';
+                    if (ee && ee !== '-') {
+                        $('#employeeEntitySummary').text('Employee entity: ' + ee).show();
+                    }
                     data.forEach(function(asset, index){
                         tableBody.append(`
                             <tr>
@@ -164,6 +173,7 @@ $(document).ready(function(){
                                 <td>${asset.asset_id}</td>
                                 <td>${asset.category}</td>
                                 <td>${asset.brand}</td>
+                                <td>${asset.entity || '-'}</td>
                                 <td>${asset.serial_number}</td>
                                 <td>${asset.po_number}</td>
                                 <td>${asset.location}</td>
@@ -175,7 +185,7 @@ $(document).ready(function(){
                     // Show download button
                     $('#downloadDropdown').show();
                 } else {
-                    tableBody.append('<tr><td colspan="9" class="text-center text-muted">No assets assigned to this employee.</td></tr>');
+                    tableBody.append('<tr><td colspan="10" class="text-center text-muted">No assets assigned to this employee.</td></tr>');
                     $('#downloadDropdown').hide();
                 }
             },

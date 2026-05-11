@@ -60,7 +60,7 @@ public function export($id, Request $request)
 
     // Use same logic as AssetController::getAssetsByEmployee - only currently assigned assets
     $assignedAssets = Asset::where('status', 'assigned')
-        ->with(['category', 'brand', 'location', 'latestTransaction.location'])
+        ->with(['category', 'brand', 'location', 'entity', 'latestTransaction.location'])
         ->get()
         ->filter(function ($asset) use ($id) {
             $latestTxn = $asset->latestTransaction;
@@ -88,10 +88,14 @@ public function export($id, Request $request)
                 $locationName = $asset->location->location_name;
             }
         }
+        $entityLabel = $asset->entity->name ?? ($employee->entity_name ?? '-');
+
         return [
+            'employee_entity' => $employee->entity_name ?? '-',
             'asset_id' => $asset->asset_id ?? '-',
             'category' => $asset->category ? $asset->category->category_name : '-',
             'brand' => $asset->brand ? $asset->brand->name : '-',
+            'entity' => $entityLabel,
             'serial_number' => $asset->serial_number ?? '-',
             'po_number' => $asset->po_number ?? '-',
             'location' => $locationName,
@@ -102,17 +106,18 @@ public function export($id, Request $request)
 
     $format = $request->get('format', 'pdf');
     $employeeName = $employee->name ?? $employee->entity_name ?? 'Employee';
+    $employeeEntity = $employee->entity_name ?? null;
 
     if ($format === 'excel' || $format === 'csv') {
         return $this->exportExcel($assets, $employeeName);
     } else {
-        return $this->exportPdf($assets, $employeeName);
+        return $this->exportPdf($assets, $employeeName, $employeeEntity);
     }
 }
 
-private function exportPdf($assets, $employeeName)
+private function exportPdf($assets, $employeeName, $employeeEntity = null)
 {
-    $html = view('employee-assets.export-pdf', compact('assets', 'employeeName'))->render();
+    $html = view('employee-assets.export-pdf', compact('assets', 'employeeName', 'employeeEntity'))->render();
     return response()->streamDownload(function() use ($html) {
         echo $html;
     }, 'employee-assets-' . str_replace(' ', '-', $employeeName) . '-' . date('Y-m-d') . '.html', [
@@ -133,8 +138,8 @@ private function exportExcel($assets, $employeeName)
         
         // Headers
         fputcsv($file, [
-            '#', 'Asset ID', 'Category', 'Brand', 'Serial Number', 
-            'PO Number', 'Location Name', 'Issue Date', 'Status'
+            '#', 'Asset ID', 'Category', 'Brand', 'Entity',
+            'Serial Number', 'PO Number', 'Location Name', 'Issue Date', 'Status',
         ]);
 
         // Data
@@ -144,6 +149,7 @@ private function exportExcel($assets, $employeeName)
                 $asset['asset_id'],
                 $asset['category'],
                 $asset['brand'],
+                $asset['entity'] ?? '-',
                 $asset['serial_number'],
                 $asset['po_number'],
                 $asset['location'],

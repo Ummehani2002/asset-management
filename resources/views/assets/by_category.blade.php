@@ -81,11 +81,13 @@
                                 <th>Entity</th>
                                 <th>Status</th>
                                 <th>Brand</th>
+                                <th>Model</th>
                                 <th>Serial Number</th>
                                 <th>Purchase Date</th>
                                 <th>Warranty Start</th>
                                 <th>Expiry Date</th>
                                 <th>PO Number</th>
+                                <th>Features</th>
                                 <th>Employee Details</th>
                                 <th>Vendor Name</th>
                                 <th>Value</th>
@@ -109,11 +111,36 @@
                                         @endif
                                     </td>
                                     <td>{{ $asset->brand->name ?? 'N/A' }}</td>
+                                    <td>
+                                        @php
+                                            $modelCell = $asset->model_number;
+                                            if (empty($modelCell)) {
+                                                foreach ($asset->featureValues as $fv) {
+                                                    if (str_contains(strtolower((string) ($fv->feature->feature_name ?? '')), 'model')) {
+                                                        $modelCell = $fv->feature_value;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        {{ $modelCell ?: 'N/A' }}
+                                    </td>
                                     <td>{{ $asset->serial_number ?? 'N/A' }}</td>
                                     <td>{{ $asset->purchase_date ?? 'N/A' }}</td>
                                     <td>{{ $asset->warranty_start ?? 'N/A' }}</td>
                                     <td>{{ $asset->expiry_date ?? 'N/A' }}</td>
                                     <td>{{ $asset->po_number ?? 'N/A' }}</td>
+                                    <td style="min-width: 200px;">
+                                        @if($asset->featureValues->count() > 0)
+                                            <ul class="mb-0 ps-3" style="font-size: 12px;">
+                                                @foreach($asset->featureValues as $fv)
+                                                    <li><strong>{{ $fv->feature->feature_name ?? 'N/A' }}</strong>: {{ $fv->feature_value ?? '—' }}</li>
+                                                @endforeach
+                                            </ul>
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
                                     <td>
                                         @php
                                             $latestTxnEmployee = $asset->latestTransaction?->employee;
