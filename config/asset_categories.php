@@ -34,7 +34,7 @@ return [
         'CCTV Camera',
         'NVR / DVR',
         'Projector',
-        'Monitor',
+        // Monitor: assign to employee (same as Laptop/Desktop), not project name
         'Keyboard',
         'Mouse',
         'Docking Station',
