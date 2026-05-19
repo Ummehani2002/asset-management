@@ -28,7 +28,7 @@
                 <select id="entity_id" name="entity_id" class="form-control" required>
                     <option value="">Select Entity</option>
                     @foreach($entities as $entity)
-                        <option value="{{ $entity->id }}">{{ $entity->entity_name }}</option>
+                        <option value="{{ $entity->id }}">{{ $entity->name }}</option>
                     @endforeach
                 </select>
             </div>

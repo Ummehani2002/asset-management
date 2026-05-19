@@ -22,7 +22,7 @@
                 <select name="entity_id" id="entity_id" class="form-select">
                     <option value="">All Entities</option>
                     @foreach($entities as $entity)
-                        <option value="{{ $entity->id }}" {{ $selectedEntityId == $entity->id ? 'selected' : '' }}>{{ $entity->entity_name }}</option>
+                        <option value="{{ $entity->id }}" {{ $selectedEntityId == $entity->id ? 'selected' : '' }}>{{ $entity->name }}</option>
                     @endforeach
                 </select>
             </div>

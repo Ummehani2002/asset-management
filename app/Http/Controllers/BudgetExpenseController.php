@@ -4,6 +4,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Helpers\EntityHelper;
+use App\Models\Entity;
 use App\Models\EntityBudget;
 use App\Models\BudgetExpense;
 use App\Models\Employee;
@@ -30,27 +32,7 @@ class BudgetExpenseController extends Controller
                 ->with('error', 'Database connection failed. Please check your database credentials.');
         }
         
-        // Get unique entities - one employee per unique entity_name
-        if (Schema::hasTable('employees')) {
-            try {
-                $uniqueEntityNames = Employee::whereNotNull('entity_name')
-                    ->where('entity_name', '!=', '')
-                    ->distinct()
-                    ->pluck('entity_name')
-                    ->toArray();
-                
-                // Then get the first employee for each unique entity_name
-                $entities = collect($uniqueEntityNames)->map(function($entityName) {
-                    return Employee::where('entity_name', $entityName)->first();
-                })->filter()->values();
-                
-                if (!$entities instanceof \Illuminate\Support\Collection) {
-                    $entities = collect($entities);
-                }
-            } catch (\Exception $e) {
-                Log::warning('Error loading entities: ' . $e->getMessage());
-            }
-        }
+        $entities = EntityHelper::getEntityRecords();
         
         // Cost heads: predefined list (from cost heads master) + any from existing entity budgets
         $costHeadsList = \App\Http\Controllers\EntityBudgetController::getCostHeadsList();
@@ -277,16 +259,7 @@ class BudgetExpenseController extends Controller
         $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription', 'Network'];
         $costHeadsWithTypes = [];
 
-        if (Schema::hasTable('employees')) {
-            $uniqueEntityNames = Employee::whereNotNull('entity_name')
-                ->where('entity_name', '!=', '')
-                ->distinct()
-                ->pluck('entity_name')
-                ->toArray();
-            $entities = collect($uniqueEntityNames)->map(function ($entityName) {
-                return Employee::where('entity_name', $entityName)->first();
-            })->filter()->values();
-        }
+        $entities = EntityHelper::getEntityRecords();
 
         $costHeadsList = \App\Http\Controllers\EntityBudgetController::getCostHeadsList();
         foreach ($costHeadsList as $item) {
@@ -403,39 +376,32 @@ class BudgetExpenseController extends Controller
                 ]);
             }
             
-            // Get the selected employee to find their entity_name
-            $selectedEmployee = Employee::find($request->entity_id);
-            
-            if (!$selectedEmployee) {
-                Log::warning('BudgetExpense getBudgetDetails: Employee not found with ID: ' . $request->entity_id);
+            $masterEntity = Entity::find((int) $request->entity_id);
+            if (!$masterEntity) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Employee not found'
+                    'message' => 'Entity not found'
                 ]);
             }
+
+            $employeeIds = EntityHelper::employeeIdsForEntityId((int) $request->entity_id);
             
             Log::info('BudgetExpense getBudgetDetails: Searching for budget', [
                 'entity_id' => $request->entity_id,
-                'entity_name' => $selectedEmployee->entity_name,
+                'entity_name' => $masterEntity->name,
                 'cost_head' => $request->cost_head,
                 'expense_type' => $request->expense_type
             ]);
             
-            // Find budget by entity_name (to include all employees with same entity)
-            // Get all employee IDs with this entity_name for direct query
-            $employeeIds = Employee::where('entity_name', $selectedEmployee->entity_name)
-                ->pluck('id')
-                ->toArray();
-            
             Log::info('BudgetExpense getBudgetDetails: Employee IDs for entity', [
-                'entity_name' => $selectedEmployee->entity_name,
+                'entity_name' => $masterEntity->name,
                 'employee_ids' => $employeeIds,
                 'cost_head' => $request->cost_head,
                 'expense_type' => $request->expense_type
             ]);
             
             if (empty($employeeIds)) {
-                Log::warning('BudgetExpense getBudgetDetails: No employees found for entity_name: ' . $selectedEmployee->entity_name);
+                Log::warning('BudgetExpense getBudgetDetails: No employees found for entity: ' . $masterEntity->name);
                 return response()->json([
                     'success' => false,
                     'message' => 'No employees found for selected entity'
@@ -456,7 +422,7 @@ class BudgetExpenseController extends Controller
             
             if (!$budget) {
                 Log::warning('BudgetExpense getBudgetDetails: No budget found', [
-                    'entity_name' => $selectedEmployee->entity_name,
+                    'entity_name' => $masterEntity->name,
                     'expense_type' => $request->expense_type
                 ]);
                 
@@ -529,11 +495,7 @@ class BudgetExpenseController extends Controller
      */
     public function expenseHistory(Request $request)
     {
-        $entities = collect([]);
-        if (Schema::hasTable('employees')) {
-            $uniqueEntityNames = Employee::whereNotNull('entity_name')->where('entity_name', '!=', '')->distinct()->pluck('entity_name')->toArray();
-            $entities = collect($uniqueEntityNames)->map(fn ($n) => Employee::where('entity_name', $n)->first())->filter()->values();
-        }
+        $entities = EntityHelper::getEntityRecords();
         $expenseTypes = ['Maintenance', 'Capex Software', 'Capex Hardware', 'Subscription', 'Network'];
         $costHeadsWithTypes = \App\Http\Controllers\EntityBudgetController::getCostHeadsList();
         $costHeadsByType = collect($costHeadsWithTypes)->groupBy('expense_type')->map(fn ($g) => $g->pluck('name')->toArray())->toArray();
@@ -546,9 +508,10 @@ class BudgetExpenseController extends Controller
         $totalExpensesAll = 0;
 
         if ($request->filled('entity_id') && $request->filled('cost_head') && $request->filled('expense_type')) {
-            $selectedEmployee = Employee::find($request->entity_id);
-            if ($selectedEmployee) {
-                $employeeIds = Employee::where('entity_name', $selectedEmployee->entity_name)->pluck('id')->toArray();
+            $masterEntity = Entity::find((int) $request->entity_id);
+            if ($masterEntity) {
+                $entityName = $masterEntity->name;
+                $employeeIds = EntityHelper::employeeIdsForEntityId((int) $request->entity_id);
                 $costHeadReq = $request->filled('cost_head') ? trim($request->cost_head) : null;
                 $budgetQuery = EntityBudget::with('employee')
                     ->whereIn('employee_id', $employeeIds)

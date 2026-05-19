@@ -14,7 +14,7 @@
                     <select name="entity_id" id="entity_id" class="form-select" required>
                         <option value="">Select Entity</option>
                         @foreach($entities as $entity)
-                            <option value="{{ $entity->id }}" {{ request('entity_id') == $entity->id ? 'selected' : '' }}>{{ $entity->entity_name }}</option>
+                            <option value="{{ $entity->id }}" {{ request('entity_id') == $entity->id ? 'selected' : '' }}>{{ $entity->name }}</option>
                         @endforeach
                     </select>
                 </div>

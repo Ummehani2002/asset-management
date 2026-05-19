@@ -4,6 +4,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Helpers\EntityHelper;
 use App\Models\EntityBudget;
 use App\Models\Employee;
 use App\Models\BudgetExpense;
@@ -80,31 +81,8 @@ class EntityBudgetController extends Controller
                     ->with('error', 'Unable to check database tables. Please verify database connection.');
             }
             
-            // Get unique entities - one employee per unique entity_name
-            if ($hasEmployees) {
-                try {
-                    // First get all distinct entity names
-                    $uniqueEntityNames = Employee::whereNotNull('entity_name')
-                        ->where('entity_name', '!=', '')
-                        ->distinct()
-                        ->pluck('entity_name')
-                        ->toArray();
-                    
-                    // Then get the first employee for each unique entity_name
-                    $entities = collect($uniqueEntityNames)->map(function($entityName) {
-                        return Employee::where('entity_name', $entityName)->first();
-                    })->filter()->values();
-                    
-                    // Ensure it's a collection
-                    if (!$entities instanceof \Illuminate\Support\Collection) {
-                        $entities = collect($entities);
-                    }
-                } catch (\Illuminate\Database\QueryException $e) {
-                    Log::error('EntityBudget create: Entities query error: ' . $e->getMessage());
-                } catch (\Exception $e) {
-                    Log::warning('Error loading entities: ' . $e->getMessage());
-                }
-            }
+            // Entity dropdown: Entity Master only (not every employee entity_name variant)
+            $entities = EntityHelper::getEntityRecords();
             
             // Filter budgets by entity and expense type (year = current year; All = no filter)
             $selectedYear = (int) date('Y');
@@ -118,17 +96,10 @@ class EntityBudgetController extends Controller
                         $query->whereNotNull($yearColumn);
                     }
 
-                    if ($request->filled('entity_id') && $hasEmployees) {
-                        $selectedEntity = Employee::find($request->entity_id);
-                        if ($selectedEntity) {
-                            $employeeIds = Employee::where('entity_name', $selectedEntity->entity_name)
-                                ->pluck('id')
-                                ->toArray();
-                            if (!empty($employeeIds)) {
-                                $query->whereIn('employee_id', $employeeIds);
-                            } else {
-                                $query->whereRaw('1 = 0');
-                            }
+                    if ($request->filled('entity_id')) {
+                        $employeeIds = EntityHelper::employeeIdsForEntityId((int) $request->entity_id);
+                        if (!empty($employeeIds)) {
+                            $query->whereIn('employee_id', $employeeIds);
                         } else {
                             $query->whereRaw('1 = 0');
                         }
@@ -189,15 +160,13 @@ class EntityBudgetController extends Controller
         $entityName = 'All Entities';
         
         if ($request->filled('entity_id')) {
-            $selectedEntity = Employee::find($request->entity_id);
-            if ($selectedEntity) {
-                $employeeIds = Employee::where('entity_name', $selectedEntity->entity_name)
-                    ->pluck('id')
-                    ->toArray();
+            $masterEntity = \App\Models\Entity::find((int) $request->entity_id);
+            if ($masterEntity) {
+                $entityName = $masterEntity->name;
+                $employeeIds = EntityHelper::employeeIdsForEntityId((int) $request->entity_id);
                 if (!empty($employeeIds)) {
                     $query->whereIn('employee_id', $employeeIds);
                 }
-                $entityName = $selectedEntity->entity_name;
             }
         }
 
@@ -275,12 +244,20 @@ class EntityBudgetController extends Controller
             }
 
             $validated = $request->validate([
-                'entity_id' => 'required|exists:employees,id',
+                'entity_id' => 'required|exists:entities,id',
                 'expense_type' => 'required|string',
                 'cost_head' => 'required|string|max:255',
                 'budget_year' => 'required|integer|min:2020|max:2100',
                 'budget_amount' => 'required|numeric|min:0'
             ]);
+
+            $representativeEmployeeId = EntityHelper::representativeEmployeeIdForEntityId((int) $validated['entity_id']);
+            if (!$representativeEmployeeId) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->withErrors(['entity_id' => 'No employees found for this entity. Add employees in Employee Master with matching entity name.']);
+            }
             
             $yearColumn = 'budget_' . $validated['budget_year'];
             
@@ -292,7 +269,7 @@ class EntityBudgetController extends Controller
             }
             
             // Enforce one budget per Entity + Expense Type + Year + Cost Head
-            $existing = EntityBudget::where('employee_id', $validated['entity_id'])
+            $existing = EntityBudget::where('employee_id', $representativeEmployeeId)
                 ->where('expense_type', $validated['expense_type'])
                 ->where('cost_head', $validated['cost_head'])
                 ->whereNotNull($yearColumn)
@@ -310,7 +287,7 @@ class EntityBudgetController extends Controller
             }
 
             $budget = EntityBudget::create([
-                'employee_id' => $validated['entity_id'],
+                'employee_id' => $representativeEmployeeId,
                 'cost_head' => $validated['cost_head'],
                 'expense_type' => $validated['expense_type'],
                 'category' => $request->get('category', 'Overhead'),
@@ -352,7 +329,7 @@ class EntityBudgetController extends Controller
             }
 
             $validated = $request->validate([
-                'entity_id' => 'required|exists:employees,id',
+                'entity_id' => 'required|exists:entities,id',
                 'expense_type' => 'required|string|in:Maintenance,Capex Software,Capex Hardware,Subscription,Network',
                 'budget_year' => 'required|integer|min:2020|max:2100',
                 'budget_amount' => 'required|numeric|min:0',
@@ -363,18 +340,17 @@ class EntityBudgetController extends Controller
                 return redirect()->back()->withInput()->withErrors(['error' => 'Budget column for year ' . $validated['budget_year'] . ' does not exist.']);
             }
 
-            $employee = Employee::findOrFail($validated['entity_id']);
+            $employeeIds = EntityHelper::employeeIdsForEntityId((int) $validated['entity_id']);
+            if (empty($employeeIds)) {
+                return redirect()->back()->withInput()->withErrors(['entity_id' => 'No employees found for this entity.']);
+            }
+            $entityRepresentativeId = $employeeIds[0];
+
             $costHeadsList = self::getCostHeadsList();
             $costHeadsForType = array_filter($costHeadsList, fn ($ch) => $ch['expense_type'] === $validated['expense_type']);
             if (empty($costHeadsForType)) {
                 return redirect()->back()->withInput()->withErrors(['error' => 'No cost heads found for expense type: ' . $validated['expense_type']]);
             }
-
-            $employeeIds = Employee::where('entity_name', $employee->entity_name)->pluck('id')->toArray();
-            if (empty($employeeIds)) {
-                return redirect()->back()->withInput()->withErrors(['error' => 'No employees found for entity.']);
-            }
-            $entityRepresentativeId = $employeeIds[0];
 
             $count = 0;
             foreach ($costHeadsForType as $ch) {
@@ -415,8 +391,9 @@ class EntityBudgetController extends Controller
     public function destroy($id)
     {
         try {
-            $budget = EntityBudget::findOrFail($id);
-            $entityId = $budget->employee_id;
+            $budget = EntityBudget::with('employee')->findOrFail($id);
+            $entityId = EntityHelper::masterEntityIdForEmployeeName($budget->employee->entity_name ?? null)
+                ?? $budget->employee_id;
             $budget->delete();
             return redirect()->route('entity_budget.create', ['entity_id' => $entityId])
                 ->with('success', 'Budget deleted successfully.');
@@ -484,11 +461,7 @@ class EntityBudgetController extends Controller
      */
     public function transactionHistory(Request $request)
     {
-        $entities = collect([]);
-        if (Schema::hasTable('employees')) {
-            $uniqueEntityNames = Employee::whereNotNull('entity_name')->where('entity_name', '!=', '')->distinct()->pluck('entity_name')->toArray();
-            $entities = collect($uniqueEntityNames)->map(fn ($n) => Employee::where('entity_name', $n)->first())->filter()->values();
-        }
+        $entities = EntityHelper::getEntityRecords();
         
         // Get expense types for filter
         $expenseTypes = ['Maintenance', 'Capex'];
@@ -505,16 +478,17 @@ class EntityBudgetController extends Controller
         $budgetIds = [];
         
         if ($selectedEntityId) {
-            // Filter by specific entity
-            $selectedEmployee = Employee::find($selectedEntityId);
-            if ($selectedEmployee) {
-                $entityName = $selectedEmployee->entity_name;
-                $employeeIds = Employee::where('entity_name', $entityName)->pluck('id')->toArray();
-                $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
-                if ($selectedExpenseType) {
-                    $budgetQuery->where('expense_type', $selectedExpenseType);
+            $masterEntity = \App\Models\Entity::find($selectedEntityId);
+            if ($masterEntity) {
+                $entityName = $masterEntity->name;
+                $employeeIds = EntityHelper::employeeIdsForEntityId($selectedEntityId);
+                if (!empty($employeeIds)) {
+                    $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
+                    if ($selectedExpenseType) {
+                        $budgetQuery->where('expense_type', $selectedExpenseType);
+                    }
+                    $budgetIds = $budgetQuery->pluck('id')->toArray();
                 }
-                $budgetIds = $budgetQuery->pluck('id')->toArray();
             }
         } else {
             // All entities - get all budget IDs (optionally filtered by expense type)
@@ -549,15 +523,17 @@ class EntityBudgetController extends Controller
         $budgetIds = [];
         
         if ($entityId) {
-            $selectedEmployee = Employee::find($entityId);
-            if ($selectedEmployee) {
-                $entityName = $selectedEmployee->entity_name;
-                $employeeIds = Employee::where('entity_name', $entityName)->pluck('id')->toArray();
-                $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
-                if ($expenseType) {
-                    $budgetQuery->where('expense_type', $expenseType);
+            $masterEntity = \App\Models\Entity::find((int) $entityId);
+            if ($masterEntity) {
+                $entityName = $masterEntity->name;
+                $employeeIds = EntityHelper::employeeIdsForEntityId((int) $entityId);
+                if (!empty($employeeIds)) {
+                    $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
+                    if ($expenseType) {
+                        $budgetQuery->where('expense_type', $expenseType);
+                    }
+                    $budgetIds = $budgetQuery->pluck('id')->toArray();
                 }
-                $budgetIds = $budgetQuery->pluck('id')->toArray();
             }
         } else {
             $budgetQuery = EntityBudget::query();
@@ -592,15 +568,17 @@ class EntityBudgetController extends Controller
         $budgetIds = [];
         
         if ($entityId) {
-            $selectedEmployee = Employee::find($entityId);
-            if ($selectedEmployee) {
-                $entityName = $selectedEmployee->entity_name;
-                $employeeIds = Employee::where('entity_name', $entityName)->pluck('id')->toArray();
-                $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
-                if ($expenseType) {
-                    $budgetQuery->where('expense_type', $expenseType);
+            $masterEntity = \App\Models\Entity::find((int) $entityId);
+            if ($masterEntity) {
+                $entityName = $masterEntity->name;
+                $employeeIds = EntityHelper::employeeIdsForEntityId((int) $entityId);
+                if (!empty($employeeIds)) {
+                    $budgetQuery = EntityBudget::whereIn('employee_id', $employeeIds);
+                    if ($expenseType) {
+                        $budgetQuery->where('expense_type', $expenseType);
+                    }
+                    $budgetIds = $budgetQuery->pluck('id')->toArray();
                 }
-                $budgetIds = $budgetQuery->pluck('id')->toArray();
             }
         } else {
             $budgetQuery = EntityBudget::query();

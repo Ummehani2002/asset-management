@@ -33,7 +33,7 @@
                         <option value="">Select Entity</option>
                         @foreach($entities as $entity)
                             <option value="{{ $entity->id }}" {{ (request('entity_id') == $entity->id || old('entity_id') == $entity->id) ? 'selected' : '' }}>
-                                {{ $entity->entity_name }}
+                                {{ $entity->name }}
                             </option>
                         @endforeach
                     </select>
