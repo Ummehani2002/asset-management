@@ -72,6 +72,8 @@
                                 <th>Transaction ID</th>
                                 <th>Asset</th>
                                 <th>Category</th>
+                                <th>Model Number</th>
+                                <th>Features</th>
                                 <th>Type</th>
                                 <th>Status</th>
                                 <th>Assigned To</th>
@@ -92,6 +94,7 @@
                                         <small class="text-muted">{{ $t->asset->serial_number ?? 'N/A' }}</small>
                                     </td>
                                     <td>{{ $t->asset->assetCategory->category_name ?? 'N/A' }}</td>
+                                    @include('partials.asset_master_model_features', ['asset' => $t->asset])
                                     <td>
                                         <span class="badge 
                                             @if($t->transaction_type == 'assign') bg-success

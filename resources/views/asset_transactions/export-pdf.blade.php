@@ -26,6 +26,8 @@
                 <th>Asset ID</th>
                 <th>Serial Number</th>
                 <th>Category</th>
+                <th>Model Number</th>
+                <th>Features</th>
                 <th>Transaction Type</th>
                 <th>Status</th>
                 <th>Employee/Project</th>
@@ -46,6 +48,8 @@
                     <td>{{ $t->asset->asset_id ?? 'N/A' }}</td>
                     <td>{{ $t->asset->serial_number ?? 'N/A' }}</td>
                     <td>{{ $t->asset->assetCategory->category_name ?? 'N/A' }}</td>
+                    <td>{{ $t->asset ? $t->asset->resolveDisplayModel() : 'N/A' }}</td>
+                    <td style="font-size: 10px;">{{ $t->asset ? $t->asset->resolveFeaturesSummary() : 'N/A' }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $t->transaction_type)) }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $t->asset->status ?? 'N/A')) }}</td>
                     <td>{{ $t->employee->name ?? $t->project_name ?? 'N/A' }}</td>

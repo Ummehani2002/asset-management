@@ -30,6 +30,19 @@ class AssetTransactionController extends Controller
         return array_map('strtolower', config('asset_categories.project_name_categories', []));
     }
 
+    /** Eager loads for asset master model + features on transaction lists/exports. */
+    private function transactionListEagerLoads(): array
+    {
+        return [
+            'asset.assetCategory',
+            'asset.location',
+            'asset.brand',
+            'asset.featureValues.feature',
+            'employee',
+            'location',
+        ];
+    }
+
     public function index(Request $request)
     {
         try {
@@ -41,7 +54,7 @@ class AssetTransactionController extends Controller
                     ->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
 
-            $query = AssetTransaction::with(['asset.assetCategory', 'asset.location', 'employee', 'location']);
+            $query = AssetTransaction::with($this->transactionListEagerLoads());
 
         // Filter by asset status - show all transactions for assets with this status
         // Default to showing only assigned assets if no filter is explicitly set
@@ -209,7 +222,7 @@ class AssetTransactionController extends Controller
 
     public function view(Request $request)
     {
-        $query = AssetTransaction::with(['asset.assetCategory', 'asset.location', 'employee', 'location']);
+        $query = AssetTransaction::with($this->transactionListEagerLoads());
 
         // Filter by type
         if ($request->filled('filter')) {
@@ -342,7 +355,7 @@ class AssetTransactionController extends Controller
 
     public function export(Request $request)
     {
-        $query = AssetTransaction::with(['asset.assetCategory', 'employee', 'location']);
+        $query = AssetTransaction::with($this->transactionListEagerLoads());
 
         // Check if user wants to download all transactions (ignoring filters)
         $downloadAll = $request->get('download_all', false);
@@ -507,8 +520,8 @@ class AssetTransactionController extends Controller
             
             // Headers
             fputcsv($file, [
-                '#', 'Transaction ID', 'Asset ID', 'Serial Number', 'Category', 'Transaction Type', 
-                'Status', 'Employee/Project', 'Entity', 'Location', 'Issue Date', 'Return Date', 
+                '#', 'Transaction ID', 'Asset ID', 'Serial Number', 'Category', 'Model Number', 'Features',
+                'Transaction Type', 'Status', 'Employee/Project', 'Entity', 'Location', 'Issue Date', 'Return Date',
                 'Receive Date', 'Delivery Date', 'Created At'
             ]);
 
@@ -520,12 +533,15 @@ class AssetTransactionController extends Controller
                 if ($entityDisplay !== 'N/A') {
                     $entityDisplay = ucwords($entityDisplay);
                 }
+                $asset = $t->asset;
                 fputcsv($file, [
                     $index + 1,
                     $t->id,
-                    $t->asset->asset_id ?? 'N/A',
-                    $t->asset->serial_number ?? 'N/A',
-                    $t->asset->assetCategory->category_name ?? 'N/A',
+                    $asset->asset_id ?? 'N/A',
+                    $asset->serial_number ?? 'N/A',
+                    $asset->assetCategory->category_name ?? 'N/A',
+                    $asset ? $asset->resolveDisplayModel() : 'N/A',
+                    $asset ? $asset->resolveFeaturesSummary() : 'N/A',
                     ucfirst(str_replace('_', ' ', $t->transaction_type)),
                     $status,
                     $assignedTo,
