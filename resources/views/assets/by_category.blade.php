@@ -10,12 +10,23 @@
                     <i class="bi bi-download me-1"></i>Download
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="downloadDropdown">
-                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'pdf'] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : []) + ['status' => request('status'), 'brand_id' => request('brand_id')]) }}">
-                        <i class="bi bi-file-earmark-pdf me-2"></i>PDF
-                    </a></li>
-                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'csv'] + (isset($selectedEntity) && $selectedEntity ? ['entity' => $selectedEntity->id] : []) + ['status' => request('status'), 'brand_id' => request('brand_id')]) }}">
-                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
-                    </a></li>
+                    @php
+                        $exportQuery = array_filter([
+                            'entity' => $selectedEntity->id ?? null,
+                            'brand_id' => request('brand_id'),
+                        ]);
+                    @endphp
+                    <li><h6 class="dropdown-header">All (current filters)</h6></li>
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'pdf'] + $exportQuery + ['status' => request('status')]) }}"><i class="bi bi-file-earmark-pdf me-2"></i>PDF</a></li>
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'csv'] + $exportQuery + ['status' => request('status')]) }}"><i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><h6 class="dropdown-header">Available only</h6></li>
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'pdf'] + $exportQuery + ['status' => 'available']) }}"><i class="bi bi-file-earmark-pdf me-2"></i>PDF</a></li>
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'csv'] + $exportQuery + ['status' => 'available']) }}"><i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><h6 class="dropdown-header">Assigned only</h6></li>
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'pdf'] + $exportQuery + ['status' => 'assigned']) }}"><i class="bi bi-file-earmark-pdf me-2"></i>PDF</a></li>
+                    <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', ['id' => $category->id, 'format' => 'csv'] + $exportQuery + ['status' => 'assigned']) }}"><i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV</a></li>
                 </ul>
             </div>
             <a href="{{ route('dashboard') }}{{ isset($selectedEntity) && $selectedEntity ? '?entity=' . $selectedEntity->id : '' }}" class="btn btn-sm btn-secondary">
@@ -111,20 +122,7 @@
                                         @endif
                                     </td>
                                     <td>{{ $asset->brand->name ?? 'N/A' }}</td>
-                                    <td>
-                                        @php
-                                            $modelCell = $asset->model_number;
-                                            if (empty($modelCell)) {
-                                                foreach ($asset->featureValues as $fv) {
-                                                    if (str_contains(strtolower((string) ($fv->feature->feature_name ?? '')), 'model')) {
-                                                        $modelCell = $fv->feature_value;
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        @endphp
-                                        {{ $modelCell ?: 'N/A' }}
-                                    </td>
+                                    <td>{{ $asset->display_model }}</td>
                                     <td>{{ $asset->serial_number ?? 'N/A' }}</td>
                                     <td>{{ $asset->purchase_date ?? 'N/A' }}</td>
                                     <td>{{ $asset->warranty_start ?? 'N/A' }}</td>

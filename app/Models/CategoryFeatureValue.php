@@ -17,4 +17,10 @@ class CategoryFeatureValue extends Model
     return $this->belongsTo(CategoryFeature::class, 'category_feature_id');
 }
 
+    /** Alias used in some views as $fv->value */
+    public function getValueAttribute(): ?string
+    {
+        return $this->attributes['feature_value'] ?? null;
+    }
+
 }

@@ -81,4 +81,31 @@ public function featureValues()
 {
     return $this->hasMany(CategoryFeatureValue::class, 'asset_id');
 }
+
+    /**
+     * Display model: assets.model_number, else category feature whose name contains "model".
+     */
+    public function resolveDisplayModel(): string
+    {
+        if (!empty($this->model_number)) {
+            return trim((string) $this->model_number);
+        }
+
+        foreach ($this->relationLoaded('featureValues') ? $this->featureValues : $this->featureValues()->with('feature')->get() as $fv) {
+            $name = strtolower((string) ($fv->feature->feature_name ?? ''));
+            if (preg_match('/\bmodel\b|model\s*no|model\s*number|model\s*name/i', $name)) {
+                $val = trim((string) ($fv->feature_value ?? ''));
+                if ($val !== '') {
+                    return $val;
+                }
+            }
+        }
+
+        return 'N/A';
+    }
+
+    public function getDisplayModelAttribute(): string
+    {
+        return $this->resolveDisplayModel();
+    }
 }
