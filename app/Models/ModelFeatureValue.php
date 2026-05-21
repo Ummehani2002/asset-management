@@ -17,4 +17,10 @@ class ModelFeatureValue extends Model
     {
         return $this->belongsTo(CategoryFeature::class, 'category_feature_id');
     }
+
+    /** Alias used like CategoryFeatureValue::feature */
+    public function feature()
+    {
+        return $this->categoryFeature();
+    }
 }

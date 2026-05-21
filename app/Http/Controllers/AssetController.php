@@ -638,11 +638,9 @@ private function mapRowToAsset(array $data, $defaultEntityName, bool $useTempora
         'status' => 'available',
     ];
 
-    if ($useTemporaryPrinterFormat) {
-        $modelNumber = $normalize('MODEL') ?: $normalize('Model') ?: $normalize('Model No') ?: $normalize('MODEL NO');
-        if (!empty($modelNumber)) {
-            $assetData['model_number'] = $modelNumber;
-        }
+    $modelNumber = $normalize('MODEL') ?: $normalize('Model') ?: $normalize('Model No') ?: $normalize('MODEL NO');
+    if (!empty($modelNumber) && Schema::hasColumn('assets', 'model_number')) {
+        $assetData['model_number'] = $modelNumber;
     }
 
     if (Schema::hasColumn('assets', 'warranty_years') && $warrantyStart && $expiryDate) {
@@ -792,21 +790,16 @@ private function assetModelDisplay(Asset $asset): string
 }
 
 /**
- * Status label for list/export (Assigned, Available, Returned, …).
+ * Status label for list/export (Assigned, Available — returned counts as available).
  */
 private function assetStatusLabel(Asset $asset): string
 {
     if ($asset->status === 'assigned') {
         return 'Assigned';
     }
-    if (($asset->latestTransaction?->transaction_type ?? null) === 'return') {
-        return 'Returned';
-    }
-    if ($asset->status === 'available') {
+    if (in_array($asset->status, ['available', 'returned'], true)
+        || ($asset->latestTransaction?->transaction_type ?? null) === 'return') {
         return 'Available';
-    }
-    if ($asset->status === 'returned') {
-        return 'Returned';
     }
 
     return ucfirst(str_replace('_', ' ', $asset->status ?? 'N/A'));
@@ -817,16 +810,7 @@ private function assetStatusLabel(Asset $asset): string
  */
 private function assetFeaturesSummary(Asset $asset): string
 {
-    $parts = [];
-    foreach ($asset->featureValues ?? [] as $fv) {
-        $label = $fv->feature->feature_name ?? 'Feature';
-        $val = trim((string) ($fv->feature_value ?? ''));
-        if ($val !== '') {
-            $parts[] = $label . ': ' . $val;
-        }
-    }
-
-    return $parts === [] ? 'N/A' : implode('; ', $parts);
+    return $asset->resolveFeaturesSummary();
 }
 
    public function assetsByCategory(Request $request, $id)
@@ -1089,6 +1073,42 @@ private function exportCategoryExcel($assets, $category)
     return response()->stream($callback, 200, $headers);
 }
 
+/**
+ * Persist brand model master feature values onto the asset (skip existing rows).
+ */
+private function copyBrandModelFeaturesToAsset(Asset $asset, int $brandModelId): void
+{
+    if (!Schema::hasTable('model_feature_values') || !Schema::hasTable('category_feature_values')) {
+        return;
+    }
+
+    $modelValues = \App\Models\ModelFeatureValue::where('brand_model_id', $brandModelId)->get();
+    foreach ($modelValues as $mfv) {
+        $featureId = (int) $mfv->category_feature_id;
+        $value = trim((string) ($mfv->feature_value ?? ''));
+        if ($featureId <= 0 || $value === '') {
+            continue;
+        }
+
+        $exists = \DB::table('category_feature_values')
+            ->where('asset_id', $asset->id)
+            ->where('category_feature_id', $featureId)
+            ->exists();
+
+        if ($exists) {
+            continue;
+        }
+
+        \DB::table('category_feature_values')->insert([
+            'asset_id' => $asset->id,
+            'category_feature_id' => $featureId,
+            'feature_value' => $value,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+}
+
 private function safeFilenameSegment(string $value): string
 {
     $safe = preg_replace('/[^A-Za-z0-9._-]+/', '-', trim($value));
@@ -1321,6 +1341,10 @@ public function store(Request $request)
             } else {
                 Log::warning('category_feature_values table does not exist. Feature values not saved. Run migrations: php artisan migrate --force');
             }
+        }
+
+        if ($request->filled('brand_model_id') && Schema::hasTable('category_feature_values')) {
+            $this->copyBrandModelFeaturesToAsset($asset, (int) $request->brand_model_id);
         }
 
         return redirect()->back()->with('success', 'Asset saved successfully!');

@@ -45,12 +45,8 @@
                     <td>
                         @if($asset->status === 'assigned')
                             Assigned
-                        @elseif(($asset->latestTransaction?->transaction_type ?? null) === 'return')
-                            Returned
-                        @elseif($asset->status === 'available')
+                        @elseif(in_array($asset->status, ['available', 'returned'], true) || ($asset->latestTransaction?->transaction_type ?? null) === 'return')
                             Available
-                        @elseif($asset->status === 'returned')
-                            Returned
                         @else
                             {{ ucfirst(str_replace('_', ' ', $asset->status ?? 'N/A')) }}
                         @endif
@@ -58,10 +54,11 @@
                     <td>{{ $asset->brand->name ?? 'N/A' }}</td>
                     <td>{{ $asset->display_model }}</td>
                     <td style="font-size: 10px; max-width: 220px;">
-                        @forelse($asset->featureValues ?? [] as $fv)
-                            <div><strong>{{ $fv->feature->feature_name ?? 'N/A' }}</strong>: {{ $fv->feature_value ?? '—' }}</div>
+                        @php $featureEntries = $asset->resolveFeatureEntries(); @endphp
+                        @forelse($featureEntries as $entry)
+                            <div><strong>{{ $entry['label'] }}</strong>: {{ $entry['value'] }}</div>
                         @empty
-                            —
+                            N/A
                         @endforelse
                     </td>
                     <td>{{ $asset->purchase_date ?? 'N/A' }}</td>

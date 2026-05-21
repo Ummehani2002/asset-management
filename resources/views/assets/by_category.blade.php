@@ -118,10 +118,11 @@
                                     <td>{{ $asset->expiry_date ?? 'N/A' }}</td>
                                     <td>{{ $asset->po_number ?? 'N/A' }}</td>
                                     <td style="min-width: 200px;">
-                                        @if($asset->featureValues->count() > 0)
+                                        @php $featureEntries = $asset->resolveFeatureEntries(); @endphp
+                                        @if(count($featureEntries) > 0)
                                             <ul class="mb-0 ps-3" style="font-size: 12px;">
-                                                @foreach($asset->featureValues as $fv)
-                                                    <li><strong>{{ $fv->feature->feature_name ?? 'N/A' }}</strong>: {{ $fv->feature_value ?? '—' }}</li>
+                                                @foreach($featureEntries as $entry)
+                                                    <li><strong>{{ $entry['label'] }}</strong>: {{ $entry['value'] }}</li>
                                                 @endforeach
                                             </ul>
                                         @else
