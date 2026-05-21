@@ -991,6 +991,7 @@ public function exportByCategory($id, Request $request)
     $this->applyAssetsByCategoryFilters($query, $request);
 
     $assets = $query->get();
+    $this->persistResolvedModelDataForExport($assets);
     $format = $request->get('format', 'pdf');
 
     if ($format === 'excel' || $format === 'csv') {
@@ -1010,6 +1011,7 @@ public function exportFiltered(Request $request)
         $query->where('serial_number', 'LIKE', '%' . $request->serial_number . '%');
     }
     $assets = $query->get();
+    $this->persistResolvedModelDataForExport($assets);
 
     $category = $request->filled('category_id')
         ? AssetCategory::find($request->category_id)
@@ -1071,6 +1073,37 @@ private function exportCategoryExcel($assets, $category)
     };
 
     return response()->stream($callback, 200, $headers);
+}
+
+/**
+ * Before export: save resolved model number + brand model features onto assets that are missing them.
+ */
+private function persistResolvedModelDataForExport($assets): void
+{
+    if (!Schema::hasTable('category_feature_values')) {
+        return;
+    }
+
+    foreach ($assets as $asset) {
+        $brandModel = $asset->linkedBrandModel();
+        if (!$brandModel) {
+            continue;
+        }
+
+        if (Schema::hasColumn('assets', 'model_number')) {
+            $currentModel = trim((string) ($asset->model_number ?? ''));
+            $resolvedModel = trim((string) ($brandModel->model_number ?? ''));
+            if ($currentModel === '' && $resolvedModel !== '') {
+                $asset->model_number = $resolvedModel;
+                Asset::where('id', $asset->id)->update(['model_number' => $resolvedModel]);
+            }
+        }
+
+        if ($asset->featureValues->isEmpty()) {
+            $this->copyBrandModelFeaturesToAsset($asset, (int) $brandModel->id);
+            $asset->load('featureValues.feature');
+        }
+    }
 }
 
 /**

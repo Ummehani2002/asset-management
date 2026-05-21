@@ -65,7 +65,7 @@ class BackfillAssetModelFeatures extends Command
                     $insertedRows++;
                 }
 
-                if ($assetInserts > 0 && empty($asset->model_number) && !empty($brandModel->model_number) && Schema::hasColumn('assets', 'model_number')) {
+                if (empty($asset->model_number) && !empty($brandModel->model_number) && Schema::hasColumn('assets', 'model_number')) {
                     if (!$dryRun) {
                         $asset->update(['model_number' => $brandModel->model_number]);
                     }

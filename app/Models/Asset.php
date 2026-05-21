@@ -82,33 +82,121 @@ public function featureValues()
     return $this->hasMany(CategoryFeatureValue::class, 'asset_id');
 }
 
+    /** @var array<string, BrandModel|null> */
+    private static array $linkedBrandModelCache = [];
+
     /**
      * Brand model master row (model_number + default feature values).
      */
     public function linkedBrandModel(): ?BrandModel
     {
+        $cacheKey = (int) ($this->brand_id ?? 0) . '::' . strtolower(trim((string) ($this->model_number ?? '')));
+        if (array_key_exists($cacheKey, self::$linkedBrandModelCache)) {
+            return self::$linkedBrandModelCache[$cacheKey];
+        }
+
+        self::$linkedBrandModelCache[$cacheKey] = $this->resolveLinkedBrandModel();
+
+        return self::$linkedBrandModelCache[$cacheKey];
+    }
+
+    private function resolveLinkedBrandModel(): ?BrandModel
+    {
         if (!$this->brand_id || !\Illuminate\Support\Facades\Schema::hasTable('brand_models')) {
             return null;
         }
 
-        $query = BrandModel::where('brand_id', $this->brand_id);
+        $brandIds = $this->brandIdsForModelLookup();
+        $modelNumber = trim((string) ($this->model_number ?? ''));
 
-        if (!empty($this->model_number)) {
-            $match = (clone $query)->where('model_number', $this->model_number)->first();
-            if ($match) {
-                return $match;
+        if ($modelNumber !== '') {
+            $needle = strtolower($modelNumber);
+
+            return BrandModel::whereIn('brand_id', $brandIds)
+                ->get()
+                ->first(fn (BrandModel $m) => strtolower(trim((string) ($m->model_number ?? ''))) === $needle);
+        }
+
+        $models = BrandModel::whereIn('brand_id', $brandIds)->get();
+        if ($models->isEmpty()) {
+            return null;
+        }
+        if ($models->count() === 1) {
+            return $models->first();
+        }
+
+        $scored = $models->map(function (BrandModel $model) {
+            $filled = 0;
+            if (\Illuminate\Support\Facades\Schema::hasTable('model_feature_values')) {
+                $filled = ModelFeatureValue::where('brand_model_id', $model->id)
+                    ->get()
+                    ->filter(fn (ModelFeatureValue $mfv) => $this->modelFeatureValueHasContent($mfv->feature_value))
+                    ->count();
+            }
+
+            return ['model' => $model, 'filled' => $filled];
+        })
+            ->filter(fn (array $row) => $row['filled'] > 0)
+            ->sortByDesc('filled')
+            ->values();
+
+        if ($scored->isEmpty()) {
+            return null;
+        }
+
+        return $scored->first()['model'];
+    }
+
+    /**
+     * Same brand name can exist on multiple brand rows; merge them for model lookup.
+     *
+     * @return array<int, int>
+     */
+    private function brandIdsForModelLookup(): array
+    {
+        $ids = [(int) $this->brand_id];
+
+        if (!\Illuminate\Support\Facades\Schema::hasTable('brands')) {
+            return $ids;
+        }
+
+        if (!$this->relationLoaded('brand')) {
+            $this->load('brand');
+        }
+
+        $brand = $this->brand;
+        if (!$brand || empty($brand->asset_category_id)) {
+            return $ids;
+        }
+
+        $siblings = Brand::where('asset_category_id', $brand->asset_category_id)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $brand->name))])
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_values(array_unique(array_merge($ids, $siblings)));
+    }
+
+    private function modelFeatureValueHasContent(?string $value): bool
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return false;
+        }
+
+        $decoded = @json_decode($value, true);
+        if (!is_array($decoded)) {
+            return true;
+        }
+
+        foreach ($decoded as $subVal) {
+            if (trim((string) $subVal) !== '') {
+                return true;
             }
         }
 
-        // If brand has only one model, use it when asset has no model_number saved.
-        if (empty($this->model_number)) {
-            $models = $query->get();
-            if ($models->count() === 1) {
-                return $models->first();
-            }
-        }
-
-        return null;
+        return false;
     }
 
     /**
