@@ -76,6 +76,7 @@
                                 <th>Features</th>
                                 <th>Type</th>
                                 <th>Status</th>
+                                <th>Employee ID</th>
                                 <th>Assigned To</th>
                                 <th>Entity</th>
                                 <th>Location</th>
@@ -114,14 +115,7 @@
                                             {{ ucfirst(str_replace('_', ' ', $t->asset->status ?? 'N/A')) }}
                                         </span>
                                     </td>
-                                    <td>
-                                        @if($t->transaction_type == 'system_maintenance')
-                                            {{ $t->employee->name ?? 'N/A' }} <br>
-                                            <small class="text-muted">(Maintenance)</small>
-                                        @else
-                                            {{ $t->employee->name ?? $t->project_name ?? 'N/A' }}
-                                        @endif
-                                    </td>
+                                    @include('partials.transaction_employee_display', ['transaction' => $t])
                                     <td>{{ ucwords(trim(optional($t->location)->location_entity ?? optional($t->asset->location)->location_entity ?? $t->employee->entity_name ?? '')) ?: 'N/A' }}</td>
                                     <td>{{ $t->location->location_name ?? optional($t->asset->location)->location_name ?? 'N/A' }}</td>
                                     <td>

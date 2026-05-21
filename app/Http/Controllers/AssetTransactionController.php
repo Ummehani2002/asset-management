@@ -30,6 +30,29 @@ class AssetTransactionController extends Controller
         return array_map('strtolower', config('asset_categories.project_name_categories', []));
     }
 
+    private function transactionEmployeeIdLabel(AssetTransaction $t): string
+    {
+        if ($t->employee && !empty($t->employee->employee_id)) {
+            return (string) $t->employee->employee_id;
+        }
+
+        return 'N/A';
+    }
+
+    private function transactionAssignedToLabel(AssetTransaction $t): string
+    {
+        if ($t->transaction_type === 'system_maintenance') {
+            $name = $t->employee->name ?? 'N/A';
+
+            return $name . ' (Maintenance)';
+        }
+        if ($t->employee) {
+            return $t->employee->name ?? 'N/A';
+        }
+
+        return $t->project_name ?? 'N/A';
+    }
+
     /** Eager loads for asset master model + features on transaction lists/exports. */
     private function transactionListEagerLoads(): array
     {
@@ -521,13 +544,14 @@ class AssetTransactionController extends Controller
             // Headers
             fputcsv($file, [
                 '#', 'Transaction ID', 'Asset ID', 'Serial Number', 'Category', 'Model Number', 'Features',
-                'Transaction Type', 'Status', 'Employee/Project', 'Entity', 'Location', 'Issue Date', 'Return Date',
+                'Transaction Type', 'Status', 'Employee ID', 'Assigned To', 'Entity', 'Location', 'Issue Date', 'Return Date',
                 'Receive Date', 'Delivery Date', 'Created At'
             ]);
 
             // Data
             foreach ($transactions as $index => $t) {
-                $assignedTo = $t->employee->name ?? $t->project_name ?? 'N/A';
+                $employeeId = $this->transactionEmployeeIdLabel($t);
+                $assignedTo = $this->transactionAssignedToLabel($t);
                 $status = $t->asset->status ?? 'N/A';
                 $entityDisplay = trim(optional($t->location)->location_entity ?? $t->employee->entity_name ?? '') ?: 'N/A';
                 if ($entityDisplay !== 'N/A') {
@@ -544,6 +568,7 @@ class AssetTransactionController extends Controller
                     $asset ? $asset->resolveFeaturesSummary() : 'N/A',
                     ucfirst(str_replace('_', ' ', $t->transaction_type)),
                     $status,
+                    $employeeId,
                     $assignedTo,
                     $entityDisplay,
                     $t->location->location_name ?? 'N/A',

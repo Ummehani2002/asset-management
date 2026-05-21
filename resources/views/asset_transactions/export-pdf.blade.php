@@ -30,7 +30,8 @@
                 <th>Features</th>
                 <th>Transaction Type</th>
                 <th>Status</th>
-                <th>Employee/Project</th>
+                <th>Employee ID</th>
+                <th>Assigned To</th>
                 <th>Entity</th>
                 <th>Location</th>
                 <th>Issue Date</th>
@@ -52,7 +53,14 @@
                     <td style="font-size: 10px;">{{ $t->asset ? $t->asset->resolveFeaturesSummary() : 'N/A' }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $t->transaction_type)) }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $t->asset->status ?? 'N/A')) }}</td>
-                    <td>{{ $t->employee->name ?? $t->project_name ?? 'N/A' }}</td>
+                    <td>{{ $t->employee->employee_id ?? 'N/A' }}</td>
+                    <td>
+                        @if($t->transaction_type === 'system_maintenance')
+                            {{ $t->employee->name ?? 'N/A' }} (Maintenance)
+                        @else
+                            {{ $t->employee->name ?? $t->project_name ?? 'N/A' }}
+                        @endif
+                    </td>
                     <td>{{ ucwords(trim(optional($t->location)->location_entity ?? $t->employee->entity_name ?? '')) ?: 'N/A' }}</td>
                     <td>{{ $t->location->location_name ?? 'N/A' }}</td>
                     <td>{{ $t->issue_date ?? 'N/A' }}</td>
