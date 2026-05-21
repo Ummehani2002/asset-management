@@ -9,19 +9,12 @@
         th { background-color: #4CAF50; color: white; }
         tr:nth-child(even) { background-color: #f2f2f2; }
         h2 { color: #333; }
-        .stats { margin: 12px 0; padding: 10px; background: #f5f5f5; border: 1px solid #ddd; }
-        .stats span { margin-right: 20px; }
     </style>
 </head>
 <body>
     <h2>Assets Report - {{ $category->category_name }}</h2>
     <p>Generated on: {{ date('Y-m-d H:i:s') }}</p>
-    <div class="stats">
-        <strong>Filter:</strong> {{ $statusLabel ?? 'All statuses' }}<br>
-        <span><strong>Total in report:</strong> {{ $exportStats['total'] ?? $assets->count() }}</span>
-        <span><strong>Assigned:</strong> {{ $exportStats['assigned'] ?? 0 }}</span>
-        <span><strong>Available:</strong> {{ $exportStats['available'] ?? 0 }}</span>
-    </div>
+    <p><strong>Total Assets:</strong> {{ $assets->count() }}</p>
     
     <table>
         <thead>
@@ -49,7 +42,19 @@
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $asset->asset_id ?? 'N/A' }}</td>
                     <td>{{ $asset->entity->name ?? $asset->location->location_entity ?? 'N/A' }}</td>
-                    <td>{{ ucfirst(str_replace('_', ' ', $asset->status ?? 'N/A')) }}</td>
+                    <td>
+                        @if($asset->status === 'assigned')
+                            Assigned
+                        @elseif(($asset->latestTransaction?->transaction_type ?? null) === 'return')
+                            Returned
+                        @elseif($asset->status === 'available')
+                            Available
+                        @elseif($asset->status === 'returned')
+                            Returned
+                        @else
+                            {{ ucfirst(str_replace('_', ' ', $asset->status ?? 'N/A')) }}
+                        @endif
+                    </td>
                     <td>{{ $asset->brand->name ?? 'N/A' }}</td>
                     <td>{{ $asset->display_model }}</td>
                     <td style="font-size: 10px; max-width: 220px;">

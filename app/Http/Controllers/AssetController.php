@@ -791,13 +791,25 @@ private function assetModelDisplay(Asset $asset): string
     return $asset->resolveDisplayModel();
 }
 
-private function exportStatusLabel(?string $status): string
+/**
+ * Status label for list/export (Assigned, Available, Returned, …).
+ */
+private function assetStatusLabel(Asset $asset): string
 {
-    return match ($status) {
-        'assigned' => 'Assigned',
-        'available' => 'Available',
-        default => 'All statuses',
-    };
+    if ($asset->status === 'assigned') {
+        return 'Assigned';
+    }
+    if (($asset->latestTransaction?->transaction_type ?? null) === 'return') {
+        return 'Returned';
+    }
+    if ($asset->status === 'available') {
+        return 'Available';
+    }
+    if ($asset->status === 'returned') {
+        return 'Returned';
+    }
+
+    return ucfirst(str_replace('_', ' ', $asset->status ?? 'N/A'));
 }
 
 /**
@@ -997,13 +1009,11 @@ public function exportByCategory($id, Request $request)
     $assets = $query->get();
     $format = $request->get('format', 'pdf');
 
-    $statusLabel = $this->exportStatusLabel($request->get('status'));
-
     if ($format === 'excel' || $format === 'csv') {
-        return $this->exportCategoryExcel($assets, $category, $statusLabel);
+        return $this->exportCategoryExcel($assets, $category);
     }
 
-    return $this->exportCategoryPdf($assets, $category, $statusLabel);
+    return $this->exportCategoryPdf($assets, $category);
 }
 
 public function exportFiltered(Request $request)
@@ -1021,48 +1031,32 @@ public function exportFiltered(Request $request)
         ? AssetCategory::find($request->category_id)
         : (object)['category_name' => 'Filtered'];
 
-    $statusLabel = $this->exportStatusLabel($request->get('status'));
     if ($format === 'excel' || $format === 'csv') {
-        return $this->exportCategoryExcel($assets, $category, $statusLabel);
+        return $this->exportCategoryExcel($assets, $category);
     }
 
-    return $this->exportCategoryPdf($assets, $category, $statusLabel);
+    return $this->exportCategoryPdf($assets, $category);
 }
 
-private function exportCategoryPdf($assets, $category, string $statusLabel = 'All statuses')
+private function exportCategoryPdf($assets, $category)
 {
-    $exportStats = [
-        'total' => $assets->count(),
-        'assigned' => $assets->where('status', 'assigned')->count(),
-        'available' => $assets->filter(fn ($a) => in_array($a->status, ['available', 'returned'], true))->count(),
-    ];
-
-    $pdf = \PDF::loadView('assets.export-category-pdf', compact('assets', 'category', 'statusLabel', 'exportStats'))
+    $pdf = \PDF::loadView('assets.export-category-pdf', compact('assets', 'category'))
         ->setPaper('a4', 'landscape');
     $safeCategory = $this->safeFilenameSegment($category->category_name ?? 'category');
-    $statusPart = $statusLabel !== 'All statuses' ? '-' . strtolower(str_replace(' ', '-', $statusLabel)) : '';
-    return $pdf->download('assets-category-' . $safeCategory . $statusPart . '-' . date('Y-m-d') . '.pdf');
+    return $pdf->download('assets-category-' . $safeCategory . '-' . date('Y-m-d') . '.pdf');
 }
 
-private function exportCategoryExcel($assets, $category, string $statusLabel = 'All statuses')
+private function exportCategoryExcel($assets, $category)
 {
     $safeCategory = $this->safeFilenameSegment($category->category_name ?? 'category');
-    $statusPart = $statusLabel !== 'All statuses' ? '-' . strtolower(str_replace(' ', '-', $statusLabel)) : '';
-    $filename = 'assets-category-' . $safeCategory . $statusPart . '-' . date('Y-m-d') . '.csv';
+    $filename = 'assets-category-' . $safeCategory . '-' . date('Y-m-d') . '.csv';
     $headers = [
         'Content-Type' => 'text/csv',
         'Content-Disposition' => 'attachment; filename="' . $filename . '"',
     ];
 
-    $callback = function() use ($assets, $statusLabel) {
+    $callback = function() use ($assets) {
         $file = fopen('php://output', 'w');
-
-        fputcsv($file, ['Report', $category->category_name ?? 'Category']);
-        fputcsv($file, ['Filter', $statusLabel]);
-        fputcsv($file, ['Total', $assets->count()]);
-        fputcsv($file, ['Assigned', $assets->where('status', 'assigned')->count()]);
-        fputcsv($file, ['Available', $assets->filter(fn ($a) => in_array($a->status, ['available', 'returned'], true))->count()]);
-        fputcsv($file, []);
 
         fputcsv($file, [
             '#', 'Asset ID', 'Entity', 'Status', 'Brand', 'Model', 'Features', 'Purchase Date', 'Warranty Start',
@@ -1070,12 +1064,11 @@ private function exportCategoryExcel($assets, $category, string $statusLabel = '
         ]);
 
         foreach ($assets as $index => $asset) {
-            $status = ucfirst(str_replace('_', ' ', $asset->status ?? 'N/A'));
             fputcsv($file, [
                 $index + 1,
                 $asset->asset_id ?? 'N/A',
                 $asset->entity->name ?? $asset->location->location_entity ?? 'N/A',
-                $status,
+                $this->assetStatusLabel($asset),
                 $asset->brand->name ?? 'N/A',
                 $this->assetModelDisplay($asset),
                 $this->assetFeaturesSummary($asset),

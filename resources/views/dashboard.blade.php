@@ -135,21 +135,17 @@
                                             <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                                 <i class="bi bi-download"></i> Download
                                             </button>
-                                            @php
-                                                $dashExportBase = array_filter(['id' => $category->id, 'entity' => $selectedEntityId ?? null]);
-                                            @endphp
                                             <ul class="dropdown-menu dropdown-menu-end">
-                                                <li><h6 class="dropdown-header">All ({{ $category->assets_count }})</h6></li>
-                                                <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', $dashExportBase + ['format' => 'pdf']) }}"><i class="bi bi-file-pdf me-2"></i>PDF</a></li>
-                                                <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', $dashExportBase + ['format' => 'csv']) }}"><i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV</a></li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><h6 class="dropdown-header">Available ({{ $category->available_count ?? 0 }})</h6></li>
-                                                <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', $dashExportBase + ['format' => 'pdf', 'status' => 'available']) }}"><i class="bi bi-file-pdf me-2"></i>PDF</a></li>
-                                                <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', $dashExportBase + ['format' => 'csv', 'status' => 'available']) }}"><i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV</a></li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><h6 class="dropdown-header">Assigned ({{ $category->assigned_count ?? 0 }})</h6></li>
-                                                <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', $dashExportBase + ['format' => 'pdf', 'status' => 'assigned']) }}"><i class="bi bi-file-pdf me-2"></i>PDF</a></li>
-                                                <li><a class="dropdown-item" href="{{ route('assets.byCategory.export', $dashExportBase + ['format' => 'csv', 'status' => 'assigned']) }}"><i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV</a></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('assets.byCategory.export', array_filter(['id' => $category->id, 'format' => 'pdf', 'entity' => $selectedEntityId ?? null])) }}">
+                                                        <i class="bi bi-file-pdf me-2"></i>PDF
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('assets.byCategory.export', array_filter(['id' => $category->id, 'format' => 'csv', 'entity' => $selectedEntityId ?? null])) }}">
+                                                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV
+                                                    </a>
+                                                </li>
                                             </ul>
                                         </div>
                                     </div>
