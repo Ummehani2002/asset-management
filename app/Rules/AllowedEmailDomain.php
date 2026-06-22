@@ -7,19 +7,34 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 class AllowedEmailDomain implements ValidationRule
 {
-    public function validate(string $attribute, mixed $value, Closure $fail): void
+    public static function isAllowed(string $email): bool
     {
         $allowedDomains = config('security.allowed_email_domains', []);
 
         if ($allowedDomains === []) {
-            return;
+            return true;
         }
 
-        $email = strtolower((string) $value);
-        $domain = substr(strrchr($email, '@') ?: '', 1);
+        $domain = strtolower(substr(strrchr(strtolower($email), '@') ?: '', 1));
 
-        if ($domain === '' || ! in_array($domain, array_map('strtolower', $allowedDomains), true)) {
-            $fail('Registration is restricted to approved company email addresses.');
+        return $domain !== '' && in_array($domain, array_map('strtolower', $allowedDomains), true);
+    }
+
+    public function validate(string $attribute, mixed $value, Closure $fail): void
+    {
+        if (! self::isAllowed((string) $value)) {
+            $fail(self::rejectionMessage());
         }
+    }
+
+    public static function rejectionMessage(): string
+    {
+        $domains = config('security.allowed_email_domains', []);
+
+        if (count($domains) === 1) {
+            return 'Only @'.$domains[0].' email addresses are allowed.';
+        }
+
+        return 'Only approved company email addresses are allowed.';
     }
 }

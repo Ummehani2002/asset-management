@@ -26,7 +26,7 @@ return [
 
     'allowed_email_domains' => array_values(array_filter(array_map(
         'trim',
-        explode(',', (string) env('ALLOWED_EMAIL_DOMAINS', ''))
+        explode(',', (string) env('ALLOWED_EMAIL_DOMAINS', 'tanseeqinvestment.com'))
     ))),
 
 ];

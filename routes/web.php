@@ -22,17 +22,6 @@ Route::middleware('guest')->group(function () {
 // Logout
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
-// Email verification
-Route::middleware('auth')->group(function () {
-    Route::get('/email/verify', [AuthController::class, 'showVerificationNotice'])->name('verification.notice');
-    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-        ->middleware(['signed', 'throttle:6,1'])
-        ->name('verification.verify');
-    Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])
-        ->middleware('throttle:6,1')
-        ->name('verification.send');
-});
-
 // Password reset
 Route::middleware('guest')->group(function () {
     Route::get('/password/reset', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
@@ -44,7 +33,7 @@ Route::middleware('guest')->group(function () {
 // Auth-protected dashboard - moved to DashboardController
 
 use App\Http\Controllers\UserController;
-Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/export', [UserController::class, 'export'])->name('users.export');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -54,17 +43,17 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 });
 
 use App\Http\Controllers\ActivityLogController;
-Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware(['auth', 'verified', 'admin'])->name('activity-logs.index');
+Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware(['auth', 'admin'])->name('activity-logs.index');
 
 use App\Http\Controllers\DashboardController;
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/export', [DashboardController::class, 'export'])->name('dashboard.export');
     Route::get('/dashboard/assets-export', [DashboardController::class, 'exportAssets'])->name('dashboard.assets-export');
 });
 
 use App\Http\Controllers\AssetCategoryController;
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/manage-categories', [AssetCategoryController::class, 'index'])->name('categories.manage');
     Route::get('/categories', [AssetCategoryController::class, 'index'])->name('categories.index');
     Route::get('/brand-management/add-brand-model', [AssetCategoryController::class, 'addBrandModelPage'])->name('brand-management.add-brand-model');
@@ -74,7 +63,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/categories/{id}/export', [AssetCategoryController::class, 'export'])->name('categories.export');
 });
 
-Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/categories', [AssetCategoryController::class, 'storeCategory'])->name('categories.store');
     Route::get('/categories/{id}/edit', [AssetCategoryController::class, 'edit'])->name('categories.edit');
     Route::put('/categories/{id}', [AssetCategoryController::class, 'update'])->name('categories.update');
@@ -83,11 +72,11 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryFeatureController;
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/brands', [BrandController::class, 'index'])->name('brands.index');
 });
 
-Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/brands/store', [AssetCategoryController::class, 'storeBrand'])->name('brands.store');
     Route::post('/brand-models', [AssetCategoryController::class, 'storeModel'])->name('brand-models.store');
     Route::get('/brand-models/{id}/edit', [AssetCategoryController::class, 'editModel'])->name('brand-models.edit');
@@ -108,7 +97,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\AssetController;
 // Employee and Asset API endpoints - All authenticated users
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/employees/autocomplete', [EmployeeController::class, 'autocomplete'])->name('employees.autocomplete');
     Route::get('/employees/{id}/assets', [AssetController::class, 'getAssetsByEmployee'])->name('employees.assets');
     Route::get('/features/by-brand/{id}', [AssetController::class, 'getFeaturesByBrand']);
@@ -129,7 +118,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 // Features and Categories - authenticated users can view, admins manage
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/brands/by-category/{categoryId}', [BrandController::class, 'getByCategory']);
     Route::get('/models-by-brand/{brandId}', [BrandController::class, 'getModelsByBrand'])->name('brands.modelsByBrand');
     Route::get('/assets/category/{id}', [AssetController::class, 'assetsByCategory'])->name('assets.byCategory');
@@ -158,7 +147,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 use App\Http\Controllers\LocationController;
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/location-master', [LocationController::class, 'index'])->name('location-master.index');
     Route::get('/location-master/search', [LocationController::class, 'search'])->name('location-master.search');
     Route::get('/location-master/export', [LocationController::class, 'export'])->name('location-master.export');
@@ -174,7 +163,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 use App\Http\Controllers\EmployeeAssetController;
 // Employee Asset Lookup - All authenticated users
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/employee-assets', [EmployeeAssetController::class, 'index'])->name('employee.assets');
     Route::get('/employee-assets/{id}/export', [EmployeeAssetController::class, 'export'])->name('employee.assets.export');
     Route::get('/employee/search', [App\Http\Controllers\EmployeeController::class, 'search'])->name('employee.search');
@@ -183,7 +172,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 use App\Http\Controllers\LocationAssetController;
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/location-assets', [LocationAssetController::class, 'index'])->name('location.assets');
     Route::get('/locations/autocomplete', [LocationController::class, 'autocomplete'])->name('locations.autocomplete');
 });
@@ -197,7 +186,7 @@ Route::prefix('asset-transactions')->group(function () {
     Route::get('/maintenance-approval/approve/{id}', [AssetTransactionController::class, 'approveMaintenanceRequestSigned'])->name('asset-transactions.maintenance-approval-approve-signed');
     Route::get('/maintenance-approval/reject/{id}', [AssetTransactionController::class, 'rejectMaintenanceRequestSigned'])->name('asset-transactions.maintenance-approval-reject-signed');
 
-    Route::middleware(['auth', 'verified'])->group(function () {
+    Route::middleware(['auth'])->group(function () {
         Route::get('/', [AssetTransactionController::class, 'index'])->name('asset-transactions.index');
         Route::get('/preview-asset-email', [AssetTransactionController::class, 'previewAssetAssignedEmail'])->name('asset-transactions.preview-email');
         Route::get('/view', [AssetTransactionController::class, 'view'])->name('asset-transactions.view');
@@ -231,7 +220,7 @@ Route::prefix('asset-transactions')->group(function () {
 });
 
 use App\Http\Controllers\AssetHistoryController;
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/asset-history/{asset_id}', [AssetHistoryController::class, 'show'])->name('asset.history');
 });
 
@@ -244,7 +233,7 @@ use App\Http\Controllers\IssueNoteController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\PreventiveMaintenanceController;
 use App\Http\Controllers\ReportController;
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/entity-master', [EntityController::class, 'index'])->name('entity-master.index');
     Route::post('/entity-master', [EntityController::class, 'store'])->name('entity-master.store');
     Route::post('/entity-master/sync-from-csv', [EntityController::class, 'syncFromCsv'])->name('entity-master.sync-from-csv');
@@ -319,7 +308,7 @@ use App\Http\Controllers\InternetServiceController;
 use App\Http\Controllers\NasStorageController;
 use App\Http\Controllers\ItConsumableController;
 // Internet Services - All authenticated users
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('internet-services', [InternetServiceController::class, 'index'])->name('internet-services.index');
     Route::get('internet-services/create', [InternetServiceController::class, 'create'])->name('internet-services.create');
     Route::get('internet-services/export', [InternetServiceController::class, 'export'])->name('internet-services.export');
@@ -334,7 +323,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Additional IT Masters
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/nas-storage-master', [NasStorageController::class, 'index'])->name('nas-storage.index');
     Route::post('/nas-storage-master', [NasStorageController::class, 'store'])->name('nas-storage.store');
     Route::get('/nas-storage-master/{id}/edit', [NasStorageController::class, 'edit'])->name('nas-storage.edit');

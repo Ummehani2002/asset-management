@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\ActivityLog;
 use App\Rules\AllowedEmailDomain;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
 class AuthController extends Controller
 {
@@ -35,12 +34,12 @@ class AuthController extends Controller
         }
 
         if ($user && Hash::check($password, $user->password)) {
-            Auth::login($user);
-
-            if (! $user->hasVerifiedEmail()) {
-                return redirect()->route('verification.notice');
+            if (! AllowedEmailDomain::isAllowed($user->email)) {
+                ActivityLog::log('login_failed', 'Rejected non-company email login', null, null, ['email' => $user->email]);
+                return back()->withErrors(['username' => AllowedEmailDomain::rejectionMessage()]);
             }
 
+            Auth::login($user);
             ActivityLog::log('login', 'Logged in', null, null, ['username' => $user->username ?? $user->email]);
             return redirect()->route('dashboard');
         }
@@ -91,12 +90,11 @@ class AuthController extends Controller
                 $userData['username'] = $request->username;
             }
 
-            $user = User::create($userData);
-            $user->sendEmailVerificationNotification();
+            User::create($userData);
 
             return redirect()
                 ->route('login')
-                ->with('success', 'Account created. Please verify your email before logging in.');
+                ->with('success', 'Account created successfully. Please log in.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Illuminate\Database\QueryException $e) {
@@ -113,31 +111,6 @@ class AuthController extends Controller
             Log::error('Registration error: ' . $e->getMessage());
             return back()->withErrors(['error' => 'An error occurred during registration. Please try again.'])->withInput();
         }
-    }
-
-    public function showVerificationNotice()
-    {
-        return view('auth.verify-email');
-    }
-
-    public function verifyEmail(EmailVerificationRequest $request)
-    {
-        $request->fulfill();
-
-        return redirect()
-            ->route('dashboard')
-            ->with('success', 'Email verified successfully.');
-    }
-
-    public function resendVerificationEmail(Request $request)
-    {
-        if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->route('dashboard');
-        }
-
-        $request->user()->sendEmailVerificationNotification();
-
-        return back()->with('success', 'A new verification link has been sent to your email address.');
     }
 
     public function logout(Request $request)

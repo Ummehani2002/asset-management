@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Rules\AllowedEmailDomain;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class UserController extends Controller
@@ -26,7 +27,7 @@ class UserController extends Controller
         $request->validate([
             'name'     => 'required',
             'username' => 'required|unique:users',
-            'email'    => 'required|email|unique:users',
+            'email'    => ['required', 'email', 'unique:users', new AllowedEmailDomain],
             'password' => 'required|min:8|confirmed',
             'role'     => 'required|in:admin,user',
         ]);
@@ -58,7 +59,7 @@ class UserController extends Controller
         $request->validate([
             'name'        => 'required|string|max:255',
             'username'    => 'required|unique:users,username,'.$user->id,
-            'email'       => 'required|email',
+            'email'       => ['required', 'email', new AllowedEmailDomain],
             'role'        => 'required|in:admin,user',
             'employee_id' => 'nullable|exists:employees,id',
         ]);

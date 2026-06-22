@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use App\Models\User;
+use App\Rules\AllowedEmailDomain;
 
 class ForgotPasswordController extends Controller
 {
@@ -16,7 +16,9 @@ class ForgotPasswordController extends Controller
 
     public function sendResetLinkEmail(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
+        $request->validate([
+            'email' => ['required', 'email', new AllowedEmailDomain],
+        ]);
 
         try {
             $status = Password::sendResetLink($request->only('email'));
