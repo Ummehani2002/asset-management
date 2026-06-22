@@ -848,9 +848,11 @@
    <a href="{{ route('dashboard') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('dashboard') ? 'active' : '' }}">
     <i class="bi bi-speedometer2"></i> Dashboard
 </a>
+    @if(auth()->user() && auth()->user()->isAdmin())
     <a href="{{ route('users.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('users.*') ? 'active' : '' }}">
     <i class="bi bi-people"></i> Users
 </a>
+    @endif
     @if(auth()->user() && auth()->user()->role === 'admin')
     <a href="{{ route('activity-logs.index') }}" class="sidebar-nav-item mb-1 {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}">
     <i class="bi bi-journal-text"></i> User Logs

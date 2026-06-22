@@ -3,7 +3,9 @@
 @section('title', 'Login')
 
 @section('account-link')
-    <span class="auth-account-link">Don't have an account? <a href="{{ route('register.form') }}">Sign Up</a></span>
+    @if(config('security.allow_public_registration'))
+    <span class="auth-account-link">Don't have an account? <a href="{{ route('register') }}">Sign Up</a></span>
+    @endif
 @endsection
 
 @section('content')
@@ -50,8 +52,10 @@
     <button type="submit" class="btn btn-auth">Log In</button>
 </form>
 
+@if(config('security.allow_public_registration'))
 <p class="auth-footer-text">
-    Don't have an account? <a href="{{ route('register.form') }}">Sign Up</a>
+    Don't have an account? <a href="{{ route('register') }}">Sign Up</a>
 </p>
+@endif
 
 @endsection

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class UserController extends Controller
 {
@@ -26,17 +27,19 @@ class UserController extends Controller
             'name'     => 'required',
             'username' => 'required|unique:users',
             'email'    => 'required|email|unique:users',
-            'password' => 'required|min:6|confirmed',
+            'password' => 'required|min:8|confirmed',
             'role'     => 'required|in:admin,user',
         ]);
 
-        User::create([
+        $user = User::create([
             'name'     => $request->name,
             'username' => $request->username,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'role'     => $request->role ?? 'user'
+            'email_verified_at' => now(),
         ]);
+        $user->role = $request->role;
+        $user->save();
 
         return redirect()->route('users.index')->with('success', 'User created successfully!');
     }
@@ -60,16 +63,19 @@ class UserController extends Controller
             'employee_id' => 'nullable|exists:employees,id',
         ]);
 
+        if ($user->isAdmin() && $request->role !== 'admin' && User::where('role', 'admin')->count() <= 1) {
+            throw new AccessDeniedHttpException('Cannot remove the last administrator account.');
+        }
+
         $user->name = $request->name;
         $user->username = $request->username;
         $user->email = $request->email;
         $user->role = $request->role;
         $user->employee_id = $request->employee_id ?: null;
 
-        // Update password if provided
         if ($request->filled('password')) {
             $request->validate([
-                'password' => 'required|min:6|confirmed',
+                'password' => 'required|min:8|confirmed',
             ]);
             $user->password = Hash::make($request->password);
         }
@@ -81,7 +87,18 @@ class UserController extends Controller
 
     public function destroy($id)
     {
-        User::destroy($id);
+        $user = User::findOrFail($id);
+
+        if ($user->isAdmin() && User::where('role', 'admin')->count() <= 1) {
+            throw new AccessDeniedHttpException('Cannot delete the last administrator account.');
+        }
+
+        if ($user->id === auth()->id()) {
+            throw new AccessDeniedHttpException('You cannot delete your own account.');
+        }
+
+        $user->delete();
+
         return redirect()->route('users.index')->with('success', 'User deleted successfully.');
     }
 
@@ -113,11 +130,9 @@ class UserController extends Controller
 
         $callback = function() use ($users) {
             $file = fopen('php://output', 'w');
-            
-            // Headers
+
             fputcsv($file, ['#', 'Name', 'Username', 'Email', 'Created At']);
 
-            // Data
             foreach ($users as $index => $user) {
                 fputcsv($file, [
                     $index + 1,

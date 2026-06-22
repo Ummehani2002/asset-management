@@ -6,9 +6,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Contracts\Auth\CanResetPassword;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Auth\Passwords\CanResetPassword as CanResetPasswordTrait;
 
-class User extends Authenticatable implements CanResetPassword
+class User extends Authenticatable implements CanResetPassword, MustVerifyEmail
 {
     use HasFactory, Notifiable, CanResetPasswordTrait;
 
@@ -17,7 +18,6 @@ class User extends Authenticatable implements CanResetPassword
         'username',
         'email',
         'password',
-        'role',
         'employee_id',
     ];
 
@@ -42,6 +42,11 @@ class User extends Authenticatable implements CanResetPassword
     public function isAssetManager(): bool
     {
         return $this->getManagedEntityNames() !== null;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
     }
 
     protected $hidden = [

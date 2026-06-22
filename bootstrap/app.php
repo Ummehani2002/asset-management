@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'registration.enabled' => \App\Http\Middleware\EnsureRegistrationEnabled::class,
         ]);
         $middleware->appendToGroup('web', [
             \App\Http\Middleware\LogUserActivity::class,
@@ -27,5 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
             ->runInBackground();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->dontReport([
+            \Illuminate\Auth\AuthenticationException::class,
+            \Illuminate\Auth\Access\AuthorizationException::class,
+            \Symfony\Component\HttpKernel\Exception\HttpException::class,
+        ]);
     })->create();
