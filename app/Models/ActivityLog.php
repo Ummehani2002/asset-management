@@ -42,19 +42,34 @@ class ActivityLog extends Model
         ?string $subjectType = null,
         $subjectId = null,
         array $properties = []
-    ): self {
-        $request = request();
-        return self::create([
-            'user_id' => auth()->id(),
-            'action' => $action,
-            'description' => $description,
-            'subject_type' => $subjectType,
-            'subject_id' => $subjectId,
-            'properties' => $properties ?: null,
-            'url' => $request ? $request->fullUrl() : null,
-            'method' => $request ? $request->method() : null,
-            'ip' => $request ? $request->ip() : null,
-            'user_agent' => $request ? $request->userAgent() : null,
-        ]);
+    ): ?self {
+        try {
+            $request = request();
+            $userId = auth()->id();
+
+            if ($userId !== null && ! User::whereKey($userId)->exists()) {
+                $userId = null;
+            }
+
+            return self::create([
+                'user_id' => $userId,
+                'action' => $action,
+                'description' => $description,
+                'subject_type' => $subjectType,
+                'subject_id' => $subjectId,
+                'properties' => $properties ?: null,
+                'url' => $request ? $request->fullUrl() : null,
+                'method' => $request ? $request->method() : null,
+                'ip' => $request ? $request->ip() : null,
+                'user_agent' => $request ? $request->userAgent() : null,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Activity log failed', [
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }
