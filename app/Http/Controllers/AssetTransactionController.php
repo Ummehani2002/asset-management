@@ -526,7 +526,9 @@ class AssetTransactionController extends Controller
 
     private function exportPdf($transactions, $assetStatus)
     {
-        $pdf = \PDF::loadView('asset_transactions.export-pdf', compact('transactions', 'assetStatus'));
+        $pdf = \PDF::loadView('asset_transactions.export-pdf', compact('transactions', 'assetStatus'))
+            ->setPaper('a4', 'portrait');
+
         return $pdf->download('asset-transactions-' . ($assetStatus !== 'all' ? $assetStatus : 'all') . '-' . date('Y-m-d') . '.pdf');
     }
 
