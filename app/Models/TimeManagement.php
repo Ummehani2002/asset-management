@@ -10,10 +10,18 @@ class TimeManagement extends Model
 {
     use HasFactory;
 
-    protected $table = 'time_managements'; 
+    public const DAILY_STANDARD_HOURS = 8;
+
+    public const DEFAULT_CATEGORY = 'End User Support';
+
+    protected $table = 'time_managements';
 
     protected $fillable = [
         'ticket_number',
+        'category',
+        'task_description',
+        'site_location',
+        'user_id',
         'employee_id',
         'employee_name',
         'project_name',
@@ -22,6 +30,9 @@ class TimeManagement extends Model
         'start_time',
         'end_time',
         'duration_hours',
+        'overtime_hours',
+        'action_taken',
+        'remarks',
         'status',
         'delayed_days',
         'delay_reason',
@@ -34,15 +45,92 @@ class TimeManagement extends Model
         'start_time' => 'datetime',
         'end_time' => 'datetime',
         'last_delay_email_sent_at' => 'datetime',
+        'duration_hours' => 'decimal:2',
+        'overtime_hours' => 'decimal:2',
+        'standard_man_hours' => 'decimal:2',
     ];
 
-    public function getStartTimeFormattedAttribute()
+    public function user()
     {
-        return $this->start_time ? $this->start_time->format('Y-m-d H:i') : '-';
+        return $this->belongsTo(User::class);
     }
 
-    public function getEndTimeFormattedAttribute()
+    public function employee()
     {
-        return $this->end_time ? $this->end_time->format('Y-m-d H:i') : '-';
+        return $this->belongsTo(Employee::class);
+    }
+
+    public static function generateTicketNumber(): string
+    {
+        $lastRecord = self::orderBy('id', 'desc')->first();
+        $lastNumber = $lastRecord && $lastRecord->ticket_number
+            ? (int) preg_replace('/\D/', '', $lastRecord->ticket_number)
+            : 0;
+
+        return 'TCKT' . str_pad((string) ($lastNumber + 1), 4, '0', STR_PAD_LEFT);
+    }
+
+    public static function calculateDurationHours(Carbon $start, Carbon $end): float
+    {
+        if ($end->lessThanOrEqualTo($start)) {
+            return 0;
+        }
+
+        return round(abs($start->diffInMinutes($end)) / 60, 2);
+    }
+
+    /**
+     * Recalculate duration and overtime for all entries of a user on a given date.
+     * First 8 hours of the day are regular; excess is overtime.
+     */
+    public static function recalculateDailyOvertime(?int $employeeId, ?int $userId, string $date): void
+    {
+        $query = self::whereDate('job_card_date', $date)
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time');
+
+        if ($userId) {
+            $query->where('user_id', $userId);
+        } elseif ($employeeId) {
+            $query->where('employee_id', $employeeId);
+        } else {
+            return;
+        }
+
+        $entries = $query->orderBy('start_time')->orderBy('id')->get();
+
+        foreach ($entries as $entry) {
+            $entry->duration_hours = self::calculateDurationHours(
+                Carbon::parse($entry->start_time),
+                Carbon::parse($entry->end_time)
+            );
+        }
+
+        $regularUsed = 0.0;
+
+        foreach ($entries as $entry) {
+            $duration = max(0, (float) ($entry->duration_hours ?? 0));
+            $regularForEntry = min($duration, max(0, self::DAILY_STANDARD_HOURS - $regularUsed));
+            $overtimeForEntry = max(0, $duration - $regularForEntry);
+
+            $regularUsed += $regularForEntry;
+
+            $entry->standard_man_hours = self::DAILY_STANDARD_HOURS;
+            $entry->overtime_hours = round($overtimeForEntry, 2);
+            $entry->saveQuietly();
+        }
+    }
+
+    public function isOwnedBy(User $user): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($this->user_id && (int) $this->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return $user->employee_id && (int) $this->employee_id === (int) $user->employee_id;
     }
 }

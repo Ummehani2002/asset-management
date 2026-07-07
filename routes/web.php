@@ -1,6 +1,7 @@
 <?php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\WorkLogAppController;
 use App\Mail\AssetAssigned;
 
 use App\Http\Controllers\ForgotPasswordController;
@@ -16,6 +17,21 @@ Route::middleware('guest')->group(function () {
     Route::middleware('registration.enabled')->group(function () {
         Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
         Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1')->name('register.submit');
+    });
+});
+
+// Work Log mobile app (PWA)
+Route::prefix('work-log-app')->name('worklog.')->group(function () {
+    Route::middleware('guest')->group(function () {
+        Route::get('/login', [WorkLogAppController::class, 'showLogin'])->name('login');
+        Route::post('/login', [WorkLogAppController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
+    });
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/', [WorkLogAppController::class, 'index'])->name('index');
+        Route::get('/create', [WorkLogAppController::class, 'create'])->name('create');
+        Route::get('/{id}/edit', [WorkLogAppController::class, 'edit'])->name('edit');
+        Route::post('/logout', [WorkLogAppController::class, 'logout'])->name('logout');
     });
 });
 

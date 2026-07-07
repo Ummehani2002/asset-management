@@ -1,0 +1,165 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\TimeManagement;
+use App\Models\User;
+use App\Rules\AllowedEmailDomain;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+
+class WorkLogAppController extends Controller
+{
+    public function showLogin()
+    {
+        if (Auth::check()) {
+            return redirect()->route('worklog.index');
+        }
+
+        return view('work_log_app.login');
+    }
+
+    public function login(Request $request)
+    {
+        $request->validate([
+            'username' => 'required',
+            'password' => 'required',
+        ]);
+
+        $username = $request->input('username');
+        $password = $request->input('password');
+
+        $user = User::whereRaw('LOWER(username) = ?', [strtolower($username)])->first()
+            ?? User::whereRaw('LOWER(email) = ?', [strtolower($username)])->first();
+
+        if ($user && Hash::check($password, $user->password)) {
+            if (! AllowedEmailDomain::isAllowed($user->email)) {
+                return back()->withErrors(['username' => AllowedEmailDomain::rejectionMessage()]);
+            }
+
+            Auth::login($user);
+
+            return redirect()->route('worklog.index');
+        }
+
+        return back()->withErrors(['username' => 'Invalid username or password.']);
+    }
+
+    public function logout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('worklog.login');
+    }
+
+    public function index(Request $request)
+    {
+        try {
+            if (! Schema::hasTable('time_managements')) {
+                return view('work_log_app.index', [
+                    'tasks' => collect(),
+                    'isAdmin' => Auth::user()?->isAdmin() ?? false,
+                    'teamMembers' => collect(),
+                    'stats' => ['total' => 0, 'pending' => 0, 'completed' => 0, 'today' => 0],
+                ])->with('warning', 'Database tables not found. Please run migrations.');
+            }
+
+            $user = Auth::user();
+            $isAdmin = $user->isAdmin();
+
+            $query = TimeManagement::query()->orderByDesc('job_card_date')->orderByDesc('start_time');
+
+            if ($isAdmin) {
+                if ($request->filled('user_id')) {
+                    $query->where('user_id', $request->user_id);
+                }
+            } else {
+                $query->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                    if ($user->employee_id) {
+                        $q->orWhere('employee_id', $user->employee_id);
+                    }
+                });
+            }
+
+            if ($request->filled('status') && in_array($request->status, ['pending', 'completed'], true)) {
+                $query->where('status', $request->status);
+            }
+
+            $tasks = $query->get();
+
+            foreach ($tasks->unique(fn ($task) => ($task->user_id ?? 0) . '|' . $task->job_card_date?->format('Y-m-d')) as $task) {
+                if ($task->job_card_date) {
+                    TimeManagement::recalculateDailyOvertime(
+                        $task->employee_id,
+                        $task->user_id,
+                        $task->job_card_date->format('Y-m-d')
+                    );
+                }
+            }
+
+            if ($tasks->isNotEmpty()) {
+                $tasks = TimeManagement::whereIn('id', $tasks->pluck('id'))
+                    ->orderByDesc('job_card_date')
+                    ->orderByDesc('start_time')
+                    ->get();
+            }
+
+            $statsQuery = TimeManagement::query();
+            if (! $isAdmin) {
+                $statsQuery->where('user_id', $user->id);
+            } elseif ($request->filled('user_id')) {
+                $statsQuery->where('user_id', $request->user_id);
+            }
+
+            $stats = [
+                'total' => (clone $statsQuery)->count(),
+                'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
+                'completed' => (clone $statsQuery)->where('status', 'completed')->count(),
+                'today' => (clone $statsQuery)->whereDate('job_card_date', today())->count(),
+            ];
+
+            $teamMembers = $isAdmin
+                ? User::orderBy('name')->get(['id', 'name'])
+                : collect();
+
+            return view('work_log_app.index', compact('tasks', 'isAdmin', 'teamMembers', 'stats'));
+        } catch (\Exception $e) {
+            Log::error('WorkLogApp index error: ' . $e->getMessage());
+
+            return view('work_log_app.index', [
+                'tasks' => collect(),
+                'isAdmin' => Auth::user()?->isAdmin() ?? false,
+                'teamMembers' => collect(),
+                'stats' => ['total' => 0, 'pending' => 0, 'completed' => 0, 'today' => 0],
+            ])->with('warning', 'Unable to load work logs.');
+        }
+    }
+
+    public function create()
+    {
+        $user = Auth::user();
+
+        return view('work_log_app.create', [
+            'ticketNumber' => TimeManagement::generateTicketNumber(),
+            'employeeName' => $user->name,
+            'defaultCategory' => TimeManagement::DEFAULT_CATEGORY,
+        ]);
+    }
+
+    public function edit($id)
+    {
+        $record = TimeManagement::findOrFail($id);
+
+        if (! $record->isOwnedBy(Auth::user())) {
+            abort(403);
+        }
+
+        return view('work_log_app.edit', compact('record'));
+    }
+}
