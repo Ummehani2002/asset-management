@@ -3,7 +3,7 @@
     "short_name": "Work Log",
     "description": "Log daily work tasks and time for Tanseeq employees",
     "start_url": "/work-log-app/create",
-    "scope": "/work-log-app",
+    "scope": "/work-log-app/",
     "display": "standalone",
     "orientation": "portrait",
     "background_color": "#F4F6F9",

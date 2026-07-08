@@ -26,6 +26,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return route('login');
         });
+        $middleware->redirectUsersTo(function ($request) {
+            if ($request->is('work-log-app') || $request->is('work-log-app/*')) {
+                return route('worklog.create');
+            }
+
+            return route('dashboard');
+        });
     })
     ->withSchedule(function (Schedule $schedule): void {
         // Check for delayed tasks every 5 minutes for immediate alerts when time is exceeded

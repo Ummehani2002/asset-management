@@ -20,24 +20,36 @@ Route::middleware('guest')->group(function () {
     });
 });
 
-// Work Log mobile app (PWA)
-Route::redirect('/worklog', '/work-log-app/login');
+// Work Log mobile app (PWA) — employees only need the work log form
+Route::get('/worklog', function () {
+    return auth()->check()
+        ? redirect()->route('worklog.create')
+        : redirect()->route('worklog.login');
+})->name('worklog.shortcut');
+
 Route::prefix('work-log-app')->name('worklog.')->group(function () {
+    Route::get('/manifest.webmanifest', [WorkLogAppController::class, 'manifest'])->name('manifest');
+
     Route::get('/', function () {
         return auth()->check()
             ? redirect()->route('worklog.create')
             : redirect()->route('worklog.login');
     })->name('home');
 
-    Route::middleware('guest')->group(function () {
-        Route::get('/login', [WorkLogAppController::class, 'showLogin'])->name('login');
-        Route::post('/login', [WorkLogAppController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
-    });
+    Route::get('/login', [WorkLogAppController::class, 'showLogin'])->name('login');
+    Route::post('/login', [WorkLogAppController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
 
     Route::middleware('auth')->group(function () {
-        Route::get('/dashboard', [WorkLogAppController::class, 'index'])->name('index');
+        Route::get('/dashboard', function () {
+            $user = auth()->user();
+            if ($user && $user->isTimeManagementAdmin()) {
+                return app(WorkLogAppController::class)->index(request());
+            }
+
+            return redirect()->route('worklog.create');
+        })->name('index');
         Route::get('/create', [WorkLogAppController::class, 'create'])->name('create');
-        Route::get('/{id}/edit', [WorkLogAppController::class, 'edit'])->name('edit');
+        Route::get('/{id}/edit', [WorkLogAppController::class, 'edit'])->whereNumber('id')->name('edit');
         Route::post('/logout', [WorkLogAppController::class, 'logout'])->name('logout');
     });
 });

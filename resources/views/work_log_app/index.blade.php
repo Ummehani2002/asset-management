@@ -2,7 +2,6 @@
 
 @section('title', $isAdmin ? 'Team Progress' : 'My Tickets')
 @section('page-title', $isAdmin ? 'Team Progress' : 'My Tickets')
-@section('show-nav')
 
 @section('content')
 <div class="mb-3">

@@ -2,7 +2,6 @@
 
 @section('title', 'Work Log Form')
 @section('page-title', 'Work Log Form')
-@section('show-nav')
 
 @section('content')
 @if(session('success'))

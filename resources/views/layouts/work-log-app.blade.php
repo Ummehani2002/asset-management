@@ -6,9 +6,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#1F2A44">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Work Log">
-    <link rel="manifest" href="{{ asset('work-log-manifest.json') }}">
+    <link rel="manifest" href="{{ route('worklog.manifest') }}">
     <link rel="apple-touch-icon" href="{{ asset('images/work-log-icon-192.png') }}">
     <title>@yield('title', 'Work Log') — Tanseeq</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -35,7 +36,8 @@
             padding-bottom: calc(72px + env(safe-area-inset-bottom));
         }
 
-        body.no-nav {
+        body.no-nav,
+        body.employee-app {
             padding-bottom: env(safe-area-inset-bottom);
         }
 
@@ -275,7 +277,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="{{ auth()->check() && !View::hasSection('header') ? '' : 'no-nav' }}">
+<body class="@if(View::hasSection('header')) no-nav @elseif(auth()->check() && !auth()->user()->isTimeManagementAdmin()) employee-app @endif">
     @hasSection('header')
         @yield('header')
     @else
@@ -285,9 +287,11 @@
                 <small>{{ Auth::user()->name ?? '' }}</small>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <a href="{{ route('worklog.index') }}" class="btn btn-sm btn-outline-light" title="{{ Auth::user()?->isTimeManagementAdmin() ? 'Team Progress' : 'My Tickets' }}">
-                    <i class="bi bi-{{ Auth::user()?->isTimeManagementAdmin() ? 'people' : 'ticket-perforated' }}"></i>
+                @if(Auth::user()?->isTimeManagementAdmin())
+                <a href="{{ route('worklog.index') }}" class="btn btn-sm btn-outline-light" title="Team Progress">
+                    <i class="bi bi-people"></i>
                 </a>
+                @endif
                 <form action="{{ route('worklog.logout') }}" method="POST" class="m-0">
                     @csrf
                     <button type="submit" class="btn btn-sm btn-outline-light border-0">
@@ -321,24 +325,32 @@
     </main>
 
     @auth
-        @unless(View::hasSection('header'))
+        @if(Auth::user()->isTimeManagementAdmin())
         <nav class="bottom-nav">
             <a href="{{ route('worklog.create') }}" class="{{ request()->routeIs('worklog.create') ? 'active' : '' }}">
                 <i class="bi bi-pencil-square"></i>
                 New Log
             </a>
             <a href="{{ route('worklog.index') }}" class="{{ request()->routeIs('worklog.index') ? 'active' : '' }}">
-                <i class="bi bi-{{ Auth::user()->isTimeManagementAdmin() ? 'people' : 'ticket-perforated' }}"></i>
-                {{ Auth::user()->isTimeManagementAdmin() ? 'All Tickets' : 'My Tickets' }}
+                <i class="bi bi-people"></i>
+                Team
             </a>
         </nav>
-        @endunless
+        @endif
     @endauth
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('{{ asset('work-log-sw.js') }}').catch(() => {});
+            navigator.serviceWorker.register('{{ asset('work-log-app/sw.js') }}', { scope: '/work-log-app/' })
+                .catch(() => {});
+            navigator.serviceWorker.getRegistrations().then((registrations) => {
+                registrations.forEach((registration) => {
+                    if (registration.active?.scriptURL?.includes('work-log-sw.js')) {
+                        registration.unregister();
+                    }
+                });
+            });
         }
 
         let deferredPrompt;

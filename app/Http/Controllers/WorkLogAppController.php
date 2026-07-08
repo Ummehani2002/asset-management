@@ -22,8 +22,47 @@ class WorkLogAppController extends Controller
         return view('work_log_app.login');
     }
 
+    public function manifest()
+    {
+        $base = rtrim((string) config('app.url'), '/');
+
+        return response()->json([
+            'name' => 'Tanseeq Work Log',
+            'short_name' => 'Work Log',
+            'description' => 'Log daily work tasks and time for Tanseeq employees',
+            'start_url' => $base.'/work-log-app/create',
+            'scope' => $base.'/work-log-app/',
+            'id' => $base.'/work-log-app/',
+            'display' => 'standalone',
+            'orientation' => 'portrait',
+            'background_color' => '#F4F6F9',
+            'theme_color' => '#1F2A44',
+            'icons' => [
+                [
+                    'src' => $base.'/images/work-log-icon-192.png',
+                    'sizes' => '192x192',
+                    'type' => 'image/png',
+                    'purpose' => 'any maskable',
+                ],
+                [
+                    'src' => $base.'/images/work-log-icon-512.png',
+                    'sizes' => '512x512',
+                    'type' => 'image/png',
+                    'purpose' => 'any maskable',
+                ],
+            ],
+        ], 200, [
+            'Content-Type' => 'application/manifest+json',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    }
+
     public function login(Request $request)
     {
+        if (Auth::check()) {
+            return redirect()->route('worklog.create');
+        }
+
         $request->validate([
             'username' => 'required',
             'password' => 'required',
