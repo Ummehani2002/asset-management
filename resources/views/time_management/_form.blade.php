@@ -1,3 +1,11 @@
+@php
+    $isTimeAdmin = $isAdmin ?? auth()->user()?->isTimeManagementAdmin() ?? false;
+    $todayTotals = $todayTotals ?? ['total_hours' => 0, 'job_count' => 0];
+    $workDate = old('job_card_date', optional($record?->job_card_date)->format('Y-m-d') ?? date('Y-m-d'));
+    $defaultStart = old('start_time_hour', $record && $record->start_time ? $record->start_time->format('H:i') : now()->format('H:i'));
+    $defaultEnd = old('end_time_hour', $record && $record->end_time ? $record->end_time->format('H:i') : now()->addMinutes(30)->format('H:i'));
+@endphp
+
 <form action="{{ $action }}" method="POST" id="workLogForm" autocomplete="off">
     @csrf
 
@@ -14,6 +22,14 @@
                     <strong class="fs-6 text-primary">{{ old('ticket_number', $ticketNumber) }}</strong>
                     <input type="hidden" name="ticket_number" value="{{ old('ticket_number', $ticketNumber) }}">
                 </div>
+                @unless($isTimeAdmin)
+                <div class="vr d-none d-md-block"></div>
+                <div>
+                    <small class="text-muted d-block">Logged today (before this job)</small>
+                    <strong class="fs-6 text-success" id="today_logged_display">{{ number_format($todayTotals['total_hours'], 2) }} hrs</strong>
+                    <small class="text-muted d-block">{{ $todayTotals['job_count'] }} job(s) so far</small>
+                </div>
+                @endunless
             </div>
         </div>
     </div>
@@ -34,8 +50,7 @@
 
         <div class="col-md-4">
             <label class="form-label">Work Date <span class="text-danger">*</span></label>
-            <input type="date" name="job_card_date" class="form-control" required
-                   value="{{ old('job_card_date', optional($record?->job_card_date)->format('Y-m-d') ?? date('Y-m-d')) }}">
+            <input type="date" name="job_card_date" class="form-control" required value="{{ $workDate }}">
         </div>
 
         <div class="col-md-4">
@@ -58,23 +73,24 @@
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-{{ $isTimeAdmin ? '3' : '4' }}">
             <label class="form-label">Start Time <span class="text-danger">*</span></label>
             <input type="time" name="start_time_hour" id="start_time_hour" class="form-control" required
-                   value="{{ old('start_time_hour', $record && $record->start_time ? $record->start_time->format('H:i') : '09:00') }}">
+                   value="{{ $defaultStart }}">
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-{{ $isTimeAdmin ? '3' : '4' }}">
             <label class="form-label">End Time <span class="text-danger">*</span></label>
             <input type="time" name="end_time_hour" id="end_time_hour" class="form-control" required
-                   value="{{ old('end_time_hour', $record && $record->end_time ? $record->end_time->format('H:i') : '17:00') }}">
+                   value="{{ $defaultEnd }}">
         </div>
 
-        <div class="col-md-2">
-            <label class="form-label">Time Spent</label>
+        <div class="col-md-{{ $isTimeAdmin ? '2' : '4' }}">
+            <label class="form-label">This Job</label>
             <input type="text" id="time_spent_display" class="form-control bg-white" readonly value="0.00 hrs">
         </div>
 
+        @if($isTimeAdmin)
         <div class="col-md-2">
             <label class="form-label">Standard</label>
             <input type="text" class="form-control bg-white" readonly value="8 hrs">
@@ -84,6 +100,14 @@
             <label class="form-label">Overtime</label>
             <input type="text" id="overtime_hint" class="form-control bg-white" readonly value="On save">
         </div>
+        @else
+        <div class="col-md-12">
+            <div class="alert alert-info py-2 mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                <span id="day_total_hint">After saving, your total for this day will update automatically.</span>
+            </div>
+        </div>
+        @endif
 
         <div class="col-md-8">
             <label class="form-label">Action Taken / Resolution</label>
@@ -125,6 +149,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const timeSpentDisplay = document.getElementById('time_spent_display');
     const taskDescInput = document.getElementById('task_description');
     const taskDescCount = document.getElementById('task_desc_count');
+    const dayTotalHint = document.getElementById('day_total_hint');
+    const todayLoggedBase = {{ json_encode((float) ($todayTotals['total_hours'] ?? 0)) }};
 
     function updateTaskCount() {
         taskDescCount.textContent = (taskDescInput.value || '').length;
@@ -133,6 +159,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateTimeSpent() {
         if (!dateInput.value || !startInput.value || !endInput.value) {
             timeSpentDisplay.value = '0.00 hrs';
+            if (dayTotalHint) {
+                dayTotalHint.textContent = 'After saving, your total for this day will update automatically.';
+            }
             return;
         }
 
@@ -141,11 +170,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (end <= start) {
             timeSpentDisplay.value = '0.00 hrs';
+            if (dayTotalHint) {
+                dayTotalHint.textContent = 'End time must be after start time.';
+            }
             return;
         }
 
         const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
         timeSpentDisplay.value = hours + ' hrs';
+
+        if (dayTotalHint) {
+            const dayTotal = (todayLoggedBase + parseFloat(hours)).toFixed(2);
+            dayTotalHint.textContent = 'This job: ' + hours + ' hrs. Day total after save: ' + dayTotal + ' hrs.';
+        }
     }
 
     taskDescInput.addEventListener('input', updateTaskCount);

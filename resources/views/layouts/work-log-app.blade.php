@@ -275,7 +275,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="{{ View::hasSection('show-nav') ? '' : 'no-nav' }}">
+<body class="{{ auth()->check() && !View::hasSection('header') ? '' : 'no-nav' }}">
     @hasSection('header')
         @yield('header')
     @else
@@ -285,11 +285,9 @@
                 <small>{{ Auth::user()->name ?? '' }}</small>
             </div>
             <div class="d-flex align-items-center gap-2">
-                @if(Auth::user()?->isAdmin())
-                    <a href="{{ route('worklog.index') }}" class="btn btn-sm btn-outline-light" title="Team Progress">
-                        <i class="bi bi-people"></i>
-                    </a>
-                @endif
+                <a href="{{ route('worklog.index') }}" class="btn btn-sm btn-outline-light" title="{{ Auth::user()?->isTimeManagementAdmin() ? 'Team Progress' : 'My Tickets' }}">
+                    <i class="bi bi-{{ Auth::user()?->isTimeManagementAdmin() ? 'people' : 'ticket-perforated' }}"></i>
+                </a>
                 <form action="{{ route('worklog.logout') }}" method="POST" class="m-0">
                     @csrf
                     <button type="submit" class="btn btn-sm btn-outline-light border-0">
@@ -322,18 +320,20 @@
         @yield('content')
     </main>
 
-    @hasSection('show-nav')
+    @auth
+        @unless(View::hasSection('header'))
         <nav class="bottom-nav">
             <a href="{{ route('worklog.create') }}" class="{{ request()->routeIs('worklog.create') ? 'active' : '' }}">
                 <i class="bi bi-pencil-square"></i>
                 New Log
             </a>
             <a href="{{ route('worklog.index') }}" class="{{ request()->routeIs('worklog.index') ? 'active' : '' }}">
-                <i class="bi bi-people"></i>
-                Progress
+                <i class="bi bi-{{ Auth::user()->isTimeManagementAdmin() ? 'people' : 'ticket-perforated' }}"></i>
+                {{ Auth::user()->isTimeManagementAdmin() ? 'All Tickets' : 'My Tickets' }}
             </a>
         </nav>
-    @endif
+        @endunless
+    @endauth
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>

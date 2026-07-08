@@ -28,6 +28,16 @@
         </div>
     @endif
 
+    @if(!$isAdmin)
+        @php
+            $myToday = \App\Models\TimeManagement::getDailyTotals(auth()->id(), auth()->user()->employee_id, today()->format('Y-m-d'));
+        @endphp
+        <div class="alert alert-light border mb-4">
+            <strong>Today:</strong> {{ number_format($myToday['total_hours'], 2) }} hrs logged across {{ $myToday['job_count'] }} job(s).
+            <a href="{{ route('time.create') }}" class="ms-2">Log another job</a>
+        </div>
+    @endif
+
     <div class="master-table-card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ route('time.index') }}" class="row g-3 align-items-end">
@@ -77,6 +87,46 @@
         </div>
     </div>
 
+    @if($isAdmin && !empty($dailySummaries))
+    <div class="master-table-card mb-4">
+        <div class="card-header">
+            <h5 style="color: white; margin: 0;">
+                <i class="bi bi-people me-2"></i>Team Daily Summary — {{ $summaryDate ?? today()->format('Y-m-d') }}
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Jobs Today</th>
+                            <th>Total Hours</th>
+                            <th>Overtime</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($dailySummaries as $summary)
+                        <tr>
+                            <td><strong>{{ $summary['employee_name'] }}</strong></td>
+                            <td>{{ $summary['job_count'] }}</td>
+                            <td><strong>{{ number_format($summary['total_hours'], 2) }} hrs</strong></td>
+                            <td>
+                                @if(($summary['overtime_hours'] ?? 0) > 0)
+                                    <span class="text-danger fw-bold">{{ number_format($summary['overtime_hours'], 2) }} hrs</span>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="master-table-card">
         <div class="card-header">
             <h5 style="color: white; margin: 0;">
@@ -98,7 +148,7 @@
                             <th>Start</th>
                             <th>End</th>
                             <th>Time Spent</th>
-                            <th>Overtime</th>
+                            @if($isAdmin)<th>Overtime</th>@endif
                             <th>Status</th>
                             <th>Action</th>
                         </tr>
@@ -119,6 +169,7 @@
                             <td>{{ $task->start_time ? $task->start_time->format('H:i') : '-' }}</td>
                             <td>{{ $task->end_time ? $task->end_time->format('H:i') : '-' }}</td>
                             <td>{{ $task->duration_hours ?? 0 }} hrs</td>
+                            @if($isAdmin)
                             <td>
                                 @if(($task->overtime_hours ?? 0) > 0)
                                     <span class="text-danger fw-bold">{{ $task->overtime_hours }} hrs</span>
@@ -126,6 +177,7 @@
                                     -
                                 @endif
                             </td>
+                            @endif
                             <td>
                                 <span class="badge {{ $displayStatus === 'completed' ? 'bg-success' : 'bg-warning text-dark' }}">
                                     {{ ucfirst($displayStatus) }}
@@ -144,7 +196,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="{{ $isAdmin ? 13 : 12 }}" class="text-center text-muted py-4">No work logs found.</td>
+                            <td colspan="{{ $isAdmin ? 13 : 11 }}" class="text-center text-muted py-4">No work logs found.</td>
                         </tr>
                         @endforelse
                     </tbody>

@@ -19,13 +19,15 @@ class TimeManagementController extends Controller
             if (! Schema::hasTable('time_managements')) {
                 return view('time_management.index', [
                     'tasks' => collect(),
-                    'isAdmin' => Auth::user()?->isAdmin() ?? false,
+                    'isAdmin' => Auth::user()?->isTimeManagementAdmin() ?? false,
                     'teamMembers' => collect(),
+                    'dailySummaries' => [],
+                    'summaryDate' => today()->format('Y-m-d'),
                 ])->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
 
             $user = Auth::user();
-            $isAdmin = $user->isAdmin();
+            $isAdmin = $user->isTimeManagementAdmin();
 
             $query = TimeManagement::query()->orderByDesc('job_card_date')->orderByDesc('start_time');
 
@@ -77,14 +79,23 @@ class TimeManagementController extends Controller
                 ? User::orderBy('name')->get(['id', 'name'])
                 : collect();
 
-            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers'));
+            $summaryDate = ($request->filled('from_date') && $request->filled('to_date') && $request->from_date === $request->to_date)
+                ? $request->from_date
+                : today()->format('Y-m-d');
+            $dailySummaries = $isAdmin
+                ? TimeManagement::getAdminDailySummaries($summaryDate, $request->filled('user_id') ? (int) $request->user_id : null)
+                : [];
+
+            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers', 'dailySummaries', 'summaryDate'));
         } catch (\Exception $e) {
             Log::error('TimeManagement index error: ' . $e->getMessage());
 
             return view('time_management.index', [
                 'tasks' => collect(),
-                'isAdmin' => Auth::user()?->isAdmin() ?? false,
+                'isAdmin' => Auth::user()?->isTimeManagementAdmin() ?? false,
                 'teamMembers' => collect(),
+                'dailySummaries' => [],
+                'summaryDate' => today()->format('Y-m-d'),
             ])->with('warning', 'Unable to load work logs.');
         }
     }
@@ -94,7 +105,7 @@ class TimeManagementController extends Controller
         $user = Auth::user();
         $query = TimeManagement::query()->orderByDesc('job_card_date')->orderByDesc('start_time');
 
-        if (! $user->isAdmin()) {
+        if (! $user->isTimeManagementAdmin()) {
             $query->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id);
                 if ($user->employee_id) {
@@ -174,11 +185,14 @@ class TimeManagementController extends Controller
     {
         $user = Auth::user();
         $ticketNumber = TimeManagement::generateTicketNumber();
+        $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
 
         return view('time_management.create', [
             'ticketNumber' => $ticketNumber,
             'employeeName' => $user->name,
             'defaultCategory' => TimeManagement::DEFAULT_CATEGORY,
+            'todayTotals' => $todayTotals,
+            'isAdmin' => $user->isTimeManagementAdmin(),
         ]);
     }
 
@@ -240,7 +254,15 @@ class TimeManagementController extends Controller
         $record = TimeManagement::findOrFail($id);
         $this->authorizeRecord($record);
 
-        return view('time_management.edit', compact('record'));
+        $user = Auth::user();
+        $date = optional($record->job_card_date)->format('Y-m-d') ?? date('Y-m-d');
+        $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, $date, $record->id);
+
+        return view('time_management.edit', [
+            'record' => $record,
+            'todayTotals' => $todayTotals,
+            'isAdmin' => $user->isTimeManagementAdmin(),
+        ]);
     }
 
     public function update(Request $request, $id)

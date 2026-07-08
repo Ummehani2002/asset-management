@@ -43,9 +43,20 @@ class User extends Authenticatable implements CanResetPassword
         return $this->getManagedEntityNames() !== null;
     }
 
+    public const TIME_MANAGEMENT_ADMIN_EMAIL = 'umme.hani@tanseeqinvestment.com';
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function isTimeManagementAdmin(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return strtolower((string) $this->email) === strtolower(self::TIME_MANAGEMENT_ADMIN_EMAIL);
     }
 
     protected $hidden = [

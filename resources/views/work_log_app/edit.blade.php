@@ -16,6 +16,8 @@
         'ticketNumber' => $record->ticket_number,
         'employeeName' => $record->employee_name ?? Auth::user()->name,
         'record' => $record,
+        'todayTotals' => $todayTotals ?? ['total_hours' => 0, 'job_count' => 0],
+        'isAdmin' => $isAdmin ?? false,
     ])
 </div>
 @endsection

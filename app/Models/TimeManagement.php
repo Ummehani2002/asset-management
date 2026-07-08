@@ -83,6 +83,79 @@ class TimeManagement extends Model
      * Recalculate duration and overtime for all entries of a user on a given date.
      * First 8 hours of the day are regular; excess is overtime.
      */
+    public static function getDailyTotals(?int $userId, ?int $employeeId, string $date, ?int $excludeId = null): array
+    {
+        $query = self::whereDate('job_card_date', $date)
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time');
+
+        if ($userId) {
+            $query->where('user_id', $userId);
+        } elseif ($employeeId) {
+            $query->where('employee_id', $employeeId);
+        } else {
+            return ['total_hours' => 0.0, 'overtime_hours' => 0.0, 'job_count' => 0];
+        }
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        $entries = $query->get();
+
+        return [
+            'total_hours' => round((float) $entries->sum('duration_hours'), 2),
+            'overtime_hours' => round((float) $entries->sum('overtime_hours'), 2),
+            'job_count' => $entries->count(),
+        ];
+    }
+
+    /**
+     * Daily totals grouped by employee for admin dashboards.
+     *
+     * @return array<int, array{user_id: int|null, employee_name: string, total_hours: float, overtime_hours: float, job_count: int}>
+     */
+    public static function getAdminDailySummaries(string $date, ?int $filterUserId = null): array
+    {
+        $query = self::whereDate('job_card_date', $date)
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time');
+
+        if ($filterUserId) {
+            $query->where('user_id', $filterUserId);
+        }
+
+        $summaries = [];
+
+        foreach ($query->get() as $entry) {
+            $key = (string) ($entry->user_id ?? ('emp-' . $entry->employee_id));
+
+            if (! isset($summaries[$key])) {
+                $summaries[$key] = [
+                    'user_id' => $entry->user_id,
+                    'employee_name' => $entry->employee_name ?? 'Unknown',
+                    'total_hours' => 0.0,
+                    'overtime_hours' => 0.0,
+                    'job_count' => 0,
+                ];
+            }
+
+            $summaries[$key]['total_hours'] += (float) ($entry->duration_hours ?? 0);
+            $summaries[$key]['overtime_hours'] += (float) ($entry->overtime_hours ?? 0);
+            $summaries[$key]['job_count']++;
+        }
+
+        foreach ($summaries as &$summary) {
+            $summary['total_hours'] = round($summary['total_hours'], 2);
+            $summary['overtime_hours'] = round($summary['overtime_hours'], 2);
+        }
+        unset($summary);
+
+        usort($summaries, fn ($a, $b) => strcmp($a['employee_name'], $b['employee_name']));
+
+        return array_values($summaries);
+    }
+
     public static function recalculateDailyOvertime(?int $employeeId, ?int $userId, string $date): void
     {
         $query = self::whereDate('job_card_date', $date)
@@ -123,7 +196,7 @@ class TimeManagement extends Model
 
     public function isOwnedBy(User $user): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isTimeManagementAdmin()) {
             return true;
         }
 

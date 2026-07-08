@@ -1,7 +1,7 @@
 @extends('layouts.work-log-app')
 
-@section('title', 'Team Progress')
-@section('page-title', 'Team Progress')
+@section('title', $isAdmin ? 'Team Progress' : 'My Tickets')
+@section('page-title', $isAdmin ? 'Team Progress' : 'My Tickets')
 @section('show-nav')
 
 @section('content')
@@ -25,8 +25,8 @@
 
 <div class="stat-grid">
     <div class="stat-card">
-        <div class="num text-primary">{{ $stats['today'] }}</div>
-        <div class="lbl">Today</div>
+        <div class="num text-primary">{{ $isAdmin ? $stats['today'] : number_format($stats['hours_today'] ?? 0, 1) }}</div>
+        <div class="lbl">{{ $isAdmin ? 'Today' : 'Hrs Today' }}</div>
     </div>
     <div class="stat-card">
         <div class="num text-warning">{{ $stats['pending'] }}</div>
@@ -66,6 +66,25 @@
     </div>
 </form>
 
+@if($isAdmin && !empty($dailySummaries))
+<div class="mb-3">
+    <div class="log-card" style="border-left: 4px solid #0d6efd;">
+        <div class="fw-semibold mb-2"><i class="bi bi-people me-1"></i> Team Today — {{ $summaryDate ?? today()->format('M d, Y') }}</div>
+        @foreach($dailySummaries as $summary)
+            <div class="d-flex justify-content-between align-items-center small py-1 {{ !$loop->last ? 'border-bottom' : '' }}">
+                <span><strong>{{ $summary['employee_name'] }}</strong> · {{ $summary['job_count'] }} job(s)</span>
+                <span>
+                    <strong>{{ number_format($summary['total_hours'], 2) }} hrs</strong>
+                    @if(($summary['overtime_hours'] ?? 0) > 0)
+                        <span class="text-danger ms-1">OT {{ number_format($summary['overtime_hours'], 2) }}h</span>
+                    @endif
+                </span>
+            </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 @if($tasks->isEmpty())
     <div class="text-center text-muted py-5">
         <i class="bi bi-journal-x" style="font-size: 2.5rem;"></i>
@@ -103,7 +122,7 @@
                     {{ $task->start_time?->format('H:i') }} – {{ $task->end_time?->format('H:i') }}
                     <strong class="ms-1">{{ $task->duration_hours }} hrs</strong>
                 </span>
-                @if(($task->overtime_hours ?? 0) > 0)
+                @if($isAdmin && ($task->overtime_hours ?? 0) > 0)
                     <span class="text-danger fw-bold">OT: {{ $task->overtime_hours }}h</span>
                 @endif
             </div>
