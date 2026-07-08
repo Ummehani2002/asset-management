@@ -48,8 +48,8 @@
                     <td>{{ $task->job_card_date ? $task->job_card_date->format('Y-m-d') : '-' }}</td>
                     <td>{{ $task->start_time ? $task->start_time->format('Y-m-d H:i') : '-' }}</td>
                     <td>{{ $task->end_time ? $task->end_time->format('Y-m-d H:i') : '-' }}</td>
-                    <td>{{ $task->duration_hours ?? 0 }} hrs</td>
-                    <td class="{{ ($task->overtime_hours ?? 0) > 0 ? 'text-danger' : '' }}">{{ $task->overtime_hours ?? 0 }} hrs</td>
+                    <td>{{ \App\Models\TimeManagement::formatDuration($task->duration_hours ?? 0) }}</td>
+                    <td class="{{ ($task->overtime_hours ?? 0) > 0 ? 'text-danger' : '' }}">{{ \App\Models\TimeManagement::formatDuration($task->overtime_hours ?? 0) }}</td>
                     <td>{{ $task->action_taken }}</td>
                     <td>{{ ucfirst($task->status === 'in_progress' ? 'pending' : $task->status) }}</td>
                     <td>{{ $task->remarks }}</td>

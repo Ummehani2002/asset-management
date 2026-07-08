@@ -26,7 +26,7 @@
                 <div class="vr d-none d-md-block"></div>
                 <div>
                     <small class="text-muted d-block">Logged today (before this job)</small>
-                    <strong class="fs-6 text-success" id="today_logged_display">{{ number_format($todayTotals['total_hours'], 2) }} hrs</strong>
+                    <strong class="fs-6 text-success" id="today_logged_display">{{ \App\Models\TimeManagement::formatDuration($todayTotals['total_hours']) }}</strong>
                     <small class="text-muted d-block">{{ $todayTotals['job_count'] }} job(s) so far</small>
                 </div>
                 @endunless
@@ -87,13 +87,14 @@
 
         <div class="col-md-{{ $isTimeAdmin ? '2' : '4' }}">
             <label class="form-label">This Job</label>
-            <input type="text" id="time_spent_display" class="form-control bg-white" readonly value="0.00 hrs">
+            <input type="text" id="time_spent_display" class="form-control bg-white" readonly value="0 min">
+            <small class="text-muted">Shown as hours and minutes</small>
         </div>
 
         @if($isTimeAdmin)
         <div class="col-md-2">
             <label class="form-label">Standard</label>
-            <input type="text" class="form-control bg-white" readonly value="8 hrs">
+            <input type="text" class="form-control bg-white" readonly value="8 hrs (480 min)">
         </div>
 
         <div class="col-md-2">
@@ -141,6 +142,7 @@
     </div>
 </form>
 
+<script src="{{ asset('js/format-work-duration.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const dateInput = document.querySelector('input[name="job_card_date"]');
@@ -158,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateTimeSpent() {
         if (!dateInput.value || !startInput.value || !endInput.value) {
-            timeSpentDisplay.value = '0.00 hrs';
+            timeSpentDisplay.value = '0 min';
             if (dayTotalHint) {
                 dayTotalHint.textContent = 'After saving, your total for this day will update automatically.';
             }
@@ -169,19 +171,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const end = new Date(dateInput.value + 'T' + endInput.value);
 
         if (end <= start) {
-            timeSpentDisplay.value = '0.00 hrs';
+            timeSpentDisplay.value = '0 min';
             if (dayTotalHint) {
                 dayTotalHint.textContent = 'End time must be after start time.';
             }
             return;
         }
 
-        const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
-        timeSpentDisplay.value = hours + ' hrs';
+        const hours = (end - start) / (1000 * 60 * 60);
+        timeSpentDisplay.value = formatWorkDuration(hours);
 
         if (dayTotalHint) {
-            const dayTotal = (todayLoggedBase + parseFloat(hours)).toFixed(2);
-            dayTotalHint.textContent = 'This job: ' + hours + ' hrs. Day total after save: ' + dayTotal + ' hrs.';
+            const dayTotal = todayLoggedBase + hours;
+            dayTotalHint.textContent = 'This job: ' + formatWorkDuration(hours) + '. Day total after save: ' + formatWorkDuration(dayTotal) + '.';
         }
     }
 

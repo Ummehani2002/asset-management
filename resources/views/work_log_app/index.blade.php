@@ -1,7 +1,7 @@
 @extends('layouts.work-log-app')
 
-@section('title', $isAdmin ? 'Team Progress' : 'My Tickets')
-@section('page-title', $isAdmin ? 'Team Progress' : 'My Tickets')
+@section('title', $isAdmin ? 'Team Progress' : 'My Jobs')
+@section('page-title', $isAdmin ? 'Team Progress' : 'My Jobs')
 
 @section('content')
 <div class="mb-3">
@@ -24,8 +24,8 @@
 
 <div class="stat-grid">
     <div class="stat-card">
-        <div class="num text-primary">{{ $isAdmin ? $stats['today'] : number_format($stats['hours_today'] ?? 0, 1) }}</div>
-        <div class="lbl">{{ $isAdmin ? 'Today' : 'Hrs Today' }}</div>
+        <div class="num text-primary" style="font-size:1rem;line-height:1.3;">{{ $isAdmin ? $stats['today'] : \App\Models\TimeManagement::formatDuration($stats['hours_today'] ?? 0) }}</div>
+        <div class="lbl">{{ $isAdmin ? 'Jobs Today' : 'Time Today' }}</div>
     </div>
     <div class="stat-card">
         <div class="num text-warning">{{ $stats['pending'] }}</div>
@@ -73,9 +73,9 @@
             <div class="d-flex justify-content-between align-items-center small py-1 {{ !$loop->last ? 'border-bottom' : '' }}">
                 <span><strong>{{ $summary['employee_name'] }}</strong> · {{ $summary['job_count'] }} job(s)</span>
                 <span>
-                    <strong>{{ number_format($summary['total_hours'], 2) }} hrs</strong>
+                    <strong>{{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}</strong>
                     @if(($summary['overtime_hours'] ?? 0) > 0)
-                        <span class="text-danger ms-1">OT {{ number_format($summary['overtime_hours'], 2) }}h</span>
+                        <span class="text-danger ms-1">OT {{ \App\Models\TimeManagement::formatDuration($summary['overtime_hours']) }}</span>
                     @endif
                 </span>
             </div>
@@ -119,16 +119,21 @@
                 <span>
                     <i class="bi bi-clock"></i>
                     {{ $task->start_time?->format('H:i') }} – {{ $task->end_time?->format('H:i') }}
-                    <strong class="ms-1">{{ $task->duration_hours }} hrs</strong>
+                    <strong class="ms-1">{{ \App\Models\TimeManagement::formatDuration($task->duration_hours) }}</strong>
                 </span>
                 @if($isAdmin && ($task->overtime_hours ?? 0) > 0)
-                    <span class="text-danger fw-bold">OT: {{ $task->overtime_hours }}h</span>
+                    <span class="text-danger fw-bold">OT: {{ \App\Models\TimeManagement::formatDuration($task->overtime_hours) }}</span>
                 @endif
             </div>
-            <div class="mt-2">
-                <a href="{{ route('worklog.edit', $task->id) }}" class="btn btn-sm btn-outline-primary w-100">
+            <div class="mt-2 d-grid gap-2">
+                <a href="{{ route('worklog.edit', $task->id) }}" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-pencil"></i> Edit
                 </a>
+                @if($displayStatus !== 'completed')
+                <a href="{{ route('worklog.edit', $task->id) }}?status=completed" class="btn btn-sm btn-success">
+                    <i class="bi bi-check-circle"></i> Mark Completed
+                </a>
+                @endif
             </div>
         </div>
     @endforeach

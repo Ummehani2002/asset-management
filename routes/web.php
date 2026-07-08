@@ -40,14 +40,7 @@ Route::prefix('work-log-app')->name('worklog.')->group(function () {
     Route::post('/login', [WorkLogAppController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
 
     Route::middleware('auth')->group(function () {
-        Route::get('/dashboard', function () {
-            $user = auth()->user();
-            if ($user && $user->isTimeManagementAdmin()) {
-                return app(WorkLogAppController::class)->index(request());
-            }
-
-            return redirect()->route('worklog.create');
-        })->name('index');
+        Route::get('/dashboard', [WorkLogAppController::class, 'index'])->name('index');
         Route::get('/create', [WorkLogAppController::class, 'create'])->name('create');
         Route::get('/{id}/edit', [WorkLogAppController::class, 'edit'])->whereNumber('id')->name('edit');
         Route::post('/logout', [WorkLogAppController::class, 'logout'])->name('logout');

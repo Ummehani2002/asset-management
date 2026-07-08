@@ -120,7 +120,12 @@ class WorkLogAppController extends Controller
                     $query->where('user_id', $request->user_id);
                 }
             } else {
-                $query->where('user_id', $user->id);
+                $query->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                    if ($user->employee_id) {
+                        $q->orWhere('employee_id', $user->employee_id);
+                    }
+                });
             }
 
             if ($request->filled('status') && in_array($request->status, ['pending', 'completed'], true)) {
@@ -148,7 +153,12 @@ class WorkLogAppController extends Controller
 
             $statsQuery = TimeManagement::query();
             if (! $isAdmin) {
-                $statsQuery->where('user_id', $user->id);
+                $statsQuery->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                    if ($user->employee_id) {
+                        $q->orWhere('employee_id', $user->employee_id);
+                    }
+                });
             } elseif ($request->filled('user_id')) {
                 $statsQuery->where('user_id', $request->user_id);
             }
@@ -191,12 +201,23 @@ class WorkLogAppController extends Controller
     {
         $user = Auth::user();
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
+        $todayJobs = TimeManagement::query()
+            ->whereDate('job_card_date', today())
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+                if ($user->employee_id) {
+                    $q->orWhere('employee_id', $user->employee_id);
+                }
+            })
+            ->orderByDesc('start_time')
+            ->get();
 
         return view('work_log_app.create', [
             'ticketNumber' => TimeManagement::generateTicketNumber(),
             'employeeName' => $user->name,
             'defaultCategory' => TimeManagement::DEFAULT_CATEGORY,
             'todayTotals' => $todayTotals,
+            'todayJobs' => $todayJobs,
             'isAdmin' => $user->isTimeManagementAdmin(),
         ]);
     }

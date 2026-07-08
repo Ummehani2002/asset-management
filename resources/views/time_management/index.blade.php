@@ -33,7 +33,7 @@
             $myToday = \App\Models\TimeManagement::getDailyTotals(auth()->id(), auth()->user()->employee_id, today()->format('Y-m-d'));
         @endphp
         <div class="alert alert-light border mb-4">
-            <strong>Today:</strong> {{ number_format($myToday['total_hours'], 2) }} hrs logged across {{ $myToday['job_count'] }} job(s).
+            <strong>Today:</strong> {{ \App\Models\TimeManagement::formatDuration($myToday['total_hours']) }} logged across {{ $myToday['job_count'] }} job(s).
             <a href="{{ route('time.create') }}" class="ms-2">Log another job</a>
         </div>
     @endif
@@ -110,10 +110,10 @@
                         <tr>
                             <td><strong>{{ $summary['employee_name'] }}</strong></td>
                             <td>{{ $summary['job_count'] }}</td>
-                            <td><strong>{{ number_format($summary['total_hours'], 2) }} hrs</strong></td>
+                            <td><strong>{{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}</strong></td>
                             <td>
                                 @if(($summary['overtime_hours'] ?? 0) > 0)
-                                    <span class="text-danger fw-bold">{{ number_format($summary['overtime_hours'], 2) }} hrs</span>
+                                    <span class="text-danger fw-bold">{{ \App\Models\TimeManagement::formatDuration($summary['overtime_hours']) }}</span>
                                 @else
                                     -
                                 @endif
@@ -168,11 +168,11 @@
                             <td>{{ $task->job_card_date ? $task->job_card_date->format('Y-m-d') : '-' }}</td>
                             <td>{{ $task->start_time ? $task->start_time->format('H:i') : '-' }}</td>
                             <td>{{ $task->end_time ? $task->end_time->format('H:i') : '-' }}</td>
-                            <td>{{ $task->duration_hours ?? 0 }} hrs</td>
+                            <td>{{ \App\Models\TimeManagement::formatDuration($task->duration_hours ?? 0) }}</td>
                             @if($isAdmin)
                             <td>
                                 @if(($task->overtime_hours ?? 0) > 0)
-                                    <span class="text-danger fw-bold">{{ $task->overtime_hours }} hrs</span>
+                                    <span class="text-danger fw-bold">{{ \App\Models\TimeManagement::formatDuration($task->overtime_hours) }}</span>
                                 @else
                                     -
                                 @endif

@@ -317,7 +317,7 @@ class TimeManagementController extends Controller
             TimeManagement::recalculateDailyOvertime($oldEmployeeId, $record->user_id, $oldDate);
         }
 
-        return $this->workLogRedirect($request)->with('success', 'Work log updated successfully.');
+        return $this->workLogRedirect($request, true)->with('success', 'Work log updated successfully.');
     }
 
     public function destroy($id)
@@ -336,7 +336,7 @@ class TimeManagementController extends Controller
         }
 
         $redirect = request()->input('_from_app')
-            ? redirect()->route('worklog.create')
+            ? redirect()->route('worklog.index')
             : redirect()->route('time.index');
 
         return $redirect->with('success', 'Work log deleted successfully.');
@@ -360,10 +360,12 @@ class TimeManagementController extends Controller
         }
     }
 
-    private function workLogRedirect(Request $request)
+    private function workLogRedirect(Request $request, bool $toJobsList = false)
     {
-        return $request->input('_from_app')
-            ? redirect()->route('worklog.create')
-            : redirect()->route('time.index');
+        if ($request->input('_from_app')) {
+            return redirect()->route($toJobsList ? 'worklog.index' : 'worklog.create');
+        }
+
+        return redirect()->route('time.index');
     }
 }

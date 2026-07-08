@@ -80,6 +80,33 @@ class TimeManagement extends Model
     }
 
     /**
+     * Human-readable duration, e.g. 0.5 → "30 min", 1.5 → "1 hr 30 min".
+     */
+    public static function formatDuration(float|int|string|null $hours): string
+    {
+        $hours = (float) ($hours ?? 0);
+        if ($hours <= 0) {
+            return '0 min';
+        }
+
+        $totalMinutes = (int) round($hours * 60);
+        $hrs = intdiv($totalMinutes, 60);
+        $mins = $totalMinutes % 60;
+
+        if ($hrs === 0) {
+            return $mins.' min';
+        }
+
+        if ($mins === 0) {
+            return $hrs === 1 ? '1 hr' : $hrs.' hrs';
+        }
+
+        $hrPart = $hrs === 1 ? '1 hr' : $hrs.' hrs';
+
+        return $hrPart.' '.$mins.' min';
+    }
+
+    /**
      * Recalculate duration and overtime for all entries of a user on a given date.
      * First 8 hours of the day are regular; excess is overtime.
      */

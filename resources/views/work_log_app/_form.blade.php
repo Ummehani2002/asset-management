@@ -25,7 +25,7 @@
     @unless($isTimeAdmin)
     <div class="alert alert-light border mb-3 py-2">
         <small class="text-muted d-block">Logged today (before this job)</small>
-        <strong class="text-success">{{ number_format($todayTotals['total_hours'], 2) }} hrs</strong>
+        <strong class="text-success">{{ \App\Models\TimeManagement::formatDuration($todayTotals['total_hours']) }}</strong>
         <small class="text-muted"> · {{ $todayTotals['job_count'] }} job(s) so far</small>
     </div>
     @endunless
@@ -83,7 +83,8 @@
 
     <div class="mb-3">
         <label class="form-label">This Job</label>
-        <input type="text" id="time_spent_display" class="form-control bg-light" readonly value="0.00 hrs">
+        <input type="text" id="time_spent_display" class="form-control bg-light" readonly value="0 min">
+        <small class="text-muted">Shown as hours and minutes</small>
     </div>
 
     @unless($isTimeAdmin)
@@ -112,7 +113,7 @@
 
     <div class="mb-3">
         <label class="form-label">Status <span class="text-danger">*</span></label>
-        @php $status = old('status', $record?->status ?? 'pending'); if ($status === 'in_progress') $status = 'pending'; @endphp
+        @php $status = old('status', request('status', $record?->status ?? 'pending')); if ($status === 'in_progress') $status = 'pending'; @endphp
         <select name="status" class="form-select" required>
             <option value="pending" {{ $status === 'pending' ? 'selected' : '' }}>Pending</option>
             <option value="completed" {{ $status === 'completed' ? 'selected' : '' }}>Completed</option>
@@ -131,13 +132,14 @@
         {{ $record ? 'Update Work Log' : 'Save Work Log' }}
     </button>
     @if($record)
-        <a href="{{ route('worklog.create') }}" class="btn btn-outline-secondary w-100 mt-2" style="border-radius: 12px; padding: 12px;">
-            Cancel
+        <a href="{{ route('worklog.index') }}" class="btn btn-outline-secondary w-100 mt-2" style="border-radius: 12px; padding: 12px;">
+            Back to My Jobs
         </a>
     @endif
 </form>
 
 @push('scripts')
+<script src="{{ asset('js/format-work-duration.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const dateInput = document.querySelector('input[name="job_card_date"]');
@@ -155,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateTimeSpent() {
         if (!dateInput.value || !startInput.value || !endInput.value) {
-            timeSpentDisplay.value = '0.00 hrs';
+            timeSpentDisplay.value = '0 min';
             if (dayTotalHint) {
                 dayTotalHint.textContent = 'After saving, your total for this day will update automatically.';
             }
@@ -164,17 +166,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const start = new Date(dateInput.value + 'T' + startInput.value);
         const end = new Date(dateInput.value + 'T' + endInput.value);
         if (end <= start) {
-            timeSpentDisplay.value = '0.00 hrs';
+            timeSpentDisplay.value = '0 min';
             if (dayTotalHint) {
                 dayTotalHint.textContent = 'End time must be after start time.';
             }
             return;
         }
-        const hours = ((end - start) / (1000 * 60 * 60)).toFixed(2);
-        timeSpentDisplay.value = hours + ' hrs';
+        const hours = (end - start) / (1000 * 60 * 60);
+        timeSpentDisplay.value = formatWorkDuration(hours);
         if (dayTotalHint) {
-            const dayTotal = (todayLoggedBase + parseFloat(hours)).toFixed(2);
-            dayTotalHint.textContent = 'This job: ' + hours + ' hrs. Day total after save: ' + dayTotal + ' hrs.';
+            const dayTotal = todayLoggedBase + hours;
+            dayTotalHint.textContent = 'This job: ' + formatWorkDuration(hours) + '. Day total after save: ' + formatWorkDuration(dayTotal) + '.';
         }
     }
 

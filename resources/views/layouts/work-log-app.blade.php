@@ -277,7 +277,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="@if(View::hasSection('header')) no-nav @elseif(auth()->check() && !auth()->user()->isTimeManagementAdmin()) employee-app @endif">
+<body class="@if(View::hasSection('header')) no-nav @endif">
     @hasSection('header')
         @yield('header')
     @else
@@ -287,11 +287,9 @@
                 <small>{{ Auth::user()->name ?? '' }}</small>
             </div>
             <div class="d-flex align-items-center gap-2">
-                @if(Auth::user()?->isTimeManagementAdmin())
-                <a href="{{ route('worklog.index') }}" class="btn btn-sm btn-outline-light" title="Team Progress">
-                    <i class="bi bi-people"></i>
+                <a href="{{ route('worklog.index') }}" class="btn btn-sm btn-outline-light" title="{{ Auth::user()?->isTimeManagementAdmin() ? 'Team Progress' : 'My Jobs' }}">
+                    <i class="bi bi-{{ Auth::user()?->isTimeManagementAdmin() ? 'people' : 'list-check' }}"></i>
                 </a>
-                @endif
                 <form action="{{ route('worklog.logout') }}" method="POST" class="m-0">
                     @csrf
                     <button type="submit" class="btn btn-sm btn-outline-light border-0">
@@ -325,18 +323,18 @@
     </main>
 
     @auth
-        @if(Auth::user()->isTimeManagementAdmin())
+        @unless(View::hasSection('header'))
         <nav class="bottom-nav">
             <a href="{{ route('worklog.create') }}" class="{{ request()->routeIs('worklog.create') ? 'active' : '' }}">
                 <i class="bi bi-pencil-square"></i>
                 New Log
             </a>
-            <a href="{{ route('worklog.index') }}" class="{{ request()->routeIs('worklog.index') ? 'active' : '' }}">
-                <i class="bi bi-people"></i>
-                Team
+            <a href="{{ route('worklog.index') }}" class="{{ request()->routeIs('worklog.index') || request()->routeIs('worklog.edit') ? 'active' : '' }}">
+                <i class="bi bi-{{ Auth::user()->isTimeManagementAdmin() ? 'people' : 'list-check' }}"></i>
+                {{ Auth::user()->isTimeManagementAdmin() ? 'Team' : 'My Jobs' }}
             </a>
         </nav>
-        @endif
+        @endunless
     @endauth
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
