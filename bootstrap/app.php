@@ -19,6 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', [
             \App\Http\Middleware\LogUserActivity::class,
         ]);
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('work-log-app') || $request->is('work-log-app/*')) {
+                return route('worklog.login');
+            }
+
+            return route('login');
+        });
     })
     ->withSchedule(function (Schedule $schedule): void {
         // Check for delayed tasks every 5 minutes for immediate alerts when time is exceeded

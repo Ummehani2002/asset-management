@@ -21,14 +21,21 @@ Route::middleware('guest')->group(function () {
 });
 
 // Work Log mobile app (PWA)
+Route::redirect('/worklog', '/work-log-app/login');
 Route::prefix('work-log-app')->name('worklog.')->group(function () {
+    Route::get('/', function () {
+        return auth()->check()
+            ? redirect()->route('worklog.index')
+            : redirect()->route('worklog.login');
+    })->name('home');
+
     Route::middleware('guest')->group(function () {
         Route::get('/login', [WorkLogAppController::class, 'showLogin'])->name('login');
         Route::post('/login', [WorkLogAppController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
     });
 
     Route::middleware('auth')->group(function () {
-        Route::get('/', [WorkLogAppController::class, 'index'])->name('index');
+        Route::get('/dashboard', [WorkLogAppController::class, 'index'])->name('index');
         Route::get('/create', [WorkLogAppController::class, 'create'])->name('create');
         Route::get('/{id}/edit', [WorkLogAppController::class, 'edit'])->name('edit');
         Route::post('/logout', [WorkLogAppController::class, 'logout'])->name('logout');

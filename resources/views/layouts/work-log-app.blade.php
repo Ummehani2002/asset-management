@@ -278,24 +278,17 @@
     @hasSection('hide-nav')
     @else
         <nav class="bottom-nav">
-            <a href="{{ route('worklog.index') }}" class="{{ request()->routeIs('worklog.index') ? 'active' : '' }}">
+            <a href="{{ route('worklog.index') }}" class="{{ request()->routeIs('worklog.index') && ! request('status') ? 'active' : '' }}">
                 <i class="bi bi-house-door"></i>
-                Home
+                {{ Auth::user()?->isAdmin() ? 'Progress' : 'Home' }}
             </a>
             <a href="{{ route('worklog.create') }}" class="nav-new {{ request()->routeIs('worklog.create') ? 'active' : '' }}">
                 <i class="bi bi-plus-lg"></i>
             </a>
-            @if(Auth::user()?->isAdmin())
-            <a href="{{ route('time.index') }}" class="">
-                <i class="bi bi-laptop"></i>
-                Desktop
-            </a>
-            @else
             <a href="{{ route('worklog.index', ['status' => 'pending']) }}" class="{{ request('status') === 'pending' ? 'active' : '' }}">
                 <i class="bi bi-hourglass-split"></i>
                 Pending
             </a>
-            @endif
         </nav>
     @endif
 
