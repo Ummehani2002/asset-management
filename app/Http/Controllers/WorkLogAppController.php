@@ -16,7 +16,7 @@ class WorkLogAppController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect()->route('worklog.index');
+            return redirect()->route('worklog.create');
         }
 
         return view('work_log_app.login');
@@ -42,7 +42,7 @@ class WorkLogAppController extends Controller
 
             Auth::login($user);
 
-            return redirect()->route('worklog.index');
+            return redirect()->route('worklog.create');
         }
 
         return back()->withErrors(['username' => 'Invalid username or password.']);
@@ -59,6 +59,11 @@ class WorkLogAppController extends Controller
 
     public function index(Request $request)
     {
+        $user = Auth::user();
+        if (! $user->isAdmin()) {
+            return redirect()->route('worklog.create');
+        }
+
         try {
             if (! Schema::hasTable('time_managements')) {
                 return view('work_log_app.index', [

@@ -3,7 +3,6 @@
 @section('title', 'Login')
 @section('header')
 @endsection
-@section('hide-nav')
 
 @section('content')
 <div class="login-page" style="margin: -16px; padding: 24px;">

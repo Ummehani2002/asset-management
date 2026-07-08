@@ -108,9 +108,11 @@
         <i class="bi bi-check-circle me-1"></i>
         {{ $record ? 'Update Work Log' : 'Save Work Log' }}
     </button>
-    <a href="{{ route('worklog.index') }}" class="btn btn-outline-secondary w-100 mt-2" style="border-radius: 12px; padding: 12px;">
-        Cancel
-    </a>
+    @if($record)
+        <a href="{{ route('worklog.create') }}" class="btn btn-outline-secondary w-100 mt-2" style="border-radius: 12px; padding: 12px;">
+            Cancel
+        </a>
+    @endif
 </form>
 
 @push('scripts')

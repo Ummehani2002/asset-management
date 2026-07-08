@@ -218,6 +218,28 @@
 
         .install-banner.show { display: flex; }
 
+        .install-help {
+            background: #fff;
+            border: 1px solid #D1D5DB;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+            font-size: 0.85rem;
+        }
+
+        .install-help h6 {
+            margin: 0 0 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .install-help ol {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .install-help li { margin-bottom: 6px; }
+
         .badge-status {
             font-size: 0.7rem;
             padding: 4px 8px;
@@ -253,7 +275,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="{{ View::hasSection('hide-nav') ? 'no-nav' : '' }}">
+<body class="{{ View::hasSection('show-nav') ? '' : 'no-nav' }}">
     @hasSection('header')
         @yield('header')
     @else
@@ -262,32 +284,53 @@
                 <h1>@yield('page-title', 'Work Log')</h1>
                 <small>{{ Auth::user()->name ?? '' }}</small>
             </div>
-            <form action="{{ route('worklog.logout') }}" method="POST" class="m-0">
-                @csrf
-                <button type="submit" class="btn btn-sm btn-outline-light border-0">
-                    <i class="bi bi-box-arrow-right"></i>
-                </button>
-            </form>
+            <div class="d-flex align-items-center gap-2">
+                @if(Auth::user()?->isAdmin())
+                    <a href="{{ route('worklog.index') }}" class="btn btn-sm btn-outline-light" title="Team Progress">
+                        <i class="bi bi-people"></i>
+                    </a>
+                @endif
+                <form action="{{ route('worklog.logout') }}" method="POST" class="m-0">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-outline-light border-0">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </form>
+            </div>
         </header>
     @endif
 
     <main class="app-content">
+        <div id="installHelp" class="install-help" style="display:none;">
+            <h6><i class="bi bi-phone me-1"></i> Add to Home Screen</h6>
+            <div id="installHelpIos" style="display:none;">
+                <ol>
+                    <li>Tap the <strong>Share</strong> button at the bottom of Safari (square with arrow).</li>
+                    <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+                    <li>Tap <strong>Add</strong>.</li>
+                </ol>
+            </div>
+            <div id="installHelpAndroid" style="display:none;">
+                <ol>
+                    <li>Tap the <strong>3 dots</strong> at the top right in Chrome.</li>
+                    <li>Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>.</li>
+                    <li>Tap <strong>Add</strong> or <strong>Install</strong>.</li>
+                </ol>
+            </div>
+            <button type="button" id="installHelpDismiss" class="btn btn-sm btn-outline-secondary mt-2">Got it</button>
+        </div>
         @yield('content')
     </main>
 
-    @hasSection('hide-nav')
-    @else
+    @hasSection('show-nav')
         <nav class="bottom-nav">
-            <a href="{{ route('worklog.index') }}" class="{{ request()->routeIs('worklog.index') && ! request('status') ? 'active' : '' }}">
-                <i class="bi bi-house-door"></i>
-                {{ Auth::user()?->isAdmin() ? 'Progress' : 'Home' }}
+            <a href="{{ route('worklog.create') }}" class="{{ request()->routeIs('worklog.create') ? 'active' : '' }}">
+                <i class="bi bi-pencil-square"></i>
+                New Log
             </a>
-            <a href="{{ route('worklog.create') }}" class="nav-new {{ request()->routeIs('worklog.create') ? 'active' : '' }}">
-                <i class="bi bi-plus-lg"></i>
-            </a>
-            <a href="{{ route('worklog.index', ['status' => 'pending']) }}" class="{{ request('status') === 'pending' ? 'active' : '' }}">
-                <i class="bi bi-hourglass-split"></i>
-                Pending
+            <a href="{{ route('worklog.index') }}" class="{{ request()->routeIs('worklog.index') ? 'active' : '' }}">
+                <i class="bi bi-people"></i>
+                Progress
             </a>
         </nav>
     @endif
@@ -315,6 +358,32 @@
                 await deferredPrompt.userChoice;
                 deferredPrompt = null;
                 if (installBanner) installBanner.classList.remove('show');
+            });
+        }
+
+        const installHelp = document.getElementById('installHelp');
+        const installHelpIos = document.getElementById('installHelpIos');
+        const installHelpAndroid = document.getElementById('installHelpAndroid');
+        const installHelpDismiss = document.getElementById('installHelpDismiss');
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        const isAndroid = /android/i.test(navigator.userAgent);
+        const helpDismissed = localStorage.getItem('worklog_install_help_dismissed') === '1';
+
+        if (installHelp && !isStandalone && !helpDismissed) {
+            installHelp.style.display = 'block';
+            if (isIos && installHelpIos) installHelpIos.style.display = 'block';
+            if (isAndroid && installHelpAndroid) installHelpAndroid.style.display = 'block';
+            if (!isIos && !isAndroid) {
+                if (installHelpIos) installHelpIos.style.display = 'block';
+                if (installHelpAndroid) installHelpAndroid.style.display = 'block';
+            }
+        }
+
+        if (installHelpDismiss) {
+            installHelpDismiss.addEventListener('click', () => {
+                localStorage.setItem('worklog_install_help_dismissed', '1');
+                if (installHelp) installHelp.style.display = 'none';
             });
         }
     </script>

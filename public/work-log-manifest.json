@@ -2,7 +2,7 @@
     "name": "Tanseeq Work Log",
     "short_name": "Work Log",
     "description": "Log daily work tasks and time for Tanseeq employees",
-    "start_url": "/work-log-app/login",
+    "start_url": "/work-log-app/create",
     "scope": "/work-log-app",
     "display": "standalone",
     "orientation": "portrait",

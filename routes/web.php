@@ -25,7 +25,7 @@ Route::redirect('/worklog', '/work-log-app/login');
 Route::prefix('work-log-app')->name('worklog.')->group(function () {
     Route::get('/', function () {
         return auth()->check()
-            ? redirect()->route('worklog.index')
+            ? redirect()->route('worklog.create')
             : redirect()->route('worklog.login');
     })->name('home');
 

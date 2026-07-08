@@ -1,9 +1,16 @@
 @extends('layouts.work-log-app')
 
-@section('title', 'My Work Logs')
-@section('page-title', $isAdmin ? 'Team Progress' : 'My Work Logs')
+@section('title', 'Team Progress')
+@section('page-title', 'Team Progress')
+@section('show-nav')
 
 @section('content')
+<div class="mb-3">
+    <a href="{{ route('worklog.create') }}" class="btn btn-sm btn-outline-primary w-100">
+        <i class="bi bi-pencil-square me-1"></i> Back to Work Log Form
+    </a>
+</div>
+
 <div id="installBanner" class="install-banner">
     <span><i class="bi bi-download me-1"></i> Install app on your phone</span>
     <button type="button" id="installBtn" class="btn btn-sm btn-light">Install</button>

@@ -1,5 +1,6 @@
-const CACHE_NAME = 'tanseeq-work-log-v2';
+const CACHE_NAME = 'tanseeq-work-log-v3';
 const PRECACHE = [
+    '/work-log-app/create',
     '/work-log-app/login',
     '/images/work-log-icon-192.png',
     '/images/work-log-icon-512.png',

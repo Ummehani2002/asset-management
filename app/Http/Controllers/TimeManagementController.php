@@ -314,7 +314,7 @@ class TimeManagementController extends Controller
         }
 
         $redirect = request()->input('_from_app')
-            ? redirect()->route('worklog.index')
+            ? redirect()->route('worklog.create')
             : redirect()->route('time.index');
 
         return $redirect->with('success', 'Work log deleted successfully.');
@@ -341,7 +341,7 @@ class TimeManagementController extends Controller
     private function workLogRedirect(Request $request)
     {
         return $request->input('_from_app')
-            ? redirect()->route('worklog.index')
+            ? redirect()->route('worklog.create')
             : redirect()->route('time.index');
     }
 }
