@@ -24,11 +24,12 @@
             @include('time_management._form', [
                 'action' => route('time.store'),
                 'method' => 'POST',
-                'ticketNumber' => $ticketNumber,
                 'employeeName' => $employeeName,
                 'record' => null,
                 'todayTotals' => $todayTotals ?? ['total_hours' => 0, 'job_count' => 0],
                 'isAdmin' => $isAdmin ?? false,
+                'openTickets' => $openTickets ?? collect(),
+                'continueTicket' => $continueTicket ?? null,
             ])
         </div>
     </div>

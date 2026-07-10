@@ -24,11 +24,11 @@
             @include('time_management._form', [
                 'action' => route('time.update', $record->id),
                 'method' => 'POST',
-                'ticketNumber' => $record->ticket_number,
                 'employeeName' => $record->employee_name,
                 'record' => $record,
                 'todayTotals' => $todayTotals ?? ['total_hours' => 0, 'job_count' => 0],
                 'isAdmin' => $isAdmin ?? false,
+                'openTickets' => $openTickets ?? collect(),
             ])
         </div>
     </div>

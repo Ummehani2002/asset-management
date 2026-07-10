@@ -38,10 +38,86 @@
         </div>
     @endif
 
+    @if($isAdmin)
+    <div class="master-table-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 style="color: white; margin: 0;">
+                <i class="bi bi-people me-2"></i>Employee Hours — {{ \Carbon\Carbon::parse($summaryDate ?? today())->format('D, M j, Y') }}
+            </h5>
+            <form method="GET" action="{{ route('time.index') }}" class="d-flex align-items-center gap-2 mb-0">
+                @foreach(request()->except('summary_date') as $key => $value)
+                    @if(is_scalar($value) && $value !== '')
+                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                    @endif
+                @endforeach
+                <input type="date" name="summary_date" class="form-control form-control-sm" value="{{ $summaryDate ?? today()->format('Y-m-d') }}" onchange="this.form.submit()">
+            </form>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Visits</th>
+                            <th>Hours Worked</th>
+                            <th>Overtime</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($dailySummaries as $summary)
+                        <tr class="{{ ($summary['total_hours'] ?? 0) <= 0 ? 'table-light' : '' }}">
+                            <td><strong>{{ $summary['employee_name'] }}</strong></td>
+                            <td>{{ $summary['job_count'] }}</td>
+                            <td>
+                                <strong class="{{ ($summary['total_hours'] ?? 0) > 0 ? 'text-success' : 'text-muted' }}">
+                                    {{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}
+                                </strong>
+                            </td>
+                            <td>
+                                @if(($summary['overtime_hours'] ?? 0) > 0)
+                                    <span class="text-danger fw-bold">{{ \App\Models\TimeManagement::formatDuration($summary['overtime_hours']) }}</span>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">No employees found.</td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                    @if(!empty($dailySummaries))
+                    <tfoot class="table-light">
+                        <tr>
+                            <th>Team Total</th>
+                            <th>{{ collect($dailySummaries)->sum('job_count') }}</th>
+                            <th><strong>{{ \App\Models\TimeManagement::formatDuration($dailySummaryTotals['total_hours'] ?? 0) }}</strong></th>
+                            <th>
+                                @if(($dailySummaryTotals['overtime_hours'] ?? 0) > 0)
+                                    <span class="text-danger fw-bold">{{ \App\Models\TimeManagement::formatDuration($dailySummaryTotals['overtime_hours']) }}</span>
+                                @else
+                                    -
+                                @endif
+                            </th>
+                        </tr>
+                    </tfoot>
+                    @endif
+                </table>
+            </div>
+            <div class="p-3 border-top small text-muted">
+                {{ $dailySummaryTotals['active_count'] ?? 0 }} of {{ $dailySummaryTotals['employee_count'] ?? 0 }} employee(s) logged time on this date.
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="master-table-card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ route('time.index') }}" class="row g-3 align-items-end">
                 @if($isAdmin)
+                <input type="hidden" name="summary_date" value="{{ $summaryDate ?? today()->format('Y-m-d') }}">
                 <div class="col-md-3">
                     <label class="form-label">Team Member</label>
                     <select name="user_id" class="form-control">
@@ -87,11 +163,11 @@
         </div>
     </div>
 
-    @if($isAdmin && !empty($dailySummaries))
+    @if(!empty($ticketSummaries))
     <div class="master-table-card mb-4">
         <div class="card-header">
             <h5 style="color: white; margin: 0;">
-                <i class="bi bi-people me-2"></i>Team Daily Summary — {{ $summaryDate ?? today()->format('Y-m-d') }}
+                <i class="bi bi-ticket-detailed me-2"></i>Tickets — Total Time by Location
             </h5>
         </div>
         <div class="card-body p-0">
@@ -99,23 +175,38 @@
                 <table class="table table-bordered mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Employee</th>
-                            <th>Jobs Today</th>
-                            <th>Total Hours</th>
-                            <th>Overtime</th>
+                            <th>Ticket</th>
+                            @if($isAdmin)<th>Employee</th>@endif
+                            <th>Location</th>
+                            <th>Task</th>
+                            <th>Visits</th>
+                            <th>Total Time</th>
+                            <th>First Visit</th>
+                            <th>Last Visit</th>
+                            <th>Status</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($dailySummaries as $summary)
+                        @foreach($ticketSummaries as $summary)
                         <tr>
-                            <td><strong>{{ $summary['employee_name'] }}</strong></td>
-                            <td>{{ $summary['job_count'] }}</td>
+                            <td><strong>{{ $summary['ticket_number'] }}</strong></td>
+                            @if($isAdmin)<td>{{ $summary['employee_name'] }}</td>@endif
+                            <td>{{ $summary['site_location'] }}</td>
+                            <td>{{ \Illuminate\Support\Str::limit($summary['task_description'], 40) }}</td>
+                            <td>{{ $summary['visit_count'] }}</td>
                             <td><strong>{{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}</strong></td>
+                            <td>{{ $summary['first_visit'] ? \Carbon\Carbon::parse($summary['first_visit'])->format('Y-m-d') : '-' }}</td>
+                            <td>{{ $summary['last_visit'] ? \Carbon\Carbon::parse($summary['last_visit'])->format('Y-m-d') : '-' }}</td>
                             <td>
-                                @if(($summary['overtime_hours'] ?? 0) > 0)
-                                    <span class="text-danger fw-bold">{{ \App\Models\TimeManagement::formatDuration($summary['overtime_hours']) }}</span>
-                                @else
-                                    -
+                                <span class="badge {{ $summary['status'] === 'completed' ? 'bg-success' : 'bg-warning text-dark' }}">
+                                    {{ ucfirst($summary['status']) }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ route('time.ticket.show', $summary['id']) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                @if($summary['status'] === 'pending')
+                                    <a href="{{ route('time.create', ['work_ticket_id' => $summary['id']]) }}" class="btn btn-sm btn-primary">Add Visit</a>
                                 @endif
                             </td>
                         </tr>
@@ -147,7 +238,7 @@
                             <th>Date</th>
                             <th>Start</th>
                             <th>End</th>
-                            <th>Time Spent</th>
+                            <th>Visit Time</th>
                             @if($isAdmin)<th>Overtime</th>@endif
                             <th>Status</th>
                             <th>Action</th>
@@ -156,11 +247,16 @@
                     <tbody>
                         @forelse($tasks as $key => $task)
                         @php
-                            $displayStatus = $task->status === 'in_progress' ? 'pending' : $task->status;
+                            $displayStatus = $task->ticketStatus();
                         @endphp
                         <tr>
                             <td>{{ $key + 1 }}</td>
-                            <td><strong>{{ $task->ticket_number }}</strong></td>
+                            <td>
+                                <strong>{{ $task->ticket_number }}</strong>
+                                @if($task->work_ticket_id)
+                                    <div><a href="{{ route('time.ticket.show', $task->work_ticket_id) }}" class="small">View ticket</a></div>
+                                @endif
+                            </td>
                             @if($isAdmin)<td>{{ $task->employee_name }}</td>@endif
                             <td>{{ $task->category ?? 'End User Support' }}</td>
                             <td>{{ \Illuminate\Support\Str::limit($task->task_description ?? '-', 40) }}</td>

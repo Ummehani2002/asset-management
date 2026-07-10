@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\TimeManagement;
 use App\Models\User;
+use App\Models\WorkTicket;
 use App\Rules\AllowedEmailDomain;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -107,13 +108,18 @@ class WorkLogAppController extends Controller
                     'stats' => ['total' => 0, 'pending' => 0, 'completed' => 0, 'today' => 0, 'hours_today' => 0],
                     'dailySummaries' => [],
                     'summaryDate' => today()->format('Y-m-d'),
+                    'ticketSummaries' => [],
+                'dailySummaryTotals' => ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0],
                 ])->with('warning', 'Database tables not found. Please run migrations.');
             }
 
             $user = Auth::user();
             $isAdmin = $user->isTimeManagementAdmin();
 
-            $query = TimeManagement::query()->orderByDesc('job_card_date')->orderByDesc('start_time');
+            $query = TimeManagement::query()
+                ->with('workTicket')
+                ->orderByDesc('job_card_date')
+                ->orderByDesc('start_time');
 
             if ($isAdmin) {
                 if ($request->filled('user_id')) {
@@ -177,12 +183,31 @@ class WorkLogAppController extends Controller
                 ? User::orderBy('name')->get(['id', 'name'])
                 : collect();
 
-            $summaryDate = today()->format('Y-m-d');
+            $summaryDate = $request->input('summary_date', today()->format('Y-m-d'));
             $dailySummaries = $isAdmin
-                ? TimeManagement::getAdminDailySummaries($summaryDate, $request->filled('user_id') ? (int) $request->user_id : null)
+                ? TimeManagement::getAdminDailySummaries(
+                    $summaryDate,
+                    $request->filled('user_id') ? (int) $request->user_id : null,
+                    $teamMembers
+                )
+                : [];
+            $dailySummaryTotals = $isAdmin
+                ? TimeManagement::summarizeDailyTotals($dailySummaries)
+                : ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0];
+
+            if ($isAdmin) {
+                $stats['hours_today'] = $dailySummaryTotals['total_hours'];
+                $stats['team_active_today'] = $dailySummaryTotals['active_count'];
+            }
+
+            $ticketSummaries = $isAdmin
+                ? WorkTicket::adminTicketSummaries(
+                    $request->filled('user_id') ? (int) $request->user_id : null,
+                    $request->filled('status') ? $request->status : null
+                )
                 : [];
 
-            return view('work_log_app.index', compact('tasks', 'isAdmin', 'teamMembers', 'stats', 'dailySummaries', 'summaryDate'));
+            return view('work_log_app.index', compact('tasks', 'isAdmin', 'teamMembers', 'stats', 'dailySummaries', 'summaryDate', 'ticketSummaries', 'dailySummaryTotals'));
         } catch (\Exception $e) {
             Log::error('WorkLogApp index error: ' . $e->getMessage());
 
@@ -193,14 +218,26 @@ class WorkLogAppController extends Controller
                 'stats' => ['total' => 0, 'pending' => 0, 'completed' => 0, 'today' => 0, 'hours_today' => 0],
                 'dailySummaries' => [],
                 'summaryDate' => today()->format('Y-m-d'),
+                'ticketSummaries' => [],
+                'dailySummaryTotals' => ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0],
             ])->with('warning', 'Unable to load work logs.');
         }
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $user = Auth::user();
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
+        $openTickets = WorkTicket::openTicketsForUser($user);
+        $continueTicket = null;
+
+        if ($request->filled('work_ticket_id')) {
+            $continueTicket = WorkTicket::find($request->work_ticket_id);
+            if ($continueTicket && ! $continueTicket->isOwnedBy($user)) {
+                $continueTicket = null;
+            }
+        }
+
         $todayJobs = TimeManagement::query()
             ->whereDate('job_card_date', today())
             ->where(function ($q) use ($user) {
@@ -213,12 +250,13 @@ class WorkLogAppController extends Controller
             ->get();
 
         return view('work_log_app.create', [
-            'ticketNumber' => TimeManagement::generateTicketNumber(),
             'employeeName' => $user->name,
             'defaultCategory' => TimeManagement::DEFAULT_CATEGORY,
             'todayTotals' => $todayTotals,
             'todayJobs' => $todayJobs,
             'isAdmin' => $user->isTimeManagementAdmin(),
+            'openTickets' => $openTickets,
+            'continueTicket' => $continueTicket,
         ]);
     }
 
@@ -235,9 +273,10 @@ class WorkLogAppController extends Controller
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, $date, $record->id);
 
         return view('work_log_app.edit', [
-            'record' => $record,
+            'record' => $record->load('workTicket'),
             'todayTotals' => $todayTotals,
             'isAdmin' => $user->isTimeManagementAdmin(),
+            'openTickets' => WorkTicket::openTicketsForUser($user),
         ]);
     }
 }

@@ -13,14 +13,32 @@
     </div>
 @endif
 
+@if(!empty($openTickets) && $openTickets->isNotEmpty())
+<div class="mb-3">
+    <div class="log-card" style="border-left: 4px solid #198754;">
+        <div class="fw-semibold mb-2">Open Tickets</div>
+        @foreach($openTickets as $ticket)
+            <div class="d-flex justify-content-between align-items-center small py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                <div>
+                    <strong>{{ $ticket->ticket_number }}</strong>
+                    <div class="text-muted">{{ $ticket->site_location }}</div>
+                </div>
+                <a href="{{ route('worklog.create', ['work_ticket_id' => $ticket->id]) }}" class="btn btn-sm btn-success">Add Visit</a>
+            </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 <div class="form-card">
     @include('work_log_app._form', [
         'action' => route('time.store'),
-        'ticketNumber' => $ticketNumber,
         'employeeName' => $employeeName,
         'record' => null,
         'todayTotals' => $todayTotals ?? ['total_hours' => 0, 'job_count' => 0],
         'isAdmin' => $isAdmin ?? false,
+        'openTickets' => $openTickets ?? collect(),
+        'continueTicket' => $continueTicket ?? null,
     ])
 </div>
 

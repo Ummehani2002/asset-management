@@ -18,6 +18,7 @@ class TimeManagement extends Model
 
     protected $fillable = [
         'ticket_number',
+        'work_ticket_id',
         'category',
         'task_description',
         'site_location',
@@ -58,6 +59,20 @@ class TimeManagement extends Model
     public function employee()
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function workTicket()
+    {
+        return $this->belongsTo(WorkTicket::class);
+    }
+
+    public function ticketStatus(): string
+    {
+        if ($this->workTicket) {
+            return $this->workTicket->status === 'completed' ? 'completed' : 'pending';
+        }
+
+        return $this->status === 'in_progress' ? 'pending' : ($this->status ?? 'pending');
     }
 
     public static function generateTicketNumber(): string
@@ -140,10 +155,23 @@ class TimeManagement extends Model
     /**
      * Daily totals grouped by employee for admin dashboards.
      *
+     * @param  iterable<int, \App\Models\User>|null  $teamMembers
      * @return array<int, array{user_id: int|null, employee_name: string, total_hours: float, overtime_hours: float, job_count: int}>
      */
-    public static function getAdminDailySummaries(string $date, ?int $filterUserId = null): array
+    public static function getAdminDailySummaries(string $date, ?int $filterUserId = null, ?iterable $teamMembers = null): array
     {
+        $dayQuery = self::whereDate('job_card_date', $date)
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time');
+
+        if ($filterUserId) {
+            $dayQuery->where('user_id', $filterUserId);
+        }
+
+        foreach ($dayQuery->get()->unique(fn ($entry) => ($entry->user_id ?? 0).'|'.$date) as $entry) {
+            self::recalculateDailyOvertime($entry->employee_id, $entry->user_id, $date);
+        }
+
         $query = self::whereDate('job_card_date', $date)
             ->whereNotNull('start_time')
             ->whereNotNull('end_time');
@@ -153,6 +181,18 @@ class TimeManagement extends Model
         }
 
         $summaries = [];
+
+        if ($teamMembers && ! $filterUserId) {
+            foreach ($teamMembers as $member) {
+                $summaries[(string) $member->id] = [
+                    'user_id' => $member->id,
+                    'employee_name' => $member->name,
+                    'total_hours' => 0.0,
+                    'overtime_hours' => 0.0,
+                    'job_count' => 0,
+                ];
+            }
+        }
 
         foreach ($query->get() as $entry) {
             $key = (string) ($entry->user_id ?? ('emp-' . $entry->employee_id));
@@ -181,6 +221,33 @@ class TimeManagement extends Model
         usort($summaries, fn ($a, $b) => strcmp($a['employee_name'], $b['employee_name']));
 
         return array_values($summaries);
+    }
+
+    /**
+     * @param  array<int, array{total_hours?: float, overtime_hours?: float}>  $summaries
+     * @return array{total_hours: float, overtime_hours: float, employee_count: int, active_count: int}
+     */
+    public static function summarizeDailyTotals(array $summaries): array
+    {
+        $totalHours = 0.0;
+        $overtimeHours = 0.0;
+        $activeCount = 0;
+
+        foreach ($summaries as $summary) {
+            $hours = (float) ($summary['total_hours'] ?? 0);
+            $totalHours += $hours;
+            $overtimeHours += (float) ($summary['overtime_hours'] ?? 0);
+            if ($hours > 0) {
+                $activeCount++;
+            }
+        }
+
+        return [
+            'total_hours' => round($totalHours, 2),
+            'overtime_hours' => round($overtimeHours, 2),
+            'employee_count' => count($summaries),
+            'active_count' => $activeCount,
+        ];
     }
 
     public static function recalculateDailyOvertime(?int $employeeId, ?int $userId, string $date): void

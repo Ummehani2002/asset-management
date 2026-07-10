@@ -24,8 +24,10 @@
 
 <div class="stat-grid">
     <div class="stat-card">
-        <div class="num text-primary" style="font-size:1rem;line-height:1.3;">{{ $isAdmin ? $stats['today'] : \App\Models\TimeManagement::formatDuration($stats['hours_today'] ?? 0) }}</div>
-        <div class="lbl">{{ $isAdmin ? 'Jobs Today' : 'Time Today' }}</div>
+        <div class="num text-primary" style="font-size:1rem;line-height:1.3;">
+            {{ $isAdmin ? \App\Models\TimeManagement::formatDuration($stats['hours_today'] ?? 0) : \App\Models\TimeManagement::formatDuration($stats['hours_today'] ?? 0) }}
+        </div>
+        <div class="lbl">{{ $isAdmin ? 'Team Hours Today' : 'Time Today' }}</div>
     </div>
     <div class="stat-card">
         <div class="num text-warning">{{ $stats['pending'] }}</div>
@@ -44,6 +46,10 @@
 <form method="GET" action="{{ route('worklog.index') }}" class="mb-3">
     <div class="row g-2">
         @if($isAdmin)
+        <div class="col-12">
+            <label class="form-label small text-muted mb-1">Hours summary date</label>
+            <input type="date" name="summary_date" class="form-control form-control-sm" value="{{ $summaryDate ?? today()->format('Y-m-d') }}" onchange="this.form.submit()">
+        </div>
         <div class="col-6">
             <select name="user_id" class="form-select form-select-sm" onchange="this.form.submit()">
                 <option value="">All Members</option>
@@ -65,19 +71,63 @@
     </div>
 </form>
 
-@if($isAdmin && !empty($dailySummaries))
+@if($isAdmin)
 <div class="mb-3">
-    <div class="log-card" style="border-left: 4px solid #0d6efd;">
-        <div class="fw-semibold mb-2"><i class="bi bi-people me-1"></i> Team Today — {{ $summaryDate ?? today()->format('M d, Y') }}</div>
-        @foreach($dailySummaries as $summary)
-            <div class="d-flex justify-content-between align-items-center small py-1 {{ !$loop->last ? 'border-bottom' : '' }}">
-                <span><strong>{{ $summary['employee_name'] }}</strong> · {{ $summary['job_count'] }} job(s)</span>
+    <div class="log-card" style="border-left: 4px solid #198754;">
+        <div class="fw-semibold mb-2">
+            <i class="bi bi-people me-1"></i> Employee Hours — {{ \Carbon\Carbon::parse($summaryDate ?? today())->format('M d, Y') }}
+        </div>
+        @forelse($dailySummaries as $summary)
+            <div class="d-flex justify-content-between align-items-center small py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
                 <span>
-                    <strong>{{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}</strong>
+                    <strong>{{ $summary['employee_name'] }}</strong>
+                    <span class="text-muted"> · {{ $summary['job_count'] }} visit(s)</span>
+                </span>
+                <span>
+                    <strong class="{{ ($summary['total_hours'] ?? 0) > 0 ? 'text-success' : 'text-muted' }}">
+                        {{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}
+                    </strong>
                     @if(($summary['overtime_hours'] ?? 0) > 0)
                         <span class="text-danger ms-1">OT {{ \App\Models\TimeManagement::formatDuration($summary['overtime_hours']) }}</span>
                     @endif
                 </span>
+            </div>
+        @empty
+            <div class="small text-muted">No employees found.</div>
+        @endforelse
+        @if(!empty($dailySummaries))
+        <div class="d-flex justify-content-between align-items-center small pt-2 mt-2 border-top fw-semibold">
+            <span>Team Total</span>
+            <span>
+                {{ \App\Models\TimeManagement::formatDuration($dailySummaryTotals['total_hours'] ?? 0) }}
+                @if(($dailySummaryTotals['overtime_hours'] ?? 0) > 0)
+                    <span class="text-danger ms-1">OT {{ \App\Models\TimeManagement::formatDuration($dailySummaryTotals['overtime_hours']) }}</span>
+                @endif
+            </span>
+        </div>
+        <div class="small text-muted mt-1">
+            {{ $dailySummaryTotals['active_count'] ?? 0 }} of {{ $dailySummaryTotals['employee_count'] ?? 0 }} employee(s) logged time.
+        </div>
+        @endif
+    </div>
+</div>
+@endif
+
+@if($isAdmin && !empty($ticketSummaries))
+<div class="mb-3">
+    <div class="log-card" style="border-left: 4px solid #0d6efd;">
+        <div class="fw-semibold mb-2"><i class="bi bi-ticket-detailed me-1"></i> Ticket Totals by Location</div>
+        @foreach($ticketSummaries as $summary)
+            <div class="py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong>{{ $summary['ticket_number'] }}</strong>
+                        <div class="small text-muted">{{ $summary['employee_name'] }} · {{ $summary['site_location'] }}</div>
+                    </div>
+                    <strong>{{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}</strong>
+                </div>
+                <div class="small text-muted mt-1">{{ $summary['visit_count'] }} visit(s) · {{ ucfirst($summary['status']) }}</div>
+                <a href="{{ route('time.ticket.show', $summary['id']) }}" class="small">View all visits</a>
             </div>
         @endforeach
     </div>
@@ -95,7 +145,7 @@
 @else
     @foreach($tasks as $task)
         @php
-            $displayStatus = $task->status === 'in_progress' ? 'pending' : $task->status;
+            $displayStatus = $task->ticketStatus();
         @endphp
         <div class="log-card {{ $displayStatus }}">
             <div class="d-flex justify-content-between align-items-start mb-1">

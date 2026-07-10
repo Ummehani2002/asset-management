@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Models\TimeManagement;
 use App\Models\User;
+use App\Models\WorkTicket;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,13 +24,18 @@ class TimeManagementController extends Controller
                     'teamMembers' => collect(),
                     'dailySummaries' => [],
                     'summaryDate' => today()->format('Y-m-d'),
+                    'ticketSummaries' => [],
+                    'dailySummaryTotals' => ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0],
                 ])->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
 
             $user = Auth::user();
             $isAdmin = $user->isTimeManagementAdmin();
 
-            $query = TimeManagement::query()->orderByDesc('job_card_date')->orderByDesc('start_time');
+            $query = TimeManagement::query()
+                ->with('workTicket')
+                ->orderByDesc('job_card_date')
+                ->orderByDesc('start_time');
 
             if ($isAdmin) {
                 if ($request->filled('user_id')) {
@@ -45,7 +51,10 @@ class TimeManagementController extends Controller
             }
 
             if ($request->filled('status') && in_array($request->status, ['pending', 'completed'], true)) {
-                $query->where('status', $request->status);
+                $query->where(function ($q) use ($request) {
+                    $q->where('status', $request->status)
+                        ->orWhereHas('workTicket', fn ($ticketQuery) => $ticketQuery->where('status', $request->status));
+                });
             }
 
             if ($request->filled('from_date')) {
@@ -69,7 +78,8 @@ class TimeManagementController extends Controller
             }
 
             if ($tasks->isNotEmpty()) {
-                $tasks = TimeManagement::whereIn('id', $tasks->pluck('id'))
+                $tasks = TimeManagement::with('workTicket')
+                    ->whereIn('id', $tasks->pluck('id'))
                     ->orderByDesc('job_card_date')
                     ->orderByDesc('start_time')
                     ->get();
@@ -79,14 +89,29 @@ class TimeManagementController extends Controller
                 ? User::orderBy('name')->get(['id', 'name'])
                 : collect();
 
-            $summaryDate = ($request->filled('from_date') && $request->filled('to_date') && $request->from_date === $request->to_date)
-                ? $request->from_date
-                : today()->format('Y-m-d');
+            $summaryDate = $request->input('summary_date', today()->format('Y-m-d'));
             $dailySummaries = $isAdmin
-                ? TimeManagement::getAdminDailySummaries($summaryDate, $request->filled('user_id') ? (int) $request->user_id : null)
+                ? TimeManagement::getAdminDailySummaries(
+                    $summaryDate,
+                    $request->filled('user_id') ? (int) $request->user_id : null,
+                    $teamMembers
+                )
                 : [];
+            $dailySummaryTotals = $isAdmin
+                ? TimeManagement::summarizeDailyTotals($dailySummaries)
+                : ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0];
 
-            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers', 'dailySummaries', 'summaryDate'));
+            $ticketSummaries = $isAdmin
+                ? WorkTicket::adminTicketSummaries(
+                    $request->filled('user_id') ? (int) $request->user_id : null,
+                    $request->filled('status') ? $request->status : null
+                )
+                : WorkTicket::adminTicketSummaries(
+                    $user->id,
+                    $request->filled('status') ? $request->status : null
+                );
+
+            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers', 'dailySummaries', 'summaryDate', 'ticketSummaries', 'dailySummaryTotals'));
         } catch (\Exception $e) {
             Log::error('TimeManagement index error: ' . $e->getMessage());
 
@@ -96,6 +121,8 @@ class TimeManagementController extends Controller
                 'teamMembers' => collect(),
                 'dailySummaries' => [],
                 'summaryDate' => today()->format('Y-m-d'),
+                'ticketSummaries' => [],
+                'dailySummaryTotals' => ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0],
             ])->with('warning', 'Unable to load work logs.');
         }
     }
@@ -181,37 +208,57 @@ class TimeManagementController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $user = Auth::user();
-        $ticketNumber = TimeManagement::generateTicketNumber();
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
+        $openTickets = WorkTicket::openTicketsForUser($user);
+        $continueTicket = null;
+
+        if ($request->filled('work_ticket_id')) {
+            $continueTicket = WorkTicket::find($request->work_ticket_id);
+            if ($continueTicket && ! $continueTicket->isOwnedBy($user)) {
+                $continueTicket = null;
+            }
+        }
 
         return view('time_management.create', [
-            'ticketNumber' => $ticketNumber,
             'employeeName' => $user->name,
             'defaultCategory' => TimeManagement::DEFAULT_CATEGORY,
             'todayTotals' => $todayTotals,
             'isAdmin' => $user->isTimeManagementAdmin(),
+            'openTickets' => $openTickets,
+            'continueTicket' => $continueTicket,
         ]);
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
+        $logType = $request->input('log_type', 'new');
 
-        $validated = $request->validate([
-            'ticket_number' => 'required|string|max:50',
-            'category' => 'required|string|max:100',
-            'task_description' => 'required|string|max:50',
-            'site_location' => 'required|string|max:255',
+        $rules = [
+            'log_type' => 'required|in:new,continue',
             'job_card_date' => 'required|date',
             'start_time_hour' => 'required|date_format:H:i',
             'end_time_hour' => 'required|date_format:H:i',
             'action_taken' => 'nullable|string',
             'status' => 'required|in:pending,completed',
             'remarks' => 'nullable|string',
-        ]);
+        ];
+
+        if ($logType === 'continue') {
+            $rules['work_ticket_id'] = Schema::hasTable('work_tickets')
+                ? 'required|integer|exists:work_tickets,id'
+                : 'required|integer';
+        } else {
+            $rules['ticket_number'] = 'required|string|max:50';
+            $rules['category'] = 'required|string|max:100';
+            $rules['task_description'] = 'required|string|max:50';
+            $rules['site_location'] = 'required|string|max:255';
+        }
+
+        $validated = $request->validate($rules);
 
         $employee = $this->resolveEmployeeForUser($user);
         $start = Carbon::parse($validated['job_card_date'] . ' ' . $validated['start_time_hour']);
@@ -220,13 +267,76 @@ class TimeManagementController extends Controller
         if ($end->lessThanOrEqualTo($start)) {
             return back()->withInput()->withErrors(['end_time_hour' => 'End time must be after start time.']);
         }
-        $duration = TimeManagement::calculateDurationHours($start, $end);
 
-        $record = TimeManagement::create([
-            'ticket_number' => $validated['ticket_number'],
-            'category' => $validated['category'],
-            'task_description' => $validated['task_description'],
-            'site_location' => $validated['site_location'],
+        $duration = TimeManagement::calculateDurationHours($start, $end);
+        $visitStatus = $validated['status'];
+
+        if ($logType === 'continue') {
+            $workTicket = WorkTicket::findOrFail($validated['work_ticket_id']);
+
+            if (! $workTicket->isOwnedBy($user)) {
+                abort(403, 'You are not allowed to log time on this ticket.');
+            }
+
+            if (! $workTicket->isOpen()) {
+                return back()->withInput()->withErrors(['work_ticket_id' => 'This ticket is already completed. Start a new ticket instead.']);
+            }
+
+            if ($visitStatus === 'completed') {
+                $workTicket->markCompleted();
+            } else {
+                $visitStatus = 'pending';
+            }
+
+            $ticketNumber = $workTicket->ticket_number;
+            $category = $workTicket->category;
+            $taskDescription = $workTicket->task_description;
+            $siteLocation = $workTicket->site_location;
+            $workTicketId = $workTicket->id;
+            $workTicket->touch();
+        } else {
+            $existingOpen = WorkTicket::query()
+                ->where('status', 'pending')
+                ->where('ticket_number', $validated['ticket_number'])
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                    if ($user->employee_id) {
+                        $q->orWhere('employee_id', $user->employee_id);
+                    }
+                })
+                ->first();
+
+            if ($existingOpen) {
+                return back()->withInput()->withErrors([
+                    'ticket_number' => 'You already have an open ticket with this number. Continue that ticket instead of creating a new one.',
+                ]);
+            }
+
+            $workTicket = WorkTicket::create([
+                'ticket_number' => $validated['ticket_number'],
+                'user_id' => $user->id,
+                'employee_id' => $employee?->id,
+                'employee_name' => $user->name,
+                'category' => $validated['category'],
+                'task_description' => $validated['task_description'],
+                'site_location' => $validated['site_location'],
+                'status' => $visitStatus === 'completed' ? 'completed' : 'pending',
+                'completed_at' => $visitStatus === 'completed' ? now() : null,
+            ]);
+
+            $ticketNumber = $workTicket->ticket_number;
+            $category = $workTicket->category;
+            $taskDescription = $workTicket->task_description;
+            $siteLocation = $workTicket->site_location;
+            $workTicketId = $workTicket->id;
+        }
+
+        TimeManagement::create([
+            'ticket_number' => $ticketNumber,
+            'work_ticket_id' => $workTicketId,
+            'category' => $category,
+            'task_description' => $taskDescription,
+            'site_location' => $siteLocation,
             'user_id' => $user->id,
             'employee_id' => $employee?->id,
             'employee_name' => $user->name,
@@ -236,7 +346,7 @@ class TimeManagementController extends Controller
             'end_time' => $end,
             'duration_hours' => $duration,
             'action_taken' => $validated['action_taken'] ?? null,
-            'status' => $validated['status'],
+            'status' => $visitStatus,
             'remarks' => $validated['remarks'] ?? null,
         ]);
 
@@ -246,12 +356,20 @@ class TimeManagementController extends Controller
             $validated['job_card_date']
         );
 
-        return $this->workLogRedirect($request)->with('success', 'Work log saved successfully.');
+        $message = $logType === 'continue'
+            ? 'Visit logged on ticket ' . $ticketNumber . '.'
+            : 'Work log saved successfully.';
+
+        if ($visitStatus === 'completed') {
+            $message .= ' Ticket marked as completed.';
+        }
+
+        return $this->workLogRedirect($request)->with('success', $message);
     }
 
     public function edit($id)
     {
-        $record = TimeManagement::findOrFail($id);
+        $record = TimeManagement::with('workTicket')->findOrFail($id);
         $this->authorizeRecord($record);
 
         $user = Auth::user();
@@ -262,6 +380,23 @@ class TimeManagementController extends Controller
             'record' => $record,
             'todayTotals' => $todayTotals,
             'isAdmin' => $user->isTimeManagementAdmin(),
+            'openTickets' => WorkTicket::openTicketsForUser($user),
+        ]);
+    }
+
+    public function showTicket($id)
+    {
+        $ticket = WorkTicket::with(['visits' => function ($q) {
+            $q->orderByDesc('job_card_date')->orderByDesc('start_time');
+        }])->findOrFail($id);
+
+        if (! $ticket->isOwnedBy(Auth::user())) {
+            abort(403);
+        }
+
+        return view('time_management.ticket', [
+            'ticket' => $ticket,
+            'isAdmin' => Auth::user()->isTimeManagementAdmin(),
         ]);
     }
 
@@ -270,17 +405,25 @@ class TimeManagementController extends Controller
         $record = TimeManagement::findOrFail($id);
         $this->authorizeRecord($record);
 
-        $validated = $request->validate([
-            'category' => 'required|string|max:100',
-            'task_description' => 'required|string|max:50',
-            'site_location' => 'required|string|max:255',
+        $rules = [
             'job_card_date' => 'required|date',
             'start_time_hour' => 'required|date_format:H:i',
             'end_time_hour' => 'required|date_format:H:i',
             'action_taken' => 'nullable|string',
             'status' => 'required|in:pending,completed',
             'remarks' => 'nullable|string',
-        ]);
+        ];
+
+        if (! $record->work_ticket_id) {
+            $rules = array_merge($rules, [
+                'ticket_number' => 'required|string|max:50',
+                'category' => 'required|string|max:100',
+                'task_description' => 'required|string|max:50',
+                'site_location' => 'required|string|max:255',
+            ]);
+        }
+
+        $validated = $request->validate($rules);
 
         $start = Carbon::parse($validated['job_card_date'] . ' ' . $validated['start_time_hour']);
         $end = Carbon::parse($validated['job_card_date'] . ' ' . $validated['end_time_hour']);
@@ -292,20 +435,39 @@ class TimeManagementController extends Controller
         $oldEmployeeId = $record->employee_id;
         $oldDate = $record->job_card_date?->format('Y-m-d');
 
+        $visitStatus = $validated['status'];
         $record->fill([
-            'category' => $validated['category'],
-            'task_description' => $validated['task_description'],
-            'site_location' => $validated['site_location'],
             'job_card_date' => $validated['job_card_date'],
             'start_time' => $start,
             'end_time' => $end,
             'duration_hours' => $duration,
             'action_taken' => $validated['action_taken'] ?? null,
-            'status' => $validated['status'],
+            'status' => $visitStatus,
             'remarks' => $validated['remarks'] ?? null,
             'standard_man_hours' => TimeManagement::DAILY_STANDARD_HOURS,
         ]);
+
+        if (! $record->work_ticket_id) {
+            $record->fill([
+                'ticket_number' => $validated['ticket_number'],
+                'category' => $validated['category'],
+                'task_description' => $validated['task_description'],
+                'site_location' => $validated['site_location'],
+            ]);
+        }
+
         $record->save();
+
+        if ($record->workTicket) {
+            if ($visitStatus === 'completed') {
+                $record->workTicket->markCompleted();
+            } elseif ($record->workTicket->status === 'completed') {
+                $record->workTicket->update([
+                    'status' => 'pending',
+                    'completed_at' => null,
+                ]);
+            }
+        }
 
         TimeManagement::recalculateDailyOvertime(
             $record->employee_id,
