@@ -1017,6 +1017,8 @@ public function exportFiltered(Request $request)
         ? AssetCategory::find($request->category_id)
         : (object)['category_name' => 'Filtered'];
 
+    $format = $request->get('format', 'pdf');
+
     if ($format === 'excel' || $format === 'csv') {
         return $this->exportCategoryExcel($assets, $category);
     }
