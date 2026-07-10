@@ -11,7 +11,7 @@
 @section('content')
 
 <h2 class="auth-welcome">Welcome to Tanseeq!</h2>
-<p class="auth-subtitle">Sign in to access your asset management dashboard</p>
+<p class="auth-subtitle">Sign in to access your asset management system</p>
 
 @if(session('success'))
     <div class="alert alert-success">{{ session('success') }}</div>

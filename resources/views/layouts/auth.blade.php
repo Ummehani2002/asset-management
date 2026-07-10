@@ -51,6 +51,17 @@
             pointer-events: none;
         }
 
+        .promo-brand {
+            color: #C6A87D;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
         .promo-tagline {
             color: #fff;
             font-size: 1.85rem;
@@ -301,8 +312,9 @@
     <div class="auth-split">
         <!-- Left: Promotional -->
         <div class="auth-promo">
+            <div class="promo-brand">Asset Management System</div>
             <h2 class="promo-tagline">Track, Organize, and Protect Your Assets</h2>
-            <p class="promo-desc">Access your asset management dashboard to track inventory, assign assets to employees, and maintain your organization's equipment lifecycle.</p>
+            <p class="promo-desc">Access your asset management system to track inventory, assign assets to employees, and maintain your organization's equipment lifecycle.</p>
         </div>
 
         <!-- Right: Form -->
