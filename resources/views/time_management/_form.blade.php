@@ -199,7 +199,6 @@
                 <option value="pending" {{ $status === 'pending' ? 'selected' : '' }}>Open — more visits expected</option>
                 <option value="completed" {{ $status === 'completed' ? 'selected' : '' }}>Completed — close this ticket</option>
             </select>
-            <small class="text-muted">Use Completed only when all work on this ticket is finished.</small>
         </div>
 
         <div class="col-12">
@@ -322,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (dayTotalHint) {
             const dayTotal = todayLoggedBase + hours;
-            dayTotalHint.textContent = 'This job: ' + formatWorkDuration(hours) + '. Day total after save: ' + formatWorkDuration(dayTotal) + '.';
+            dayTotalHint.textContent = 'Time taken: ' + formatWorkDuration(hours) + '. Total working hours: ' + formatWorkDuration(dayTotal) + '.';
         }
     }
 

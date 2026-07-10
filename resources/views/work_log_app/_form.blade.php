@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
         timeSpentDisplay.value = formatWorkDuration(hours);
         if (dayTotalHint) {
             const dayTotal = todayLoggedBase + hours;
-            dayTotalHint.textContent = 'This visit: ' + formatWorkDuration(hours) + '. Day total after save: ' + formatWorkDuration(dayTotal) + '.';
+            dayTotalHint.textContent = 'Time taken: ' + formatWorkDuration(hours) + '. Total working hours: ' + formatWorkDuration(dayTotal) + '.';
         }
     }
 
