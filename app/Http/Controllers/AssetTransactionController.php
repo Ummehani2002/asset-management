@@ -777,14 +777,15 @@ class AssetTransactionController extends Controller
         $enrichAssignment = function ($pa) {
             $txn = $pa->assetTransaction;
             $entityName = null;
-            if ($txn && $txn->location_id) {
+            // Prefer assigned employee's entity; fall back to assignment location entity
+            if ($txn && $txn->employee_id) {
+                $entityName = $txn->employee?->entity_name ? ucwords(trim($txn->employee->entity_name)) : null;
+            }
+            if (!$entityName && $txn && $txn->location_id) {
                 $loc = $txn->relationLoaded('location') ? $txn->location : Location::find($txn->location_id);
                 if ($loc && !empty($loc->location_entity)) {
                     $entityName = ucwords(trim($loc->location_entity));
                 }
-            }
-            if (!$entityName && $txn && $txn->employee_id) {
-                $entityName = $txn->employee?->entity_name ? ucwords($txn->employee->entity_name) : null;
             }
             $pa->asset_entity = $entityName ?? '-';
             $pa->assigned_by_entities = Entity::where('asset_manager_id', $pa->assigned_by_employee_id)->pluck('name')->map(fn($n) => ucwords($n))->join(', ') ?: '-';
@@ -835,12 +836,15 @@ class AssetTransactionController extends Controller
         $currentUserEmployeeId = auth()->user()?->employee_id;
         $assetManagerId = null;
         $entityName = null;
-        if ($latest && $latest->location_id) {
+        // Prefer assigned employee's entity; fall back to assignment location entity
+        if ($latest && $latest->employee_id) {
+            $entityName = !empty(trim($latest->employee?->entity_name ?? ''))
+                ? trim($latest->employee->entity_name)
+                : null;
+        }
+        if (!$entityName && $latest && $latest->location_id) {
             $location = Location::find($latest->location_id);
             $entityName = $location && !empty(trim($location->location_entity ?? '')) ? trim($location->location_entity) : null;
-        }
-        if (!$entityName && $latest && $latest->employee_id) {
-            $entityName = $latest->employee?->entity_name ?? null;
         }
         if ($entityName) {
             $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower($entityName)])->with('assetManager')->first()
@@ -1221,15 +1225,19 @@ class AssetTransactionController extends Controller
             return redirect()->back()->with('error', $msg);
         }
 
-        $location = $latestTransaction->location_id
-            ? Location::find($latestTransaction->location_id)
-            : null;
         $entityName = null;
-        if ($location && !empty(trim($location->location_entity ?? ''))) {
-            $entityName = trim($location->location_entity);
+        // Prefer assigned employee's entity; fall back to assignment location entity
+        if ($latestTransaction->employee_id) {
+            $latestTransaction->loadMissing('employee');
+            $entityName = !empty(trim($latestTransaction->employee?->entity_name ?? ''))
+                ? trim($latestTransaction->employee->entity_name)
+                : null;
         }
-        if (!$entityName && $latestTransaction->employee_id) {
-            $entityName = $latestTransaction->employee?->entity_name ?? null;
+        if (!$entityName && $latestTransaction->location_id) {
+            $location = Location::find($latestTransaction->location_id);
+            if ($location && !empty(trim($location->location_entity ?? ''))) {
+                $entityName = trim($location->location_entity);
+            }
         }
         if (!$entityName) {
             $msg = 'Could not determine entity for this asset. Assign asset manager in Entity Master.';
@@ -1986,27 +1994,31 @@ private function emailNotificationsEnabled(): bool
             'available_transactions' => []
         ];
 
-        // Helper: resolve entity and asset manager from the ASSIGNMENT's location (same as Assign form)
-        // For Return/Maintenance: use location from assign transaction, or from asset when transaction has no location_id
+        // Helper: resolve entity and asset manager from the ASSIGNED EMPLOYEE's entity (Employee Master).
+        // Location is still loaded for display; location_entity is only a fallback if employee has no entity.
         $resolveEntityAndAssetManager = function ($transaction, $asset = null) {
             $entityName = null;
             $location = null;
+
+            // Prefer assigned employee's entity
+            if ($transaction && $transaction->employee_id) {
+                $empEntity = $transaction->employee?->entity_name ?? null;
+                if (!empty(trim($empEntity ?? ''))) {
+                    $entityName = trim($empEntity);
+                }
+            }
+
+            // Load assignment / asset location for display (and entity fallback)
             if ($transaction && $transaction->location_id) {
                 $location = $transaction->relationLoaded('location') ? $transaction->location : Location::find($transaction->location_id);
-                if ($location && !empty(trim($location->location_entity ?? ''))) {
-                    $entityName = trim($location->location_entity);
-                }
             }
-            // Fallback: transaction has no location_id - try asset's location (e.g. from backfill or old assigns)
             if (!$location && $asset && !empty($asset->location_id)) {
                 $location = Location::find($asset->location_id);
-                if ($location && !empty(trim($location->location_entity ?? ''))) {
-                    $entityName = trim($location->location_entity);
-                }
             }
-            // Only fall back to employee when we have NO location (e.g. printer, old data)
-            if (!$entityName && $transaction && $transaction->employee_id) {
-                $entityName = $transaction->employee?->entity_name ?? null;
+
+            // Fallback: location_entity when employee has no entity
+            if (!$entityName && $location && !empty(trim($location->location_entity ?? ''))) {
+                $entityName = trim($location->location_entity);
             }
             if (!$entityName) {
                 return [null, null, null, null, null, null];

@@ -185,7 +185,7 @@
                 {{-- Asset Selection - Entity & AM auto-fill from asset's location (Location Master) --}}
                 <div class="master-form-card mb-4">
                     <h5 class="mb-3"><i class="bi bi-tag me-2"></i>Select Asset</h5>
-                    <p class="text-muted small mb-3">Select category and asset. Serial number is optional. Entity and Asset Manager will auto-fill from the asset's location.</p>
+                    <p class="text-muted small mb-3">Select category and asset. Serial number is optional. Entity and Asset Manager will auto-fill from the assigned employee's entity.</p>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="asset_category_id">Asset Category <span class="text-danger">*</span></label>
@@ -209,7 +209,7 @@
                             <small class="text-danger" id="asset_error_info"></small>
                         </div>
                     </div>
-                    {{-- Entity & Asset Manager (same card as Asset Transaction - auto-filled from location) --}}
+                    {{-- Entity & Asset Manager — auto-filled from assigned employee's entity --}}
                     <div id="send_entity_display_section" class="mt-3" style="display:none;">
                         <div class="card bg-light p-3">
                             <div class="row">
@@ -223,7 +223,7 @@
                                 </div>
                             </div>
                         </div>
-                        <small class="text-muted">Auto-filled from location for easy maintenance reference. If AM is busy, use "Assign to Asset Manager" tab.</small>
+                        <small class="text-muted">Auto-filled from the assigned employee's entity. If AM is busy, use "Assign to Asset Manager" tab.</small>
                     </div>
                 </div>
 
@@ -435,7 +435,7 @@
                             <small class="text-danger" id="reassign_error_info"></small>
                         </div>
                     </div>
-                    {{-- Entity & Asset Manager card (same as Asset Transaction - auto-filled from location) --}}
+                    {{-- Entity & Asset Manager — auto-filled from assigned employee's entity --}}
                     <div id="reassign_entity_display_section" class="mt-3" style="display:none;">
                         <div class="card bg-light p-3">
                             <div class="row">
@@ -449,7 +449,7 @@
                                 </div>
                             </div>
                         </div>
-                        <small class="text-muted">Auto-filled from location for easy maintenance reference.</small>
+                        <small class="text-muted">Auto-filled from the assigned employee's entity.</small>
                     </div>
                 </div>
 
@@ -719,8 +719,8 @@ $(document).ready(function() {
             currentEmployeeId = data.current_employee_id;
             currentEmployeeName = data.current_employee_name;
 
-            // Auto-fill Entity & Asset Manager display from location (Location Master)
-            $('#send_entity_display').text(data.asset_manager_entity || data.location_entity || '-');
+            // Auto-fill Entity & Asset Manager from assigned employee's entity
+            $('#send_entity_display').text(data.asset_manager_entity || data.current_employee_entity || data.location_entity || '-');
             const amText = data.asset_manager_name 
                 ? data.asset_manager_name + (data.asset_manager_employee_id ? ' (' + data.asset_manager_employee_id + ')' : '')
                 : 'N/A';
@@ -992,7 +992,7 @@ $(document).ready(function() {
 
             $('#reassign_error_info').text('');
 
-            // Auto-fill entity from location (location entity linked with location name)
+            // Auto-fill entity from assigned employee's entity
             if (data.entity_id) {
                 $('#reassign_entity_id').val(data.entity_id);
                 updateAssetManagerDisplay('#reassign_entity_id', '#reassign_entity_asset_manager_display');
@@ -1000,8 +1000,8 @@ $(document).ready(function() {
                 $('#reassign_entity_id').val('');
                 updateAssetManagerDisplay('#reassign_entity_id', '#reassign_entity_asset_manager_display');
             }
-            // Entity & Asset Manager card (same format as Asset Transaction)
-            $('#reassign_entity_display').text(data.asset_manager_entity || data.location_entity || '-');
+            // Entity & Asset Manager card
+            $('#reassign_entity_display').text(data.asset_manager_entity || data.current_employee_entity || data.location_entity || '-');
             $('#reassign_asset_manager_display').text(
                 data.asset_manager_name 
                     ? data.asset_manager_name + (data.asset_manager_employee_id ? ' (' + data.asset_manager_employee_id + ')' : '')
