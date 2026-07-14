@@ -6,11 +6,14 @@
     $isEdit = ! empty($record);
     $linkedTicket = $record?->workTicket;
     $defaultLogType = old('log_type', $continueTicket ? 'continue' : 'new');
+    if (($openTickets ?? collect())->isEmpty() && ! $continueTicket) {
+        $defaultLogType = 'new';
+    }
     $workDate = old('job_card_date', optional($record?->job_card_date)->format('Y-m-d') ?? date('Y-m-d'));
     $defaultStart = old('start_time_hour', $record && $record->start_time ? $record->start_time->format('H:i') : now()->format('H:i'));
     $defaultEnd = old('end_time_hour', $record && $record->end_time ? $record->end_time->format('H:i') : now()->addMinutes(30)->format('H:i'));
     $selectedTicketId = old('work_ticket_id', $continueTicket?->id ?? $linkedTicket?->id);
-    $ticketFieldsLocked = $isEdit ? (bool) $linkedTicket : ($defaultLogType === 'continue');
+    $ticketFieldsLocked = false;
 @endphp
 
 <form action="{{ $action }}" method="POST" id="workLogForm" autocomplete="off">
@@ -36,9 +39,10 @@
     </div>
 
     @unless($isEdit)
+    @unless($isTimeAdmin)
     <div class="row g-3 mb-2">
         <div class="col-12">
-            <label class="form-label">Log Type <span class="text-danger">*</span></label>
+            <label class="form-label">Log Type</label>
             <div class="d-flex flex-wrap gap-3">
                 <div class="form-check">
                     <input class="form-check-input" type="radio" name="log_type" id="log_type_new" value="new"
@@ -51,15 +55,12 @@
                     <label class="form-check-label" for="log_type_continue">Continue open ticket</label>
                 </div>
             </div>
-            @if($openTickets->isEmpty())
-                <small class="text-muted">No open tickets yet. Start with a new ticket number.</small>
-            @endif
         </div>
     </div>
 
-    <div id="continue_ticket_section" class="row g-3 mb-2" style="{{ $defaultLogType === 'continue' ? '' : 'display:none;' }}">
+    <div id="continue_ticket_section" class="row g-3 mb-2" style="{{ ($defaultLogType === 'continue' && $openTickets->isNotEmpty()) ? '' : 'display:none;' }}">
         <div class="col-md-8">
-            <label class="form-label">Select Open Ticket <span class="text-danger">*</span></label>
+            <label class="form-label">Select Open Ticket</label>
             <select name="work_ticket_id" id="work_ticket_id" class="form-select">
                 <option value="">Choose a ticket...</option>
                 @foreach($openTickets as $ticket)
@@ -74,13 +75,15 @@
                     </option>
                 @endforeach
             </select>
-            <small class="text-muted">Same ticket number is reused for every visit until the work is completed.</small>
         </div>
         <div class="col-md-4">
             <label class="form-label">Ticket Total So Far</label>
             <input type="text" id="ticket_total_display" class="form-control bg-white" readonly value="—">
         </div>
     </div>
+    @else
+        <input type="hidden" name="log_type" value="new">
+    @endunless
     @endunless
 
     @if($isEdit && $linkedTicket)
@@ -102,12 +105,12 @@
                    maxlength="50"
                    value="{{ old('ticket_number', $continueTicket?->ticket_number ?? $record?->ticket_number ?? '') }}"
                    placeholder="e.g. INC-12345"
-                   {{ $ticketFieldsLocked ? 'readonly' : 'required' }}>
+                   required>
         </div>
 
         <div class="col-md-4">
             <label class="form-label">Category <span class="text-danger">*</span></label>
-            <select name="category" id="category" class="form-select ticket-field" {{ $ticketFieldsLocked ? 'disabled' : 'required' }}>
+            <select name="category" id="category" class="form-select ticket-field" required>
                 @php $category = old('category', $record?->category ?? \App\Models\TimeManagement::DEFAULT_CATEGORY); @endphp
                 <option value="End User Support" {{ $category === 'End User Support' ? 'selected' : '' }}>End User Support</option>
                 <option value="Infrastructure" {{ $category === 'Infrastructure' ? 'selected' : '' }}>Infrastructure</option>
@@ -116,9 +119,6 @@
                 <option value="Software" {{ $category === 'Software' ? 'selected' : '' }}>Software</option>
                 <option value="Other" {{ $category === 'Other' ? 'selected' : '' }}>Other</option>
             </select>
-            @if($ticketFieldsLocked)
-                <input type="hidden" name="category" value="{{ old('category', $continueTicket?->category ?? $linkedTicket?->category ?? $record?->category ?? \App\Models\TimeManagement::DEFAULT_CATEGORY) }}">
-            @endif
         </div>
 
         <div class="col-md-4">
@@ -131,18 +131,16 @@
             <input type="text" name="site_location" id="site_location" class="form-control ticket-field" maxlength="100"
                    value="{{ old('site_location', $continueTicket?->site_location ?? $record?->site_location ?? '') }}"
                    placeholder="e.g. Head Office"
-                   {{ $ticketFieldsLocked ? 'readonly' : 'required' }}>
+                   required>
         </div>
 
         <div class="col-12">
-            <label class="form-label">Task Description <span class="text-danger">*</span>
-                <small class="text-muted">(max 50 characters)</small>
-            </label>
+            <label class="form-label">Task Description <span class="text-danger">*</span></label>
             <input type="text" name="task_description" id="task_description" class="form-control ticket-field"
                    maxlength="50"
                    value="{{ old('task_description', $continueTicket?->task_description ?? $record?->task_description ?? '') }}"
                    placeholder="Short task summary, e.g. Fix laptop WiFi issue"
-                   {{ $ticketFieldsLocked ? 'readonly' : 'required' }}>
+                   required>
             <div class="d-flex justify-content-end mt-1">
                 <small class="text-muted"><span id="task_desc_count">0</span>/50</small>
             </div>
@@ -239,20 +237,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const ticketTotalDisplay = document.getElementById('ticket_total_display');
 
     function setTicketFieldsLocked(locked) {
+        // Keep fields editable so the same ticket number can continue even without dropdown.
         [ticketNumberInput, siteLocationInput, taskDescriptionInput].forEach(function (el) {
             if (!el) return;
-            el.readOnly = locked;
-            el.required = !locked;
+            el.readOnly = false;
+            el.required = true;
         });
         if (categorySelect) {
-            categorySelect.disabled = locked;
-            categorySelect.required = !locked;
-        }
-        if (ticketNumberInput) {
-            ticketNumberInput.required = !locked || !workTicketSelect;
+            categorySelect.disabled = false;
+            categorySelect.required = true;
         }
         if (workTicketSelect) {
-            workTicketSelect.required = locked;
+            workTicketSelect.required = false;
         }
     }
 
@@ -276,11 +272,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateLogTypeUi() {
-        const isContinue = logTypeContinue && logTypeContinue.checked;
+        const isContinue = logTypeContinue && logTypeContinue.checked && !logTypeContinue.disabled;
         if (continueSection) {
             continueSection.style.display = isContinue ? '' : 'none';
         }
-        setTicketFieldsLocked(isContinue);
+        setTicketFieldsLocked(false);
         if (isContinue) {
             applyContinueTicketSelection();
         }

@@ -212,12 +212,13 @@ class TimeManagementController extends Controller
     {
         $user = Auth::user();
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
-        $openTickets = WorkTicket::openTicketsForUser($user);
+        $isAdmin = $user->isTimeManagementAdmin();
+        $openTickets = $isAdmin ? collect() : WorkTicket::openTicketsForUser($user);
         $continueTicket = null;
 
-        if ($request->filled('work_ticket_id')) {
+        if (! $isAdmin && $request->filled('work_ticket_id')) {
             $continueTicket = WorkTicket::find($request->work_ticket_id);
-            if ($continueTicket && ! $continueTicket->isOwnedBy($user)) {
+            if ($continueTicket && ! $continueTicket->belongsToUser($user)) {
                 $continueTicket = null;
             }
         }
@@ -226,7 +227,7 @@ class TimeManagementController extends Controller
             'employeeName' => $user->name,
             'defaultCategory' => TimeManagement::DEFAULT_CATEGORY,
             'todayTotals' => $todayTotals,
-            'isAdmin' => $user->isTimeManagementAdmin(),
+            'isAdmin' => $isAdmin,
             'openTickets' => $openTickets,
             'continueTicket' => $continueTicket,
         ]);
@@ -238,25 +239,19 @@ class TimeManagementController extends Controller
         $logType = $request->input('log_type', 'new');
 
         $rules = [
-            'log_type' => 'required|in:new,continue',
+            'log_type' => 'nullable|in:new,continue',
+            'ticket_number' => 'required|string|max:50',
+            'category' => 'required|string|max:100',
+            'task_description' => 'required|string|max:50',
+            'site_location' => 'required|string|max:255',
             'job_card_date' => 'required|date',
             'start_time_hour' => 'required|date_format:H:i',
             'end_time_hour' => 'required|date_format:H:i',
             'action_taken' => 'nullable|string',
             'status' => 'required|in:pending,completed',
             'remarks' => 'nullable|string',
+            'work_ticket_id' => 'nullable|integer',
         ];
-
-        if ($logType === 'continue') {
-            $rules['work_ticket_id'] = Schema::hasTable('work_tickets')
-                ? 'required|integer|exists:work_tickets,id'
-                : 'required|integer';
-        } else {
-            $rules['ticket_number'] = 'required|string|max:50';
-            $rules['category'] = 'required|string|max:100';
-            $rules['task_description'] = 'required|string|max:50';
-            $rules['site_location'] = 'required|string|max:255';
-        }
 
         $validated = $request->validate($rules);
 
@@ -270,73 +265,67 @@ class TimeManagementController extends Controller
 
         $duration = TimeManagement::calculateDurationHours($start, $end);
         $visitStatus = $validated['status'];
+        $continued = false;
+        $workTicket = null;
 
-        if ($logType === 'continue') {
-            $workTicket = WorkTicket::findOrFail($validated['work_ticket_id']);
+        if (Schema::hasTable('work_tickets')) {
+            WorkTicket::syncFromPendingLogs($user);
 
-            if (! $workTicket->isOwnedBy($user)) {
-                abort(403, 'You are not allowed to log time on this ticket.');
+            if ($logType === 'continue' && ! empty($validated['work_ticket_id'])) {
+                $workTicket = WorkTicket::find($validated['work_ticket_id']);
             }
 
-            if (! $workTicket->isOpen()) {
-                return back()->withInput()->withErrors(['work_ticket_id' => 'This ticket is already completed. Start a new ticket instead.']);
+            if (! $workTicket) {
+                $workTicket = WorkTicket::findOpenForUser($user, $validated['ticket_number']);
             }
 
-            if ($visitStatus === 'completed') {
-                $workTicket->markCompleted();
+            if ($workTicket) {
+                if (! $workTicket->belongsToUser($user)) {
+                    abort(403, 'You are not allowed to log time on this ticket.');
+                }
+
+                if (! $workTicket->isOpen()) {
+                    return back()->withInput()->withErrors([
+                        'ticket_number' => 'This ticket is already completed. Use a new ticket number.',
+                    ]);
+                }
+
+                $continued = true;
+                $workTicket->fill([
+                    'category' => $validated['category'],
+                    'task_description' => $validated['task_description'],
+                    'site_location' => $validated['site_location'],
+                ]);
+
+                if ($visitStatus === 'completed') {
+                    $workTicket->status = 'completed';
+                    $workTicket->completed_at = now();
+                }
+                $workTicket->save();
+
+                if ($visitStatus !== 'completed') {
+                    $visitStatus = 'pending';
+                }
             } else {
-                $visitStatus = 'pending';
-            }
-
-            $ticketNumber = $workTicket->ticket_number;
-            $category = $workTicket->category;
-            $taskDescription = $workTicket->task_description;
-            $siteLocation = $workTicket->site_location;
-            $workTicketId = $workTicket->id;
-            $workTicket->touch();
-        } else {
-            $existingOpen = WorkTicket::query()
-                ->where('status', 'pending')
-                ->where('ticket_number', $validated['ticket_number'])
-                ->where(function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
-                    if ($user->employee_id) {
-                        $q->orWhere('employee_id', $user->employee_id);
-                    }
-                })
-                ->first();
-
-            if ($existingOpen) {
-                return back()->withInput()->withErrors([
-                    'ticket_number' => 'You already have an open ticket with this number. Continue that ticket instead of creating a new one.',
+                $workTicket = WorkTicket::create([
+                    'ticket_number' => $validated['ticket_number'],
+                    'user_id' => $user->id,
+                    'employee_id' => $employee?->id,
+                    'employee_name' => $user->name,
+                    'category' => $validated['category'],
+                    'task_description' => $validated['task_description'],
+                    'site_location' => $validated['site_location'],
+                    'status' => $visitStatus === 'completed' ? 'completed' : 'pending',
+                    'completed_at' => $visitStatus === 'completed' ? now() : null,
                 ]);
             }
-
-            $workTicket = WorkTicket::create([
-                'ticket_number' => $validated['ticket_number'],
-                'user_id' => $user->id,
-                'employee_id' => $employee?->id,
-                'employee_name' => $user->name,
-                'category' => $validated['category'],
-                'task_description' => $validated['task_description'],
-                'site_location' => $validated['site_location'],
-                'status' => $visitStatus === 'completed' ? 'completed' : 'pending',
-                'completed_at' => $visitStatus === 'completed' ? now() : null,
-            ]);
-
-            $ticketNumber = $workTicket->ticket_number;
-            $category = $workTicket->category;
-            $taskDescription = $workTicket->task_description;
-            $siteLocation = $workTicket->site_location;
-            $workTicketId = $workTicket->id;
         }
 
-        TimeManagement::create([
-            'ticket_number' => $ticketNumber,
-            'work_ticket_id' => $workTicketId,
-            'category' => $category,
-            'task_description' => $taskDescription,
-            'site_location' => $siteLocation,
+        $payload = [
+            'ticket_number' => $validated['ticket_number'],
+            'category' => $validated['category'],
+            'task_description' => $validated['task_description'],
+            'site_location' => $validated['site_location'],
             'user_id' => $user->id,
             'employee_id' => $employee?->id,
             'employee_name' => $user->name,
@@ -348,7 +337,13 @@ class TimeManagementController extends Controller
             'action_taken' => $validated['action_taken'] ?? null,
             'status' => $visitStatus,
             'remarks' => $validated['remarks'] ?? null,
-        ]);
+        ];
+
+        if ($workTicket && Schema::hasColumn('time_managements', 'work_ticket_id')) {
+            $payload['work_ticket_id'] = $workTicket->id;
+        }
+
+        TimeManagement::create($payload);
 
         TimeManagement::recalculateDailyOvertime(
             $employee?->id,
@@ -356,8 +351,8 @@ class TimeManagementController extends Controller
             $validated['job_card_date']
         );
 
-        $message = $logType === 'continue'
-            ? 'Visit logged on ticket ' . $ticketNumber . '.'
+        $message = $continued
+            ? 'Visit logged on ticket ' . $validated['ticket_number'] . '.'
             : 'Work log saved successfully.';
 
         if ($visitStatus === 'completed') {
@@ -380,7 +375,7 @@ class TimeManagementController extends Controller
             'record' => $record,
             'todayTotals' => $todayTotals,
             'isAdmin' => $user->isTimeManagementAdmin(),
-            'openTickets' => WorkTicket::openTicketsForUser($user),
+            'openTickets' => $user->isTimeManagementAdmin() ? collect() : WorkTicket::openTicketsForUser($user),
         ]);
     }
 

@@ -227,13 +227,14 @@ class WorkLogAppController extends Controller
     public function create(Request $request)
     {
         $user = Auth::user();
+        $isAdmin = $user->isTimeManagementAdmin();
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
-        $openTickets = WorkTicket::openTicketsForUser($user);
+        $openTickets = $isAdmin ? collect() : WorkTicket::openTicketsForUser($user);
         $continueTicket = null;
 
-        if ($request->filled('work_ticket_id')) {
+        if (! $isAdmin && $request->filled('work_ticket_id')) {
             $continueTicket = WorkTicket::find($request->work_ticket_id);
-            if ($continueTicket && ! $continueTicket->isOwnedBy($user)) {
+            if ($continueTicket && ! $continueTicket->belongsToUser($user)) {
                 $continueTicket = null;
             }
         }
@@ -254,7 +255,7 @@ class WorkLogAppController extends Controller
             'defaultCategory' => TimeManagement::DEFAULT_CATEGORY,
             'todayTotals' => $todayTotals,
             'todayJobs' => $todayJobs,
-            'isAdmin' => $user->isTimeManagementAdmin(),
+            'isAdmin' => $isAdmin,
             'openTickets' => $openTickets,
             'continueTicket' => $continueTicket,
         ]);
@@ -276,7 +277,7 @@ class WorkLogAppController extends Controller
             'record' => $record->load('workTicket'),
             'todayTotals' => $todayTotals,
             'isAdmin' => $user->isTimeManagementAdmin(),
-            'openTickets' => WorkTicket::openTicketsForUser($user),
+            'openTickets' => $user->isTimeManagementAdmin() ? collect() : WorkTicket::openTicketsForUser($user),
         ]);
     }
 }

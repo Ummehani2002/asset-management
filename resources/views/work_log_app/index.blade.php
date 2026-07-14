@@ -5,9 +5,11 @@
 
 @section('content')
 <div class="mb-3">
+    @unless($isAdmin)
     <a href="{{ route('worklog.create') }}" class="btn btn-sm btn-outline-primary w-100">
         <i class="bi bi-pencil-square me-1"></i> Back to Work Log Form
     </a>
+    @endunless
 </div>
 
 <div id="installBanner" class="install-banner">
@@ -138,9 +140,11 @@
     <div class="text-center text-muted py-5">
         <i class="bi bi-journal-x" style="font-size: 2.5rem;"></i>
         <p class="mt-2 mb-3">No work logs yet.</p>
+        @unless($isAdmin)
         <a href="{{ route('worklog.create') }}" class="btn btn-app" style="width: auto; padding: 10px 24px;">
             <i class="bi bi-plus-circle me-1"></i> New Work Log
         </a>
+        @endunless
     </div>
 @else
     @foreach($tasks as $task)
@@ -176,6 +180,12 @@
                 @endif
             </div>
             <div class="mt-2 d-grid gap-2">
+                @if($task->work_ticket_id)
+                <a href="{{ route('time.ticket.show', $task->work_ticket_id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i> View visits
+                </a>
+                @endif
+                @unless($isAdmin)
                 <a href="{{ route('worklog.edit', $task->id) }}" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-pencil"></i> Edit
                 </a>
@@ -184,6 +194,7 @@
                     <i class="bi bi-check-circle"></i> Mark Completed
                 </a>
                 @endif
+                @endunless
             </div>
         </div>
     @endforeach

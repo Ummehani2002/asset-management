@@ -47,7 +47,7 @@
         </div>
     </div>
 
-    @if($ticket->isOpen())
+    @if($ticket->isOpen() && ! $isAdmin)
     <div class="mb-3">
         <a href="{{ route('time.create', ['work_ticket_id' => $ticket->id]) }}" class="btn btn-primary">
             <i class="bi bi-plus-circle me-2"></i>Log Another Visit
@@ -85,7 +85,9 @@
                             <td>{{ $visit->action_taken ?? '-' }}</td>
                             <td>{{ $visit->remarks ?? '-' }}</td>
                             <td>
+                                @unless($isAdmin)
                                 <a href="{{ route('time.edit', $visit->id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                @endunless
                             </td>
                         </tr>
                         @empty

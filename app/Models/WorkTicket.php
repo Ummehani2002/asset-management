@@ -87,6 +87,14 @@ class WorkTicket extends Model
             return true;
         }
 
+        return $this->belongsToUser($user);
+    }
+
+    /**
+     * True when this ticket belongs to the employee (not just admin access).
+     */
+    public function belongsToUser(User $user): bool
+    {
         if ($this->user_id && (int) $this->user_id === (int) $user->id) {
             return true;
         }
@@ -94,14 +102,18 @@ class WorkTicket extends Model
         return $user->employee_id && (int) $this->employee_id === (int) $user->employee_id;
     }
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, self>
-     */
     public static function openTicketsForUser(User $user)
     {
         if (! Schema::hasTable('work_tickets')) {
             return collect();
         }
+
+        // Open tickets are for employees to continue their own work only.
+        if ($user->isTimeManagementAdmin()) {
+            return collect();
+        }
+
+        self::syncFromPendingLogs($user);
 
         return self::query()
             ->where('status', 'pending')
@@ -114,6 +126,93 @@ class WorkTicket extends Model
             ->withCount('visits')
             ->orderByDesc('updated_at')
             ->get();
+    }
+
+    /**
+     * Ensure older pending work logs become open tickets that can be continued.
+     */
+    public static function syncFromPendingLogs(User $user): void
+    {
+        if (! Schema::hasTable('work_tickets') || ! Schema::hasTable('time_managements')) {
+            return;
+        }
+
+        $logs = TimeManagement::query()
+            ->whereNotNull('ticket_number')
+            ->where('ticket_number', '!=', '')
+            ->where(function ($q) {
+                $q->whereNull('status')
+                    ->orWhere('status', 'pending')
+                    ->orWhere('status', 'in_progress');
+            })
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+                if ($user->employee_id) {
+                    $q->orWhere('employee_id', $user->employee_id);
+                }
+            })
+            ->where(function ($q) {
+                $q->whereNull('work_ticket_id')->orWhere('work_ticket_id', 0);
+            })
+            ->orderBy('id')
+            ->get();
+
+        foreach ($logs->groupBy(fn ($log) => strtolower(trim((string) $log->ticket_number))) as $ticketNumber => $group) {
+            if ($ticketNumber === '') {
+                continue;
+            }
+
+            $first = $group->first();
+            $ticket = self::query()
+                ->where('status', 'pending')
+                ->whereRaw('LOWER(ticket_number) = ?', [$ticketNumber])
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                    if ($user->employee_id) {
+                        $q->orWhere('employee_id', $user->employee_id);
+                    }
+                })
+                ->first();
+
+            if (! $ticket) {
+                $ticket = self::create([
+                    'ticket_number' => $first->ticket_number,
+                    'user_id' => $first->user_id ?? $user->id,
+                    'employee_id' => $first->employee_id ?? $user->employee_id,
+                    'employee_name' => $first->employee_name ?? $user->name,
+                    'category' => $first->category ?? TimeManagement::DEFAULT_CATEGORY,
+                    'task_description' => $first->task_description ?? 'Work log',
+                    'site_location' => $first->site_location ?? 'N/A',
+                    'status' => 'pending',
+                ]);
+            }
+
+            TimeManagement::whereIn('id', $group->pluck('id'))
+                ->update(['work_ticket_id' => $ticket->id]);
+        }
+    }
+
+    public static function findOpenForUser(User $user, string $ticketNumber): ?self
+    {
+        if (! Schema::hasTable('work_tickets')) {
+            return null;
+        }
+
+        $ticketNumber = trim($ticketNumber);
+        if ($ticketNumber === '') {
+            return null;
+        }
+
+        return self::query()
+            ->where('status', 'pending')
+            ->whereRaw('LOWER(ticket_number) = ?', [strtolower($ticketNumber)])
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+                if ($user->employee_id) {
+                    $q->orWhere('employee_id', $user->employee_id);
+                }
+            })
+            ->first();
     }
 
     /**

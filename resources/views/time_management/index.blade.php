@@ -10,9 +10,11 @@
                     <p class="text-muted mb-0">Log your daily tasks and time spent.</p>
                 @endunless
             </div>
+            @unless($isAdmin)
             <a href="{{ route('time.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-2"></i>New Work Log
             </a>
+            @endunless
         </div>
     </div>
 
@@ -205,9 +207,11 @@
                             </td>
                             <td>
                                 <a href="{{ route('time.ticket.show', $summary['id']) }}" class="btn btn-sm btn-outline-primary">View</a>
-                                @if($summary['status'] === 'pending')
-                                    <a href="{{ route('time.create', ['work_ticket_id' => $summary['id']]) }}" class="btn btn-sm btn-primary">Add Visit</a>
-                                @endif
+                                @unless($isAdmin)
+                                    @if($summary['status'] === 'pending')
+                                        <a href="{{ route('time.create', ['work_ticket_id' => $summary['id']]) }}" class="btn btn-sm btn-primary">Add Visit</a>
+                                    @endif
+                                @endunless
                             </td>
                         </tr>
                         @endforeach
@@ -280,6 +284,12 @@
                                 </span>
                             </td>
                             <td>
+                                @if($task->work_ticket_id)
+                                    <a href="{{ route('time.ticket.show', $task->work_ticket_id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                @endif
+                                @unless($isAdmin)
                                 <a href="{{ route('time.edit', $task->id) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
@@ -288,6 +298,7 @@
                                     @method('DELETE')
                                     <button class="btn btn-sm btn-danger" type="submit"><i class="bi bi-trash"></i></button>
                                 </form>
+                                @endunless
                             </td>
                         </tr>
                         @empty
