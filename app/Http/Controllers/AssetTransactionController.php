@@ -847,8 +847,7 @@ class AssetTransactionController extends Controller
             $entityName = $location && !empty(trim($location->location_entity ?? '')) ? trim($location->location_entity) : null;
         }
         if ($entityName) {
-            $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower($entityName)])->with('assetManager')->first()
-                ?? Entity::whereRaw('LOWER(name) LIKE ?', [strtolower($entityName) . '%'])->with('assetManager')->orderBy('name')->first();
+            $entity = Entity::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($entityName))])->with('assetManager')->first();
             $assetManagerId = $entity?->asset_manager_id;
         }
         $isAssetManager = $currentUserEmployeeId && $assetManagerId && (int) $assetManagerId === (int) $currentUserEmployeeId;
@@ -1245,12 +1244,10 @@ class AssetTransactionController extends Controller
             return redirect()->back()->with('error', $msg);
         }
 
-        $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower($entityName)])->with('assetManager')->first()
-            ?? Entity::whereRaw('LOWER(name) LIKE ?', [strtolower($entityName) . '%'])->with('assetManager')->orderBy('name')->first()
-            ?? Entity::whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($entityName) . '%'])->with('assetManager')->orderBy('name')->first();
+        $entity = Entity::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($entityName))])->with('assetManager')->first();
 
         if (!$entity || !$entity->asset_manager_id) {
-            $msg = 'No asset manager assigned for this entity. Assign in Asset Manager / Entity Master first.';
+            $msg = 'No asset manager assigned for this entity (' . ucwords(trim($entityName)) . '). Assign in Asset Manager / Entity Master first.';
             if ($request->expectsJson()) return response()->json(['message' => $msg], 422);
             return redirect()->back()->with('error', $msg);
         }
@@ -2023,20 +2020,16 @@ private function emailNotificationsEnabled(): bool
             if (!$entityName) {
                 return [null, null, null, null, null, null];
             }
+            // Exact match only — do not use LIKE (e.g. "PROSCAPE" must not become "Proscape FM LLC")
+            $displayName = ucwords(trim($entityName));
             $search = strtolower(trim($entityName));
-            $entity = Entity::whereRaw('LOWER(name) = ?', [$search])->with('assetManager')->first();
+            $entity = Entity::whereRaw('LOWER(TRIM(name)) = ?', [$search])->with('assetManager')->first();
             if (!$entity) {
-                $entity = Entity::whereRaw('LOWER(name) LIKE ?', [$search . '%'])->with('assetManager')->orderBy('name')->first();
-            }
-            if (!$entity) {
-                $entity = Entity::whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])->with('assetManager')->orderBy('name')->first();
-            }
-            if (!$entity) {
-                return [ucwords($entityName), null, null, null, null, null];
+                return [$displayName, null, null, null, null, null];
             }
             $am = $entity->assetManager;
             return [
-                ucwords($entity->name),
+                $displayName,
                 $entity->id,
                 $am?->id,
                 $am ? ($am->name ?? $am->entity_name ?? 'N/A') : null,
