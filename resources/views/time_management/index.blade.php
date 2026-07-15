@@ -38,7 +38,7 @@
     <div class="master-table-card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h5 style="color: white; margin: 0;">
-                <i class="bi bi-people me-2"></i>Employee Hours — {{ \Carbon\Carbon::parse($summaryDate ?? today())->format('D, M j, Y') }}
+                <i class="bi bi-bar-chart-fill me-2"></i>Employee Work Hours — {{ \Carbon\Carbon::parse($summaryDate ?? today())->format('D, M j, Y') }}
             </h5>
             <form method="GET" action="{{ route('time.index') }}" class="d-flex align-items-center gap-2 mb-0">
                 @foreach(request()->except('summary_date') as $key => $value)
@@ -49,61 +49,78 @@
                 <input type="date" name="summary_date" class="form-control form-control-sm" value="{{ $summaryDate ?? today()->format('Y-m-d') }}" onchange="this.form.submit()">
             </form>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-bordered mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Employee</th>
-                            <th>Visits</th>
-                            <th>Hours Worked</th>
-                            <th>Overtime</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($dailySummaries as $summary)
-                        <tr class="{{ ($summary['total_hours'] ?? 0) <= 0 ? 'table-light' : '' }}">
-                            <td><strong>{{ $summary['employee_name'] }}</strong></td>
-                            <td>{{ $summary['job_count'] }}</td>
-                            <td>
-                                <strong class="{{ ($summary['total_hours'] ?? 0) > 0 ? 'text-success' : 'text-muted' }}">
-                                    {{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}
-                                </strong>
-                            </td>
-                            <td>
-                                @if(($summary['overtime_hours'] ?? 0) > 0)
-                                    <span class="text-danger fw-bold">{{ \App\Models\TimeManagement::formatDuration($summary['overtime_hours']) }}</span>
-                                @else
-                                    -
-                                @endif
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-3">No employees found.</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                    @if(!empty($dailySummaries))
-                    <tfoot class="table-light">
-                        <tr>
-                            <th>Team Total</th>
-                            <th>{{ collect($dailySummaries)->sum('job_count') }}</th>
-                            <th><strong>{{ \App\Models\TimeManagement::formatDuration($dailySummaryTotals['total_hours'] ?? 0) }}</strong></th>
-                            <th>
-                                @if(($dailySummaryTotals['overtime_hours'] ?? 0) > 0)
-                                    <span class="text-danger fw-bold">{{ \App\Models\TimeManagement::formatDuration($dailySummaryTotals['overtime_hours']) }}</span>
-                                @else
-                                    -
-                                @endif
-                            </th>
-                        </tr>
-                    </tfoot>
-                    @endif
-                </table>
+        <div class="card-body">
+            @php
+                $activeDailySummaries = collect($dailySummaries ?? [])
+                    ->filter(fn ($summary) => ($summary['total_hours'] ?? 0) > 0)
+                    ->sortByDesc('total_hours')
+                    ->values();
+                $maxEmployeeHours = max(8, (float) $activeDailySummaries->max('total_hours'));
+            @endphp
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-6">
+                    <div class="border rounded p-3 h-100 bg-light">
+                        <div class="small text-muted">Employees Worked</div>
+                        <div class="fs-4 fw-bold text-primary">{{ $dailySummaryTotals['active_count'] ?? 0 }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="border rounded p-3 h-100 bg-light">
+                        <div class="small text-muted">Team Hours</div>
+                        <div class="fs-4 fw-bold text-success">{{ \App\Models\TimeManagement::formatDuration($dailySummaryTotals['total_hours'] ?? 0) }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="border rounded p-3 h-100 bg-light">
+                        <div class="small text-muted">Total Visits</div>
+                        <div class="fs-4 fw-bold">{{ collect($dailySummaries)->sum('job_count') }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="border rounded p-3 h-100 bg-light">
+                        <div class="small text-muted">Overtime</div>
+                        <div class="fs-4 fw-bold text-danger">{{ \App\Models\TimeManagement::formatDuration($dailySummaryTotals['overtime_hours'] ?? 0) }}</div>
+                    </div>
+                </div>
             </div>
-            <div class="p-3 border-top small text-muted">
-                {{ $dailySummaryTotals['active_count'] ?? 0 }} of {{ $dailySummaryTotals['employee_count'] ?? 0 }} employee(s) logged time on this date.
+
+            @forelse($activeDailySummaries as $summary)
+                @php
+                    $totalHours = (float) ($summary['total_hours'] ?? 0);
+                    $overtimeHours = (float) ($summary['overtime_hours'] ?? 0);
+                    $regularHours = max(0, $totalHours - $overtimeHours);
+                    $regularWidth = min(100, ($regularHours / $maxEmployeeHours) * 100);
+                    $overtimeWidth = min(100 - $regularWidth, ($overtimeHours / $maxEmployeeHours) * 100);
+                @endphp
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                        <div>
+                            <strong>{{ $summary['employee_name'] }}</strong>
+                            <span class="small text-muted ms-2">{{ $summary['job_count'] }} visit(s)</span>
+                        </div>
+                        <div class="text-nowrap">
+                            <strong>{{ \App\Models\TimeManagement::formatDuration($totalHours) }}</strong>
+                            @if($overtimeHours > 0)
+                                <span class="small text-danger ms-2">OT {{ \App\Models\TimeManagement::formatDuration($overtimeHours) }}</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 22px;" title="{{ $summary['employee_name'] }}: {{ \App\Models\TimeManagement::formatDuration($totalHours) }}">
+                        <div class="progress-bar bg-success" style="width: {{ $regularWidth }}%" aria-label="Regular hours"></div>
+                        @if($overtimeWidth > 0)
+                            <div class="progress-bar bg-danger" style="width: {{ $overtimeWidth }}%" aria-label="Overtime hours"></div>
+                        @endif
+                    </div>
+                </div>
+            @empty
+                <div class="text-center text-muted py-4">No completed work hours logged for this date.</div>
+            @endforelse
+
+            <div class="d-flex gap-3 small text-muted border-top pt-3 mt-3">
+                <span><span class="badge bg-success">&nbsp;</span> Regular hours</span>
+                <span><span class="badge bg-danger">&nbsp;</span> Overtime</span>
+                <span>{{ $dailySummaryTotals['active_count'] ?? 0 }} of {{ $dailySummaryTotals['employee_count'] ?? 0 }} employee(s) worked.</span>
             </div>
         </div>
     </div>
@@ -158,63 +175,6 @@
             </form>
         </div>
     </div>
-
-    @if(!empty($ticketSummaries))
-    <div class="master-table-card mb-4">
-        <div class="card-header">
-            <h5 style="color: white; margin: 0;">
-                <i class="bi bi-ticket-detailed me-2"></i>Tickets — Total Time by Location
-            </h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-bordered mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Ticket</th>
-                            @if($isAdmin)<th>Employee</th>@endif
-                            <th>Location</th>
-                            <th>Task</th>
-                            <th>Visits</th>
-                            <th>Total Time</th>
-                            <th>First Visit</th>
-                            <th>Last Visit</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($ticketSummaries as $summary)
-                        <tr>
-                            <td><strong>{{ $summary['ticket_number'] }}</strong></td>
-                            @if($isAdmin)<td>{{ $summary['employee_name'] }}</td>@endif
-                            <td>{{ $summary['site_location'] }}</td>
-                            <td>{{ \Illuminate\Support\Str::limit($summary['task_description'], 40) }}</td>
-                            <td>{{ $summary['visit_count'] }}</td>
-                            <td><strong>{{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}</strong></td>
-                            <td>{{ $summary['first_visit'] ? \Carbon\Carbon::parse($summary['first_visit'])->format('Y-m-d') : '-' }}</td>
-                            <td>{{ $summary['last_visit'] ? \Carbon\Carbon::parse($summary['last_visit'])->format('Y-m-d') : '-' }}</td>
-                            <td>
-                                <span class="badge {{ $summary['status'] === 'completed' ? 'bg-success' : 'bg-warning text-dark' }}">
-                                    {{ ucfirst($summary['status']) }}
-                                </span>
-                            </td>
-                            <td>
-                                <a href="{{ route('time.ticket.show', $summary['id']) }}" class="btn btn-sm btn-outline-primary">View</a>
-                                @unless($isAdmin)
-                                    @if($summary['status'] === 'pending')
-                                        <a href="{{ route('time.create', ['work_ticket_id' => $summary['id']]) }}" class="btn btn-sm btn-primary">Add Visit</a>
-                                    @endif
-                                @endunless
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    @endif
 
     <div class="master-table-card">
         <div class="card-header">

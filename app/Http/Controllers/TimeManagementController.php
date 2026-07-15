@@ -24,7 +24,6 @@ class TimeManagementController extends Controller
                     'teamMembers' => collect(),
                     'dailySummaries' => [],
                     'summaryDate' => today()->format('Y-m-d'),
-                    'ticketSummaries' => [],
                     'dailySummaryTotals' => ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0],
                 ])->with('warning', 'Database tables not found. Please run migrations: php artisan migrate --force');
             }
@@ -101,17 +100,7 @@ class TimeManagementController extends Controller
                 ? TimeManagement::summarizeDailyTotals($dailySummaries)
                 : ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0];
 
-            $ticketSummaries = $isAdmin
-                ? WorkTicket::adminTicketSummaries(
-                    $request->filled('user_id') ? (int) $request->user_id : null,
-                    $request->filled('status') ? $request->status : null
-                )
-                : WorkTicket::adminTicketSummaries(
-                    $user->id,
-                    $request->filled('status') ? $request->status : null
-                );
-
-            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers', 'dailySummaries', 'summaryDate', 'ticketSummaries', 'dailySummaryTotals'));
+            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers', 'dailySummaries', 'summaryDate', 'dailySummaryTotals'));
         } catch (\Exception $e) {
             Log::error('TimeManagement index error: ' . $e->getMessage());
 
@@ -121,7 +110,6 @@ class TimeManagementController extends Controller
                 'teamMembers' => collect(),
                 'dailySummaries' => [],
                 'summaryDate' => today()->format('Y-m-d'),
-                'ticketSummaries' => [],
                 'dailySummaryTotals' => ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0],
             ])->with('warning', 'Unable to load work logs.');
         }
