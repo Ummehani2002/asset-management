@@ -1029,7 +1029,7 @@ public function exportFiltered(Request $request)
 private function exportCategoryPdf($assets, $category)
 {
     $pdf = \PDF::loadView('assets.export-category-pdf', compact('assets', 'category'))
-        ->setPaper('a4', 'landscape');
+        ->setPaper('a4', 'portrait');
     $safeCategory = $this->safeFilenameSegment($category->category_name ?? 'category');
     return $pdf->download('assets-category-' . $safeCategory . '-' . date('Y-m-d') . '.pdf');
 }
@@ -1048,7 +1048,7 @@ private function exportCategoryExcel($assets, $category)
 
         fputcsv($file, [
             '#', 'Asset ID', 'Entity', 'Status', 'Brand', 'Model', 'Features', 'Purchase Date', 'Warranty Start',
-            'Expiry Date', 'PO Number', 'Employee Details', 'Vendor Name', 'Value', 'Serial Number',
+            'Expiry Date', 'Aging', 'PO Number', 'Employee Details', 'Vendor Name', 'Value', 'Serial Number',
         ]);
 
         foreach ($assets as $index => $asset) {
@@ -1063,6 +1063,7 @@ private function exportCategoryExcel($assets, $category)
                 $asset->purchase_date ?? 'N/A',
                 $asset->warranty_start ?? 'N/A',
                 $asset->expiry_date ?? 'N/A',
+                $asset->agingLabel(),
                 $asset->po_number ?? 'N/A',
                 $this->assetEmployeeDetailsLabel($asset),
                 $asset->vendor_name ?? '-',

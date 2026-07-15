@@ -70,6 +70,11 @@
                         </thead>
                         <tbody>
                             @forelse($expenses as $exp)
+                                @php
+                                    $ids = collect($exp['ids'] ?? [$exp['id']])->filter()->values();
+                                    $idsQuery = $ids->implode(',');
+                                    $printUrl = $exp['print_url'] ?? (route('budget-expenses.print', $exp['id']) . ($ids->count() > 1 ? ('?ids=' . $idsQuery) : ''));
+                                @endphp
                                 <tr>
                                     <td>{{ $exp['expense_date'] }}</td>
                                     <td>{{ $exp['entity_name'] }}</td>
@@ -80,10 +85,13 @@
                                     <td>{{ $exp['balance_after'] }}</td>
                                     <td>
                                         <a href="{{ route('budget-expenses.edit', $exp['id']) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
-                                        <a href="{{ route('budget-expenses.print', $exp['id']) }}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Print</a>
-                                        <form action="{{ route('budget-expenses.destroy', $exp['id']) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this expense?');">
+                                        <a href="{{ $printUrl }}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Print</a>
+                                        <form action="{{ route('budget-expenses.destroy', $exp['id']) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this expense{{ $ids->count() > 1 ? ' (all ' . $ids->count() . ' lines)' : '' }}?');">
                                             @csrf
                                             @method('DELETE')
+                                            @if($ids->count() > 1)
+                                                <input type="hidden" name="ids" value="{{ $idsQuery }}">
+                                            @endif
                                             <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                                         </form>
                                     </td>

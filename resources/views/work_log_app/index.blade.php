@@ -5,11 +5,9 @@
 
 @section('content')
 <div class="mb-3">
-    @unless($isAdmin)
     <a href="{{ route('worklog.create') }}" class="btn btn-sm btn-outline-primary w-100">
-        <i class="bi bi-pencil-square me-1"></i> Back to Work Log Form
+        <i class="bi bi-play-circle me-1"></i> Start New Work
     </a>
-    @endunless
 </div>
 
 <div id="installBanner" class="install-banner">
@@ -27,7 +25,7 @@
 <div class="stat-grid">
     <div class="stat-card">
         <div class="num text-primary" style="font-size:1rem;line-height:1.3;">
-            {{ $isAdmin ? \App\Models\TimeManagement::formatDuration($stats['hours_today'] ?? 0) : \App\Models\TimeManagement::formatDuration($stats['hours_today'] ?? 0) }}
+            {{ \App\Models\TimeManagement::formatDuration($stats['hours_today'] ?? 0) }}
         </div>
         <div class="lbl">{{ $isAdmin ? 'Team Hours Today' : 'Time Today' }}</div>
     </div>
@@ -66,7 +64,7 @@
         <div class="col-{{ $isAdmin ? '6' : '12' }}">
             <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                 <option value="">All Status</option>
-                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending / Running</option>
                 <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
             </select>
         </div>
@@ -107,31 +105,7 @@
                 @endif
             </span>
         </div>
-        <div class="small text-muted mt-1">
-            {{ $dailySummaryTotals['active_count'] ?? 0 }} of {{ $dailySummaryTotals['employee_count'] ?? 0 }} employee(s) logged time.
-        </div>
         @endif
-    </div>
-</div>
-@endif
-
-@if($isAdmin && !empty($ticketSummaries))
-<div class="mb-3">
-    <div class="log-card" style="border-left: 4px solid #0d6efd;">
-        <div class="fw-semibold mb-2"><i class="bi bi-ticket-detailed me-1"></i> Ticket Totals by Location</div>
-        @foreach($ticketSummaries as $summary)
-            <div class="py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <strong>{{ $summary['ticket_number'] }}</strong>
-                        <div class="small text-muted">{{ $summary['employee_name'] }} · {{ $summary['site_location'] }}</div>
-                    </div>
-                    <strong>{{ \App\Models\TimeManagement::formatDuration($summary['total_hours']) }}</strong>
-                </div>
-                <div class="small text-muted mt-1">{{ $summary['visit_count'] }} visit(s) · {{ ucfirst($summary['status']) }}</div>
-                <a href="{{ route('time.ticket.show', $summary['id']) }}" class="small">View all visits</a>
-            </div>
-        @endforeach
     </div>
 </div>
 @endif
@@ -140,63 +114,100 @@
     <div class="text-center text-muted py-5">
         <i class="bi bi-journal-x" style="font-size: 2.5rem;"></i>
         <p class="mt-2 mb-3">No work logs yet.</p>
-        @unless($isAdmin)
         <a href="{{ route('worklog.create') }}" class="btn btn-app" style="width: auto; padding: 10px 24px;">
-            <i class="bi bi-plus-circle me-1"></i> New Work Log
+            <i class="bi bi-play-circle me-1"></i> Start Work
         </a>
-        @endunless
     </div>
 @else
-    @foreach($tasks as $task)
-        @php
-            $displayStatus = $task->ticketStatus();
-        @endphp
-        <div class="log-card {{ $displayStatus }}">
-            <div class="d-flex justify-content-between align-items-start mb-1">
-                <div>
-                    <strong>{{ $task->ticket_number }}</strong>
+    <div class="table-responsive bg-white rounded border">
+        <table class="table table-sm table-bordered mb-0 align-middle" style="font-size: 0.78rem;">
+            <thead class="table-light">
+                <tr>
+                    <th>Ticket</th>
+                    @if($isAdmin)<th>Emp</th>@endif
+                    <th>Location</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Worked</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($tasks as $task)
+                @php
+                    $isRunning = $task->isRunning();
+                    $canStop = $isRunning && $task->isOwnedBy(auth()->user());
+                @endphp
+                <tr class="{{ $isRunning ? 'table-warning' : '' }}">
+                    <td>
+                        <strong>{{ $task->ticket_number }}</strong>
+                        <div class="text-muted">{{ \Illuminate\Support\Str::limit($task->task_description, 24) }}</div>
+                    </td>
                     @if($isAdmin)
-                        <small class="text-muted d-block">{{ $task->employee_name }}</small>
+                        <td>{{ \Illuminate\Support\Str::limit($task->employee_name, 12) }}</td>
                     @endif
-                </div>
-                <span class="badge badge-status {{ $displayStatus === 'completed' ? 'bg-success' : 'bg-warning text-dark' }}">
-                    {{ ucfirst($displayStatus) }}
-                </span>
-            </div>
-            <div class="fw-semibold mb-1">{{ $task->task_description }}</div>
-            <div class="small text-muted mb-2">
-                <i class="bi bi-geo-alt"></i> {{ $task->site_location }}
-                &nbsp;·&nbsp;
-                <i class="bi bi-calendar3"></i> {{ $task->job_card_date?->format('M d, Y') }}
-            </div>
-            <div class="d-flex justify-content-between align-items-center small">
-                <span>
-                    <i class="bi bi-clock"></i>
-                    {{ $task->start_time?->format('H:i') }} – {{ $task->end_time?->format('H:i') }}
-                    <strong class="ms-1">{{ \App\Models\TimeManagement::formatDuration($task->duration_hours) }}</strong>
-                </span>
-                @if($isAdmin && ($task->overtime_hours ?? 0) > 0)
-                    <span class="text-danger fw-bold">OT: {{ \App\Models\TimeManagement::formatDuration($task->overtime_hours) }}</span>
-                @endif
-            </div>
-            <div class="mt-2 d-grid gap-2">
-                @if($task->work_ticket_id)
-                <a href="{{ route('time.ticket.show', $task->work_ticket_id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-eye"></i> View visits
-                </a>
-                @endif
-                @unless($isAdmin)
-                <a href="{{ route('worklog.edit', $task->id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-pencil"></i> Edit
-                </a>
-                @if($displayStatus !== 'completed')
-                <a href="{{ route('worklog.edit', $task->id) }}?status=completed" class="btn btn-sm btn-success">
-                    <i class="bi bi-check-circle"></i> Mark Completed
-                </a>
-                @endif
-                @endunless
-            </div>
-        </div>
-    @endforeach
+                    <td>{{ \Illuminate\Support\Str::limit($task->site_location, 14) }}</td>
+                    <td>{{ $task->start_time?->format('H:i') ?? '-' }}</td>
+                    <td>{{ $task->end_time?->format('H:i') ?? '—' }}</td>
+                    <td>
+                        @if($isRunning)
+                            <span class="text-warning fw-semibold"
+                                  data-elapsed-start="{{ $task->start_time?->toIso8601String() }}">…</span>
+                        @else
+                            {{ \App\Models\TimeManagement::formatDuration($task->duration_hours) }}
+                        @endif
+                    </td>
+                    <td>
+                        @if($isRunning)
+                            <span class="badge bg-warning text-dark">Running</span>
+                        @else
+                            <span class="badge {{ $task->ticketStatus() === 'completed' ? 'bg-success' : 'bg-secondary' }}">
+                                {{ ucfirst($task->ticketStatus()) }}
+                            </span>
+                        @endif
+                    </td>
+                    <td class="text-nowrap">
+                        @if($canStop)
+                            <form action="{{ route('time.stop', $task->id) }}" method="POST" class="mb-1">
+                                @csrf
+                                <input type="hidden" name="_from_app" value="1">
+                                <input type="hidden" name="complete_ticket" value="0">
+                                <button type="submit" class="btn btn-sm btn-warning py-0 px-2 w-100">Stop Visit</button>
+                            </form>
+                            <form action="{{ route('time.stop', $task->id) }}" method="POST" class="m-0"
+                                  onsubmit="return confirm('Stop this visit and complete the ticket?');">
+                                @csrf
+                                <input type="hidden" name="_from_app" value="1">
+                                <input type="hidden" name="complete_ticket" value="1">
+                                <button type="submit" class="btn btn-sm btn-danger py-0 px-2 w-100">Complete</button>
+                            </form>
+                        @elseif(! $isAdmin && ! $isRunning)
+                            <a href="{{ route('worklog.edit', $task->id) }}" class="btn btn-sm btn-outline-primary py-0 px-2">Edit</a>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 @endif
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/format-work-duration.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function tickElapsed() {
+        document.querySelectorAll('[data-elapsed-start]').forEach(function (el) {
+            const start = new Date(el.getAttribute('data-elapsed-start'));
+            if (isNaN(start.getTime())) return;
+            const hours = Math.max(0, (Date.now() - start.getTime()) / (1000 * 60 * 60));
+            el.textContent = typeof formatWorkDuration === 'function' ? formatWorkDuration(hours) : hours.toFixed(2) + ' hrs';
+        });
+    }
+    tickElapsed();
+    setInterval(tickElapsed, 30000);
+});
+</script>
+@endpush

@@ -166,7 +166,11 @@ class BudgetExpenseController extends Controller
             }
 
             $savedExpenses = collect();
-            DB::transaction(function () use ($validated, $lines, $isContracting, $vatPercent, &$savedExpenses) {
+            $submissionGroupId = $lines->count() > 1 && Schema::hasColumn('budget_expenses', 'submission_group_id')
+                ? BudgetExpense::newSubmissionGroupId()
+                : null;
+
+            DB::transaction(function () use ($validated, $lines, $isContracting, $vatPercent, $submissionGroupId, &$savedExpenses) {
                 foreach ($lines as $line) {
                     $expenseData = [
                         'entity_budget_id' => $validated['entity_budget_id'],
@@ -179,6 +183,9 @@ class BudgetExpenseController extends Controller
                         'vat_percent' => $vatPercent,
                         'vat_amount' => $line['vat_amount'],
                     ];
+                    if ($submissionGroupId !== null) {
+                        $expenseData['submission_group_id'] = $submissionGroupId;
+                    }
                     if (Schema::hasColumn('budget_expenses', 'quantity')) {
                         $expenseData['quantity'] = $line['quantity'];
                     }
@@ -189,14 +196,16 @@ class BudgetExpenseController extends Controller
             // Build fresh response payload instead of reusing getBudgetDetails (POST does not contain all its params)
             $updatedTotalExpenses = $totalExpenses + $grandTotalWithVat;
             $availableBalance = $budgetAmount - $updatedTotalExpenses;
-            $latestSavedExpense = $savedExpenses->last();
+            $firstSavedExpense = $savedExpenses->first();
+            $joinedDescription = $savedExpenses->pluck('description')->filter(fn ($d) => filled($d))->implode('; ') ?: '-';
+            $groupTotal = round((float) $savedExpenses->sum('expense_amount'), 2);
 
             $latestExpense = [
-                'id' => $latestSavedExpense->id,
-                'expense_date' => date('Y-m-d', strtotime($latestSavedExpense->expense_date)),
-                'expense_amount' => number_format($latestSavedExpense->expense_amount, 2),
-                'quantity' => (int) ($latestSavedExpense->quantity ?? 1),
-                'description' => $latestSavedExpense->description ?: '-',
+                'id' => $firstSavedExpense->id,
+                'expense_date' => date('Y-m-d', strtotime($firstSavedExpense->expense_date)),
+                'expense_amount' => number_format($groupTotal, 2),
+                'quantity' => (int) $savedExpenses->sum(fn ($e) => (int) ($e->quantity ?? 1)),
+                'description' => $joinedDescription,
                 'entity_name' => $budget->employee->entity_name ?? 'N/A',
                 'cost_head' => $validated['cost_head'] ?: ($budget->cost_head ?? '—'),
                 'expense_type' => $budget->expense_type,
@@ -206,7 +215,7 @@ class BudgetExpenseController extends Controller
 
             $savedExpenseIds = $savedExpenses->pluck('id')->map(fn ($id) => (int) $id)->values();
             $idsQuery = $savedExpenseIds->implode(',');
-            $printUrl = route('budget-expenses.print', $latestSavedExpense->id) . ($idsQuery !== '' ? ('?ids=' . $idsQuery) : '');
+            $printUrl = route('budget-expenses.print', $firstSavedExpense->id) . ($savedExpenseIds->count() > 1 ? ('?ids=' . $idsQuery) : '');
             $latestExpense['print_url'] = $printUrl;
 
             $payload = [
@@ -219,7 +228,7 @@ class BudgetExpenseController extends Controller
                 'total_expenses' => number_format($updatedTotalExpenses, 2),
                 'available_balance' => number_format($availableBalance, 2),
                 'expenses' => [$latestExpense],
-                'saved_expense_id' => $latestSavedExpense->id,
+                'saved_expense_id' => $firstSavedExpense->id,
                 'saved_count' => $savedExpenses->count(),
                 'print_url' => $printUrl,
             ];
@@ -230,8 +239,8 @@ class BudgetExpenseController extends Controller
 
             return redirect()
                 ->route('budget-expenses.create')
-                ->with('success', $savedExpenses->count() > 1 ? ($savedExpenses->count() . ' expenses saved successfully.') : 'Expense saved successfully.')
-                ->with('saved_expense_id', $latestSavedExpense->id)
+                ->with('success', $savedExpenses->count() > 1 ? ($savedExpenses->count() . ' expense lines saved as one entry.') : 'Expense saved successfully.')
+                ->with('saved_expense_id', $firstSavedExpense->id)
                 ->with('saved_expense', $latestExpense)
                 ->with('print_url', $printUrl);
 
@@ -535,21 +544,34 @@ class BudgetExpenseController extends Controller
                     $totalExpensesAll = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
                     $entityName = $budget->employee->entity_name ?? 'N/A';
                     $costHeadLabel = ucfirst($request->cost_head);
-                    $expenses = $allExpenses->map(function ($expense) use ($budget, $budgetAmount, $entityName, $costHeadLabel) {
-                        $balanceAfter = $budgetAmount - BudgetExpense::where('entity_budget_id', $budget->id)
-                            ->where('created_at', '<=', $expense->created_at)
-                            ->sum('expense_amount');
-                        return [
-                            'id' => $expense->id,
-                            'expense_date' => date('Y-m-d', strtotime($expense->expense_date)),
-                            'expense_amount' => number_format($expense->expense_amount, 2),
-                            'description' => $expense->description ?: '-',
-                            'entity_name' => $entityName,
-                            'cost_head' => $expense->cost_head ? ucfirst($expense->cost_head) : $costHeadLabel,
-                            'expense_type' => $budget->expense_type,
-                            'balance_after' => number_format($balanceAfter, 2),
-                        ];
-                    });
+                    $expenses = BudgetExpense::groupBySubmission($allExpenses)
+                        ->sortByDesc(fn ($group) => $group->max('id'))
+                        ->values()
+                        ->map(function ($group) use ($budget, $budgetAmount, $entityName, $costHeadLabel) {
+                            $first = $group->sortBy('id')->first();
+                            $last = $group->sortBy('id')->last();
+                            $ids = $group->pluck('id')->map(fn ($id) => (int) $id)->values();
+                            $amount = round((float) $group->sum('expense_amount'), 2);
+                            $balanceAfter = $budgetAmount - BudgetExpense::where('entity_budget_id', $budget->id)
+                                ->where('created_at', '<=', $last->created_at)
+                                ->sum('expense_amount');
+                            $description = $group->pluck('description')->filter(fn ($d) => filled($d))->implode('; ') ?: '-';
+                            $printUrl = route('budget-expenses.print', $first->id)
+                                . ($ids->count() > 1 ? ('?ids=' . $ids->implode(',')) : '');
+
+                            return [
+                                'id' => $first->id,
+                                'ids' => $ids->all(),
+                                'expense_date' => date('Y-m-d', strtotime($first->expense_date)),
+                                'expense_amount' => number_format($amount, 2),
+                                'description' => $description,
+                                'entity_name' => $entityName,
+                                'cost_head' => $first->cost_head ? ucfirst($first->cost_head) : $costHeadLabel,
+                                'expense_type' => $budget->expense_type,
+                                'balance_after' => number_format($balanceAfter, 2),
+                                'print_url' => $printUrl,
+                            ];
+                        });
                 }
             }
         }
@@ -625,14 +647,38 @@ class BudgetExpenseController extends Controller
     }
 
     /**
-     * Delete a budget expense.
+     * Delete a budget expense (and sibling lines from the same form when grouped).
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         try {
             $expense = BudgetExpense::findOrFail($id);
-            $expense->delete();
-            return redirect()->back()->with('success', 'Expense deleted successfully.');
+            $idsParam = trim((string) $request->input('ids', ''));
+            $requestedIds = collect(explode(',', $idsParam))
+                ->map(fn ($v) => (int) trim($v))
+                ->filter(fn ($v) => $v > 0)
+                ->unique()
+                ->values();
+
+            if ($requestedIds->isNotEmpty()) {
+                BudgetExpense::whereIn('id', $requestedIds->all())->delete();
+                $message = $requestedIds->count() > 1
+                    ? 'Expense entry (' . $requestedIds->count() . ' lines) deleted successfully.'
+                    : 'Expense deleted successfully.';
+            } elseif (
+                Schema::hasColumn('budget_expenses', 'submission_group_id')
+                && !empty($expense->submission_group_id)
+            ) {
+                $deleted = BudgetExpense::where('submission_group_id', $expense->submission_group_id)->delete();
+                $message = $deleted > 1
+                    ? 'Expense entry (' . $deleted . ' lines) deleted successfully.'
+                    : 'Expense deleted successfully.';
+            } else {
+                $expense->delete();
+                $message = 'Expense deleted successfully.';
+            }
+
+            return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             Log::error('BudgetExpense delete error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to delete expense.');

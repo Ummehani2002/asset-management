@@ -151,7 +151,8 @@ class WorkLogAppController extends Controller
             }
 
             if ($tasks->isNotEmpty()) {
-                $tasks = TimeManagement::whereIn('id', $tasks->pluck('id'))
+                $tasks = TimeManagement::with('workTicket')
+                    ->whereIn('id', $tasks->pluck('id'))
                     ->orderByDesc('job_card_date')
                     ->orderByDesc('start_time')
                     ->get();
@@ -229,14 +230,12 @@ class WorkLogAppController extends Controller
         $user = Auth::user();
         $isAdmin = $user->isTimeManagementAdmin();
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
+        $runningLog = TimeManagement::findRunningForUser($user);
         $openTickets = $isAdmin ? collect() : WorkTicket::openTicketsForUser($user);
         $continueTicket = null;
 
         if (! $isAdmin && $request->filled('work_ticket_id')) {
-            $continueTicket = WorkTicket::find($request->work_ticket_id);
-            if ($continueTicket && ! $continueTicket->belongsToUser($user)) {
-                $continueTicket = null;
-            }
+            $continueTicket = $openTickets->firstWhere('id', (int) $request->work_ticket_id);
         }
 
         $todayJobs = TimeManagement::query()
@@ -256,6 +255,7 @@ class WorkLogAppController extends Controller
             'todayTotals' => $todayTotals,
             'todayJobs' => $todayJobs,
             'isAdmin' => $isAdmin,
+            'runningLog' => $runningLog,
             'openTickets' => $openTickets,
             'continueTicket' => $continueTicket,
         ]);

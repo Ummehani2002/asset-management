@@ -119,6 +119,10 @@
                     <td>{{ $t->receive_date ?? 'N/A' }}</td>
                 </tr>
                 <tr>
+                    <th>Received By</th>
+                    <td>{{ $t->received_by ?? 'N/A' }}</td>
+                </tr>
+                <tr>
                     <th>Delivery Date</th>
                     <td>{{ $t->delivery_date ?? 'N/A' }}</td>
                 </tr>

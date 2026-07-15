@@ -10,9 +10,16 @@ use Illuminate\Support\Facades\Mail;
 
 class PrTrackingController extends Controller
 {
-    private const APPROVER_ONE_EMAIL = 'rumanmohammed@tanseeqinvestment.com';
-    private const APPROVER_TWO_EMAIL = 'badruddin@tanseeqinvestment.com';
-    private const CC_NOTIFICATION_EMAIL = 'umme.hani@tanseeqinvestment.com';
+    /** Sequential order: Umme → Ruman → Badr */
+    private const APPROVER_ONE_EMAIL = 'umme.hani@tanseeqinvestment.com';
+    private const APPROVER_TWO_EMAIL = 'rumanmohammed@tanseeqinvestment.com';
+    private const APPROVER_THREE_EMAIL = 'badruddin@tanseeqinvestment.com';
+
+    private const APPROVER_LABELS = [
+        'one' => 'Umme Hani',
+        'two' => 'Ruman Mohammed',
+        'three' => 'Badruddin',
+    ];
 
     public function index(Request $request)
     {
@@ -33,6 +40,8 @@ class PrTrackingController extends Controller
             'records' => $records,
             'defaultApproverOne' => self::APPROVER_ONE_EMAIL,
             'defaultApproverTwo' => self::APPROVER_TWO_EMAIL,
+            'defaultApproverThree' => self::APPROVER_THREE_EMAIL,
+            'approverLabels' => self::APPROVER_LABELS,
         ]);
     }
 
@@ -51,16 +60,18 @@ class PrTrackingController extends Controller
 
         $validated['approver_one_email'] = self::APPROVER_ONE_EMAIL;
         $validated['approver_two_email'] = self::APPROVER_TWO_EMAIL;
+        $validated['approver_three_email'] = self::APPROVER_THREE_EMAIL;
         $validated['approval_status'] = 'draft';
         $validated['approver_one_status'] = 'pending';
         $validated['approver_two_status'] = 'pending';
+        $validated['approver_three_status'] = 'pending';
 
         $prTracking = PrTracking::create($validated);
 
         if ($request->input('submit_action') === 'send_for_approval') {
             $this->prepareForApprovalRequest($prTracking);
             $prTracking->save();
-            return $this->sendApprovalEmails($prTracking);
+            return $this->sendApprovalEmailToCurrent($prTracking, true);
         }
 
         return redirect()
@@ -77,7 +88,7 @@ class PrTrackingController extends Controller
         $this->prepareForApprovalRequest($prTracking);
         $prTracking->save();
 
-        return $this->sendApprovalEmails($prTracking);
+        return $this->sendApprovalEmailToCurrent($prTracking, true);
     }
 
     public function approveSigned(Request $request, $id, $approver)
@@ -87,7 +98,7 @@ class PrTrackingController extends Controller
         }
 
         $prTracking = PrTracking::findOrFail($id);
-        if (!in_array($approver, ['one', 'two'], true)) {
+        if (!in_array($approver, PrTracking::APPROVER_KEYS, true)) {
             return redirect()->route('login')->with('error', 'Invalid approver link.');
         }
 
@@ -95,28 +106,58 @@ class PrTrackingController extends Controller
             return redirect()->route('login')->with('success', 'This PR is already approved by all approvers.');
         }
 
-        if ($approver === 'one') {
-            $prTracking->approver_one_status = 'approved';
-            $prTracking->approver_one_action_at = now();
-        } else {
-            $prTracking->approver_two_status = 'approved';
-            $prTracking->approver_two_action_at = now();
+        if ($prTracking->approval_status === 'rejected') {
+            return redirect()->route('login')->with('error', 'This PR was already rejected.');
         }
 
+        $currentKey = $prTracking->currentApproverKey();
+        if ($currentKey !== $approver) {
+            return redirect()->route('login')->with(
+                'error',
+                'This approval link is not active yet. Approvals must follow order: Umme Hani → Ruman Mohammed → Badruddin.'
+            );
+        }
+
+        if ($prTracking->approverStatus($approver) === 'approved') {
+            return redirect()->route('login')->with('success', 'Your approval was already recorded.');
+        }
+
+        $this->setApproverStatus($prTracking, $approver, 'approved');
         $prTracking->approval_status = $this->resolveOverallApprovalStatus($prTracking);
+
         if ($prTracking->approval_status === 'approved') {
             $prTracking->approved_request_status = 'Approved';
             if (empty($prTracking->requisition_status)) {
                 $prTracking->requisition_status = 'Approved';
             }
+            $prTracking->save();
+
+            return redirect()->route('login')->with(
+                'success',
+                'Approved. This PR is now fully approved (Umme Hani → Ruman Mohammed → Badruddin).'
+            );
         }
+
         $prTracking->save();
 
-        $msg = $prTracking->approval_status === 'approved'
-            ? 'Approved. This PR is now approved by all approvers.'
-            : 'Your approval is recorded. Waiting for the other approver.';
+        $nextKey = $prTracking->currentApproverKey();
+        $mailFailed = false;
+        if ($nextKey) {
+            $mailFailed = !$this->dispatchApprovalEmail($prTracking, $nextKey);
+        }
 
-        return redirect()->route('login')->with('success', $msg);
+        $nextLabel = $nextKey ? (self::APPROVER_LABELS[$nextKey] ?? 'next approver') : 'next approver';
+        if ($mailFailed) {
+            return redirect()->route('login')->with(
+                'warning',
+                'Your approval is recorded. Email to ' . $nextLabel . ' could not be sent — ask the requester to click Send for Approval again.'
+            );
+        }
+
+        return redirect()->route('login')->with(
+            'success',
+            'Your approval is recorded. The request was forwarded to ' . $nextLabel . '.'
+        );
     }
 
     public function rejectSigned(Request $request, $id, $approver)
@@ -126,18 +167,27 @@ class PrTrackingController extends Controller
         }
 
         $prTracking = PrTracking::findOrFail($id);
-        if (!in_array($approver, ['one', 'two'], true)) {
+        if (!in_array($approver, PrTracking::APPROVER_KEYS, true)) {
             return redirect()->route('login')->with('error', 'Invalid approver link.');
         }
 
-        if ($approver === 'one') {
-            $prTracking->approver_one_status = 'rejected';
-            $prTracking->approver_one_action_at = now();
-        } else {
-            $prTracking->approver_two_status = 'rejected';
-            $prTracking->approver_two_action_at = now();
+        if ($prTracking->approval_status === 'approved') {
+            return redirect()->route('login')->with('error', 'This PR is already fully approved and cannot be rejected.');
         }
 
+        if ($prTracking->approval_status === 'rejected') {
+            return redirect()->route('login')->with('success', 'This PR was already rejected.');
+        }
+
+        $currentKey = $prTracking->currentApproverKey();
+        if ($currentKey !== $approver) {
+            return redirect()->route('login')->with(
+                'error',
+                'This rejection link is not active. Only the current approver in sequence can act.'
+            );
+        }
+
+        $this->setApproverStatus($prTracking, $approver, 'rejected');
         $prTracking->approval_status = 'rejected';
         $prTracking->approved_request_status = 'Rejected';
         $prTracking->save();
@@ -145,62 +195,136 @@ class PrTrackingController extends Controller
         return redirect()->route('login')->with('success', 'You rejected this PR request.');
     }
 
+    private function setApproverStatus(PrTracking $prTracking, string $key, string $status): void
+    {
+        if ($key === 'one') {
+            $prTracking->approver_one_status = $status;
+            $prTracking->approver_one_action_at = now();
+        } elseif ($key === 'two') {
+            $prTracking->approver_two_status = $status;
+            $prTracking->approver_two_action_at = now();
+        } else {
+            $prTracking->approver_three_status = $status;
+            $prTracking->approver_three_action_at = now();
+        }
+    }
+
     private function resolveOverallApprovalStatus(PrTracking $prTracking): string
     {
-        if ($prTracking->approver_one_status === 'rejected' || $prTracking->approver_two_status === 'rejected') {
-            return 'rejected';
+        foreach (PrTracking::APPROVER_KEYS as $key) {
+            if ($prTracking->approverStatus($key) === 'rejected') {
+                return 'rejected';
+            }
         }
 
-        if ($prTracking->approver_one_status === 'approved' && $prTracking->approver_two_status === 'approved') {
+        $allApproved = true;
+        foreach (PrTracking::APPROVER_KEYS as $key) {
+            if ($prTracking->approverStatus($key) !== 'approved') {
+                $allApproved = false;
+                break;
+            }
+        }
+
+        if ($allApproved) {
             return 'approved';
         }
 
-        return 'partially_approved';
+        // At least one approved, waiting on later step
+        if ($prTracking->approver_one_status === 'approved') {
+            return 'partially_approved';
+        }
+
+        return 'pending_approval';
     }
 
-    private function sendApprovalEmails(PrTracking $prTracking)
+    /**
+     * Send email only to the current pending approver in the sequence.
+     */
+    private function sendApprovalEmailToCurrent(PrTracking $prTracking, bool $isResendOrStart = false)
     {
-        try {
-            if (!empty($prTracking->approver_one_email)) {
-                Mail::to($prTracking->approver_one_email)
-                    ->cc(self::CC_NOTIFICATION_EMAIL)
-                    ->send(new PrTrackingApprovalRequestMail($prTracking, 'one'));
-            }
-            if (!empty($prTracking->approver_two_email)) {
-                Mail::to($prTracking->approver_two_email)
-                    ->cc(self::CC_NOTIFICATION_EMAIL)
-                    ->send(new PrTrackingApprovalRequestMail($prTracking, 'two'));
-            }
-        } catch (\Throwable $e) {
-            Log::error('PR tracking approval request email failed', [
-                'pr_tracking_id' => $prTracking->id,
-                'error' => $e->getMessage(),
-            ]);
-
+        $currentKey = $prTracking->currentApproverKey();
+        if (!$currentKey) {
             return redirect()->route('pr-tracking.index')->with(
                 'warning',
-                'Send for approval failed to email. Please check mail configuration.'
+                'No pending approver found for this PR.'
             );
         }
 
+        $ok = $this->dispatchApprovalEmail($prTracking, $currentKey);
+        $label = self::APPROVER_LABELS[$currentKey] ?? $currentKey;
+
+        if (!$ok) {
+            return redirect()->route('pr-tracking.index')->with(
+                'warning',
+                'Could not email ' . $label . '. Please check mail configuration and try again.'
+            );
+        }
+
+        $stepNote = match ($currentKey) {
+            'one' => 'Step 1 of 3: email sent to Umme Hani. After approval, Ruman will be notified.',
+            'two' => 'Step 2 of 3: email sent to Ruman Mohammed. After approval, Badruddin will be notified.',
+            'three' => 'Step 3 of 3: email sent to Badruddin. After approval, the PR will be fully approved.',
+            default => 'Approval email sent.',
+        };
+
         return redirect()
             ->route('pr-tracking.index')
-            ->with('success', 'Send for approval completed. Email sent to both approvers and Umme Hani.');
+            ->with('success', ($isResendOrStart ? '' : '') . $stepNote);
+    }
+
+    private function dispatchApprovalEmail(PrTracking $prTracking, string $approverKey): bool
+    {
+        $email = $prTracking->approverEmail($approverKey);
+        if (empty($email)) {
+            return false;
+        }
+
+        try {
+            Mail::to($email)->send(new PrTrackingApprovalRequestMail($prTracking, $approverKey));
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('PR tracking approval request email failed', [
+                'pr_tracking_id' => $prTracking->id,
+                'approver' => $approverKey,
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 
     private function prepareForApprovalRequest(PrTracking $prTracking): void
     {
+        $prTracking->approver_one_email = self::APPROVER_ONE_EMAIL;
+        $prTracking->approver_two_email = self::APPROVER_TWO_EMAIL;
+        $prTracking->approver_three_email = self::APPROVER_THREE_EMAIL;
+
+        // Fresh start for draft / rejected (or legacy records stuck without a clear stage)
         if (in_array($prTracking->approval_status, ['draft', 'rejected'], true)) {
             $prTracking->approver_one_status = 'pending';
             $prTracking->approver_two_status = 'pending';
+            $prTracking->approver_three_status = 'pending';
             $prTracking->approver_one_action_at = null;
             $prTracking->approver_two_action_at = null;
+            $prTracking->approver_three_action_at = null;
+            $prTracking->approval_status = 'pending_approval';
+        } else {
+            // Keep completed steps; fill missing third-approver defaults for older rows
+            if (empty($prTracking->approver_three_status)) {
+                $prTracking->approver_three_status = 'pending';
+            }
+            $prTracking->approval_status = $this->resolveOverallApprovalStatus($prTracking);
+            if ($prTracking->approval_status === 'approved') {
+                return;
+            }
+            if ($prTracking->approval_status !== 'partially_approved') {
+                $prTracking->approval_status = 'pending_approval';
+            }
         }
 
-        $prTracking->approver_one_email = self::APPROVER_ONE_EMAIL;
-        $prTracking->approver_two_email = self::APPROVER_TWO_EMAIL;
         $prTracking->approval_requested_at = now();
-        $prTracking->approval_status = 'pending_approval';
-        $prTracking->approved_request_status = 'Pending Approval';
+        if ($prTracking->approval_status !== 'approved') {
+            $prTracking->approved_request_status = 'Pending Approval';
+        }
     }
 }

@@ -430,29 +430,41 @@ class EntityBudgetController extends Controller
 
     /**
      * Build transaction history rows with amount, cumulative spent, and balance after (per entity_budget).
+     * Multi-line form submissions are shown as a single row.
      */
     private function buildTransactionHistoryRows($expensesQuery, int $year): \Illuminate\Support\Collection
     {
         $yearColumn = 'budget_' . $year;
         $expenses = $expensesQuery->orderBy('expense_date', 'asc')->orderBy('id', 'asc')->get();
+        $groups = BudgetExpense::groupBySubmission($expenses);
         $cumulativeByBudget = [];
         $rows = [];
-        foreach ($expenses as $e) {
-            $budgetId = $e->entity_budget_id;
-            $budget = $e->entityBudget;
+
+        foreach ($groups as $group) {
+            /** @var \Illuminate\Support\Collection $group */
+            $first = $group->sortBy('id')->first();
+            $budgetId = $first->entity_budget_id;
+            $budget = $first->entityBudget;
             $budgetAmount = ($budget && Schema::hasColumn('entity_budgets', $yearColumn)) ? ($budget->$yearColumn ?? 0) : 0;
-            $amount = $e->expense_amount ?? 0;
+            $amount = round((float) $group->sum('expense_amount'), 2);
             $cumulativeByBudget[$budgetId] = ($cumulativeByBudget[$budgetId] ?? 0) + $amount;
             $cumulativeSpent = $cumulativeByBudget[$budgetId];
             $balanceAfter = $budgetAmount - $cumulativeSpent;
+            $ids = $group->pluck('id')->map(fn ($id) => (int) $id)->values();
+            $description = $group->pluck('description')->filter(fn ($d) => filled($d))->implode('; ') ?: '—';
+
             $rows[] = (object) [
-                'expense' => $e,
+                'expense' => $first,
+                'expenses' => $group,
+                'ids' => $ids,
+                'description' => $description,
                 'budget_amount' => $budgetAmount,
                 'amount' => $amount,
                 'cumulative_spent' => $cumulativeSpent,
                 'balance_after' => $balanceAfter,
             ];
         }
+
         return collect($rows)->reverse()->values(); // show newest first in UI
     }
 
@@ -610,7 +622,7 @@ class EntityBudgetController extends Controller
                         number_format($row->amount, 2),
                         number_format($row->cumulative_spent, 2),
                         number_format($row->balance_after, 2),
-                        $e->description ?? '',
+                        $row->description ?? ($e->description ?? ''),
                     ]);
                 }
                 fclose($file);

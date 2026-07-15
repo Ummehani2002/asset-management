@@ -48,7 +48,7 @@
                     <td>{{ number_format($row->amount, 2) }}</td>
                     <td>{{ number_format($row->cumulative_spent, 2) }}</td>
                     <td>{{ number_format($row->balance_after, 2) }}</td>
-                    <td>{{ $e->description ?? '—' }}</td>
+                    <td>{{ $row->description ?? ($e->description ?? '—') }}</td>
                 </tr>
             @empty
                 <tr><td colspan="10" style="text-align: center;">No expenses for this entity in {{ $year }}.</td></tr>

@@ -255,7 +255,7 @@
                     <small class="text-muted">When asset is received for maintenance</small>
                 </div>
 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6 mb-3" id="delivery_date_group">
                     <label for="delivery_date">Expected Delivery Date</label>
                     <input type="date" name="delivery_date" id="delivery_date" class="form-control" 
                            value="{{ old('delivery_date', '') }}">
@@ -264,6 +264,14 @@
             </div>
 
             <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="received_by">Received By <span class="text-danger">*</span></label>
+                    <input type="text" name="received_by" id="received_by" class="form-control"
+                           value="{{ old('received_by', auth()->user()->name ?? '') }}"
+                           placeholder="Enter the name of the person who received the asset" required>
+                    <small class="text-muted">Person who accepted the asset for maintenance</small>
+                </div>
+
                 <div class="col-md-6 mb-3">
                     <label for="repair_type">Repair Type</label>
                     <select name="repair_type" id="repair_type" class="form-control">
@@ -285,9 +293,9 @@
             </div>
 
             <div class="mb-3">
-                <label for="maintenance_notes">Maintenance Notes</label>
+                <label for="maintenance_notes">Comments</label>
                 <textarea name="maintenance_notes" id="maintenance_notes" class="form-control" rows="3" 
-                          placeholder="Enter any notes about the maintenance..."></textarea>
+                          placeholder="Enter comments..."></textarea>
             </div>
 
             <div class="alert alert-info">
@@ -523,7 +531,7 @@
                             <small class="text-muted">When asset is received for maintenance</small>
                         </div>
 
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-6 mb-3" id="delivery_date_maintenance_group">
                             <label for="delivery_date_maintenance">Expected Delivery Date</label>
                             <input type="date" name="delivery_date" id="delivery_date_maintenance" class="form-control" 
                                    value="{{ old('delivery_date', '') }}">
@@ -532,6 +540,14 @@
                     </div>
 
                     <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="received_by_maintenance">Received By <span class="text-danger">*</span></label>
+                            <input type="text" name="received_by" id="received_by_maintenance" class="form-control"
+                                   value="{{ old('received_by', auth()->user()->name ?? '') }}"
+                                   placeholder="Enter the name of the person who received the asset">
+                            <small class="text-muted">Person who accepted the asset for maintenance</small>
+                        </div>
+
                         <div class="col-md-6 mb-3">
                             <label for="repair_type_maintenance">Repair Type</label>
                             <select name="repair_type" id="repair_type_maintenance" class="form-control">
@@ -553,9 +569,9 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="reassign_notes_maintenance">Maintenance Notes</label>
+                        <label for="reassign_notes_maintenance">Comments</label>
                         <textarea name="reassign_notes" id="reassign_notes_maintenance" class="form-control" rows="3" 
-                                  placeholder="Enter any notes about the maintenance..."></textarea>
+                                  placeholder="Enter comments..."></textarea>
                     </div>
                 </div>
 
@@ -609,6 +625,23 @@
 $(document).ready(function() {
     let currentEmployeeId = null;
     let currentEmployeeName = null;
+
+    function toggleDeliveryDate(repairSelector, groupSelector, inputSelector) {
+        const isOnCall = $(repairSelector).val() === 'On Call Service';
+        $(groupSelector).toggle(!isOnCall);
+        $(inputSelector).prop('disabled', isOnCall);
+        if (isOnCall) {
+            $(inputSelector).val('');
+        }
+    }
+
+    $('#repair_type').on('change', function() {
+        toggleDeliveryDate('#repair_type', '#delivery_date_group', '#delivery_date');
+    }).trigger('change');
+
+    $('#repair_type_maintenance').on('change', function() {
+        toggleDeliveryDate('#repair_type_maintenance', '#delivery_date_maintenance_group', '#delivery_date_maintenance');
+    }).trigger('change');
 
     // Entity selection -> show Asset Manager (all tabs)
     function updateAssetManagerDisplay(selectId, displayId) {
@@ -1054,16 +1087,19 @@ $(document).ready(function() {
             $('#reassign_action_section').show();
             $('#reassign_date').prop('required', true);
             $('#receive_date_maintenance').prop('required', false);
+            $('#received_by_maintenance').prop('required', false);
             $('#return_date_field').prop('required', false);
         } else if (actionType === 'maintenance') {
             $('#maintenance_action_section').show();
             $('#reassign_date').prop('required', false);
             $('#receive_date_maintenance').prop('required', true);
+            $('#received_by_maintenance').prop('required', true);
             $('#return_date_field').prop('required', false);
         } else if (actionType === 'return') {
             $('#return_action_section').show();
             $('#reassign_date').prop('required', false);
             $('#receive_date_maintenance').prop('required', false);
+            $('#received_by_maintenance').prop('required', false);
             $('#return_date_field').prop('required', true);
         }
     }
@@ -1083,6 +1119,11 @@ $(document).ready(function() {
             if (!$('#receive_date_maintenance').val()) {
                 e.preventDefault();
                 alert('Please enter a receive date for maintenance.');
+                return false;
+            }
+            if (!$('#received_by_maintenance').val().trim()) {
+                e.preventDefault();
+                alert('Please enter who received the asset for maintenance.');
                 return false;
             }
         } else if (actionType === 'return') {

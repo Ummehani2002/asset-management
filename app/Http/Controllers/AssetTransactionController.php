@@ -547,7 +547,7 @@ class AssetTransactionController extends Controller
             fputcsv($file, [
                 '#', 'Transaction ID', 'Asset ID', 'Serial Number', 'Category', 'Model Number', 'Features',
                 'Transaction Type', 'Status', 'Employee ID', 'Assigned To', 'Entity', 'Location', 'Issue Date', 'Return Date',
-                'Receive Date', 'Delivery Date', 'Created At'
+                'Receive Date', 'Received By', 'Delivery Date', 'Created At'
             ]);
 
             // Data
@@ -577,6 +577,7 @@ class AssetTransactionController extends Controller
                     $t->issue_date ?? 'N/A',
                     $t->return_date ?? 'N/A',
                     $t->receive_date ?? 'N/A',
+                    $t->received_by ?? 'N/A',
                     $t->delivery_date ?? 'N/A',
                     $t->created_at->format('Y-m-d H:i:s'),
                 ]);
@@ -816,6 +817,7 @@ class AssetTransactionController extends Controller
             'asset_category_id' => 'required|exists:asset_categories,id',
             'asset_id' => 'required|exists:assets,id',
             'receive_date' => 'required|date',
+            'received_by' => 'required|string|max:255',
             'delivery_date' => 'nullable|date|after_or_equal:receive_date',
             'repair_type' => 'nullable|string',
             'maintenance_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
@@ -880,7 +882,8 @@ class AssetTransactionController extends Controller
             'transaction_type' => 'system_maintenance',
             'status' => 'under_maintenance',
             'receive_date' => $request->receive_date,
-            'delivery_date' => $request->delivery_date,
+            'received_by' => trim($request->received_by),
+            'delivery_date' => $request->repair_type === 'On Call Service' ? null : $request->delivery_date,
             'assigned_to_type' => $latest->assigned_to_type ?? 'employee',
             'employee_id' => $latest->employee_id,
             'project_name' => $latest->project_name,
@@ -913,6 +916,7 @@ class AssetTransactionController extends Controller
             'reassign_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'reassign_notes' => 'nullable|string',
             'receive_date' => 'nullable|date|required_if:action_type,maintenance',
+            'received_by' => 'nullable|string|max:255|required_if:action_type,maintenance',
             'delivery_date' => 'nullable|date|after_or_equal:receive_date',
             'repair_type' => 'nullable|string',
         ]);
@@ -1064,7 +1068,8 @@ class AssetTransactionController extends Controller
                 'transaction_type' => 'system_maintenance',
                 'status' => 'under_maintenance',
                 'receive_date' => $request->receive_date,
-                'delivery_date' => $request->delivery_date,
+                'received_by' => trim($request->received_by),
+                'delivery_date' => $request->repair_type === 'On Call Service' ? null : $request->delivery_date,
                 'assigned_to_type' => $assignedToType,
                 'employee_id' => $employeeId,
                 'project_name' => $projectName,

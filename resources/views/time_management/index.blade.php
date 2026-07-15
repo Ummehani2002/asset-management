@@ -6,15 +6,11 @@
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h2><i class="bi bi-clock-history me-2"></i>Time Management</h2>
-                @unless($isAdmin)
-                    <p class="text-muted mb-0">Log your daily tasks and time spent.</p>
-                @endunless
+                <p class="text-muted mb-0">Log your daily tasks and time spent.</p>
             </div>
-            @unless($isAdmin)
             <a href="{{ route('time.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-2"></i>New Work Log
             </a>
-            @endunless
         </div>
     </div>
 
@@ -30,15 +26,13 @@
         </div>
     @endif
 
-    @if(!$isAdmin)
-        @php
-            $myToday = \App\Models\TimeManagement::getDailyTotals(auth()->id(), auth()->user()->employee_id, today()->format('Y-m-d'));
-        @endphp
-        <div class="alert alert-light border mb-4">
-            <strong>Today:</strong> {{ \App\Models\TimeManagement::formatDuration($myToday['total_hours']) }} logged across {{ $myToday['job_count'] }} job(s).
-            <a href="{{ route('time.create') }}" class="ms-2">Log another job</a>
-        </div>
-    @endif
+    @php
+        $myToday = \App\Models\TimeManagement::getDailyTotals(auth()->id(), auth()->user()->employee_id, today()->format('Y-m-d'));
+    @endphp
+    <div class="alert alert-light border mb-4">
+        <strong>Today:</strong> {{ \App\Models\TimeManagement::formatDuration($myToday['total_hours']) }} logged across {{ $myToday['job_count'] }} job(s).
+        <a href="{{ route('time.create') }}" class="ms-2">Log another job</a>
+    </div>
 
     @if($isAdmin)
     <div class="master-table-card mb-4">
@@ -251,9 +245,11 @@
                     <tbody>
                         @forelse($tasks as $key => $task)
                         @php
-                            $displayStatus = $task->ticketStatus();
+                            $isRunning = $task->isRunning();
+                            $displayStatus = $isRunning ? 'running' : $task->ticketStatus();
+                            $canStop = $isRunning && $task->isOwnedBy(auth()->user());
                         @endphp
-                        <tr>
+                        <tr class="{{ $isRunning ? 'table-warning' : '' }}">
                             <td>{{ $key + 1 }}</td>
                             <td>
                                 <strong>{{ $task->ticket_number }}</strong>
@@ -267,8 +263,15 @@
                             <td>{{ $task->site_location ?? '-' }}</td>
                             <td>{{ $task->job_card_date ? $task->job_card_date->format('Y-m-d') : '-' }}</td>
                             <td>{{ $task->start_time ? $task->start_time->format('H:i') : '-' }}</td>
-                            <td>{{ $task->end_time ? $task->end_time->format('H:i') : '-' }}</td>
-                            <td>{{ \App\Models\TimeManagement::formatDuration($task->duration_hours ?? 0) }}</td>
+                            <td>{{ $task->end_time ? $task->end_time->format('H:i') : '—' }}</td>
+                            <td>
+                                @if($isRunning)
+                                    <span class="text-warning fw-semibold"
+                                          data-elapsed-start="{{ $task->start_time?->toIso8601String() }}">…</span>
+                                @else
+                                    {{ \App\Models\TimeManagement::formatDuration($task->duration_hours ?? 0) }}
+                                @endif
+                            </td>
                             @if($isAdmin)
                             <td>
                                 @if(($task->overtime_hours ?? 0) > 0)
@@ -279,24 +282,47 @@
                             </td>
                             @endif
                             <td>
-                                <span class="badge {{ $displayStatus === 'completed' ? 'bg-success' : 'bg-warning text-dark' }}">
-                                    {{ ucfirst($displayStatus) }}
-                                </span>
+                                @if($isRunning)
+                                    <span class="badge bg-warning text-dark">Running</span>
+                                @else
+                                    <span class="badge {{ $displayStatus === 'completed' ? 'bg-success' : 'bg-warning text-dark' }}">
+                                        {{ ucfirst($displayStatus) }}
+                                    </span>
+                                @endif
                             </td>
-                            <td>
+                            <td class="text-nowrap">
+                                @if($canStop)
+                                    <form action="{{ route('time.stop', $task->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="complete_ticket" value="0">
+                                        <button type="submit" class="btn btn-sm btn-warning">
+                                            <i class="bi bi-stop-circle"></i> Stop Visit
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('time.stop', $task->id) }}" method="POST" class="d-inline"
+                                          onsubmit="return confirm('Stop this visit and complete the ticket?');">
+                                        @csrf
+                                        <input type="hidden" name="complete_ticket" value="1">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-check-circle"></i> Stop & Complete
+                                        </button>
+                                    </form>
+                                @endif
                                 @if($task->work_ticket_id)
                                     <a href="{{ route('time.ticket.show', $task->work_ticket_id) }}" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i> View
                                     </a>
                                 @endif
                                 @unless($isAdmin)
+                                @unless($isRunning)
                                 <a href="{{ route('time.edit', $task->id) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
+                                @endunless
                                 <form action="{{ route('time.destroy', $task->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this work log?');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-danger" type="submit"><i class="bi bi-trash"></i></button>
+                                    <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
                                 </form>
                                 @endunless
                             </td>
@@ -312,4 +338,19 @@
         </div>
     </div>
 </div>
+<script src="{{ asset('js/format-work-duration.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function tickElapsed() {
+        document.querySelectorAll('[data-elapsed-start]').forEach(function (el) {
+            const start = new Date(el.getAttribute('data-elapsed-start'));
+            if (isNaN(start.getTime())) return;
+            const hours = Math.max(0, (Date.now() - start.getTime()) / (1000 * 60 * 60));
+            el.textContent = typeof formatWorkDuration === 'function' ? formatWorkDuration(hours) : hours.toFixed(2) + ' hrs';
+        });
+    }
+    tickElapsed();
+    setInterval(tickElapsed, 30000);
+});
+</script>
 @endsection

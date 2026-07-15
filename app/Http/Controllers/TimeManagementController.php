@@ -213,14 +213,12 @@ class TimeManagementController extends Controller
         $user = Auth::user();
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
         $isAdmin = $user->isTimeManagementAdmin();
+        $runningLog = TimeManagement::findRunningForUser($user);
         $openTickets = $isAdmin ? collect() : WorkTicket::openTicketsForUser($user);
         $continueTicket = null;
 
         if (! $isAdmin && $request->filled('work_ticket_id')) {
-            $continueTicket = WorkTicket::find($request->work_ticket_id);
-            if ($continueTicket && ! $continueTicket->belongsToUser($user)) {
-                $continueTicket = null;
-            }
+            $continueTicket = $openTickets->firstWhere('id', (int) $request->work_ticket_id);
         }
 
         return view('time_management.create', [
@@ -228,6 +226,7 @@ class TimeManagementController extends Controller
             'defaultCategory' => TimeManagement::DEFAULT_CATEGORY,
             'todayTotals' => $todayTotals,
             'isAdmin' => $isAdmin,
+            'runningLog' => $runningLog,
             'openTickets' => $openTickets,
             'continueTicket' => $continueTicket,
         ]);
@@ -239,103 +238,98 @@ class TimeManagementController extends Controller
         $logType = $request->input('log_type', 'new');
 
         $rules = [
-            'log_type' => 'nullable|in:new,continue',
-            'ticket_number' => 'required|string|max:50',
-            'category' => 'required|string|max:100',
-            'task_description' => 'required|string|max:50',
-            'site_location' => 'required|string|max:255',
-            'job_card_date' => 'required|date',
-            'start_time_hour' => 'required|date_format:H:i',
-            'end_time_hour' => 'required|date_format:H:i',
-            'action_taken' => 'nullable|string',
-            'status' => 'required|in:pending,completed',
-            'remarks' => 'nullable|string',
+            'log_type' => 'required|in:new,continue',
             'work_ticket_id' => 'nullable|integer',
+            'action_taken' => 'nullable|string',
+            'remarks' => 'nullable|string',
         ];
+
+        if ($logType === 'continue') {
+            $rules['work_ticket_id'] = 'required|integer|exists:work_tickets,id';
+        } else {
+            $rules = array_merge($rules, [
+                'ticket_number' => 'required|string|max:50',
+                'category' => 'required|in:End User Support,Infrastructure,Network,Hardware,Software,Other',
+                'task_description' => 'required|string|max:50',
+                'site_location' => 'required|string|max:255',
+            ]);
+        }
 
         $validated = $request->validate($rules);
 
-        $employee = $this->resolveEmployeeForUser($user);
-        $start = Carbon::parse($validated['job_card_date'] . ' ' . $validated['start_time_hour']);
-        $end = Carbon::parse($validated['job_card_date'] . ' ' . $validated['end_time_hour']);
-
-        if ($end->lessThanOrEqualTo($start)) {
-            return back()->withInput()->withErrors(['end_time_hour' => 'End time must be after start time.']);
+        if ($running = TimeManagement::findRunningForUser($user)) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'task_description' => 'You already have a running work log ('.$running->ticket_number.'). Stop it before starting a new one.',
+                ]);
         }
 
-        $duration = TimeManagement::calculateDurationHours($start, $end);
-        $visitStatus = $validated['status'];
-        $continued = false;
+        $employee = $this->resolveEmployeeForUser($user);
+        $now = now();
+        $workDate = $now->toDateString();
         $workTicket = null;
 
-        if (Schema::hasTable('work_tickets')) {
-            WorkTicket::syncFromPendingLogs($user);
+        if ($logType === 'continue') {
+            $workTicket = WorkTicket::findOrFail($validated['work_ticket_id']);
 
-            if ($logType === 'continue' && ! empty($validated['work_ticket_id'])) {
-                $workTicket = WorkTicket::find($validated['work_ticket_id']);
+            if (! $workTicket->belongsToUser($user)) {
+                abort(403, 'You are not allowed to add a visit to this ticket.');
             }
 
-            if (! $workTicket) {
-                $workTicket = WorkTicket::findOpenForUser($user, $validated['ticket_number']);
+            if (! $workTicket->isOpen()) {
+                return back()->withInput()->withErrors([
+                    'work_ticket_id' => 'This ticket is completed and cannot accept another visit.',
+                ]);
             }
 
-            if ($workTicket) {
-                if (! $workTicket->belongsToUser($user)) {
-                    abort(403, 'You are not allowed to log time on this ticket.');
-                }
+            $ticketNumber = $workTicket->ticket_number;
+            $category = $workTicket->category;
+            $taskDescription = $workTicket->task_description;
+            $siteLocation = $workTicket->site_location;
+        } else {
+            $ticketNumber = trim($validated['ticket_number']);
+            $category = $validated['category'];
+            $taskDescription = $validated['task_description'];
+            $siteLocation = $validated['site_location'];
 
-                if (! $workTicket->isOpen()) {
-                    return back()->withInput()->withErrors([
-                        'ticket_number' => 'This ticket is already completed. Use a new ticket number.',
-                    ]);
-                }
-
-                $continued = true;
-                $workTicket->fill([
-                    'category' => $validated['category'],
-                    'task_description' => $validated['task_description'],
-                    'site_location' => $validated['site_location'],
+            if ($existingTicket = WorkTicket::findOpenForUser($user, $ticketNumber)) {
+                return back()->withInput()->withErrors([
+                    'ticket_number' => 'This ticket is already open. Select Continue Ticket to add another visit.',
                 ]);
+            }
 
-                if ($visitStatus === 'completed') {
-                    $workTicket->status = 'completed';
-                    $workTicket->completed_at = now();
-                }
-                $workTicket->save();
-
-                if ($visitStatus !== 'completed') {
-                    $visitStatus = 'pending';
-                }
-            } else {
-                $workTicket = WorkTicket::create([
-                    'ticket_number' => $validated['ticket_number'],
-                    'user_id' => $user->id,
-                    'employee_id' => $employee?->id,
-                    'employee_name' => $user->name,
-                    'category' => $validated['category'],
-                    'task_description' => $validated['task_description'],
-                    'site_location' => $validated['site_location'],
-                    'status' => $visitStatus === 'completed' ? 'completed' : 'pending',
-                    'completed_at' => $visitStatus === 'completed' ? now() : null,
-                ]);
+            if (Schema::hasTable('work_tickets')) {
+            $workTicket = WorkTicket::create([
+                'ticket_number' => $ticketNumber,
+                'user_id' => $user->id,
+                'employee_id' => $employee?->id ?? $user->employee_id,
+                'employee_name' => $user->name,
+                'category' => $category,
+                    'task_description' => $taskDescription,
+                    'site_location' => $siteLocation,
+                'status' => 'pending',
+                'completed_at' => null,
+            ]);
             }
         }
 
         $payload = [
-            'ticket_number' => $validated['ticket_number'],
-            'category' => $validated['category'],
-            'task_description' => $validated['task_description'],
-            'site_location' => $validated['site_location'],
+            'ticket_number' => $ticketNumber,
+            'category' => $category,
+            'task_description' => $taskDescription,
+            'site_location' => $siteLocation,
             'user_id' => $user->id,
-            'employee_id' => $employee?->id,
+            'employee_id' => $employee?->id ?? $user->employee_id,
             'employee_name' => $user->name,
-            'job_card_date' => $validated['job_card_date'],
+            'job_card_date' => $workDate,
             'standard_man_hours' => TimeManagement::DAILY_STANDARD_HOURS,
-            'start_time' => $start,
-            'end_time' => $end,
-            'duration_hours' => $duration,
+            'start_time' => $now,
+            'end_time' => null,
+            'duration_hours' => 0,
+            'overtime_hours' => 0,
             'action_taken' => $validated['action_taken'] ?? null,
-            'status' => $visitStatus,
+            'status' => 'pending',
             'remarks' => $validated['remarks'] ?? null,
         ];
 
@@ -345,21 +339,57 @@ class TimeManagementController extends Controller
 
         TimeManagement::create($payload);
 
-        TimeManagement::recalculateDailyOvertime(
-            $employee?->id,
-            $user->id,
-            $validated['job_card_date']
-        );
+        return $this->workLogRedirect($request, true)
+            ->with('success', ($logType === 'continue' ? 'New visit started on ticket ' : 'Work started on ticket ').$ticketNumber.'.');
+    }
 
-        $message = $continued
-            ? 'Visit logged on ticket ' . $validated['ticket_number'] . '.'
-            : 'Work log saved successfully.';
+    public function stop(Request $request, $id)
+    {
+        $record = TimeManagement::with('workTicket')->findOrFail($id);
+        $this->authorizeRecord($record);
 
-        if ($visitStatus === 'completed') {
-            $message .= ' Ticket marked as completed.';
+        if (! $record->isRunning()) {
+            return $this->workLogRedirect($request, true)
+                ->with('warning', 'This work log is already stopped.');
         }
 
-        return $this->workLogRedirect($request)->with('success', $message);
+        $end = now();
+        $start = Carbon::parse($record->start_time);
+
+        if ($end->lessThanOrEqualTo($start)) {
+            $end = $start->copy()->addMinute();
+        }
+
+        $duration = TimeManagement::calculateDurationHours($start, $end);
+        $workDate = optional($record->job_card_date)->format('Y-m-d')
+            ?? $start->toDateString();
+
+        $record->fill([
+            'end_time' => $end,
+            'duration_hours' => $duration,
+            'status' => 'completed',
+            'job_card_date' => $workDate,
+            'standard_man_hours' => TimeManagement::DAILY_STANDARD_HOURS,
+        ]);
+        $record->save();
+
+        $completeTicket = $request->boolean('complete_ticket');
+        if ($record->workTicket && $completeTicket) {
+            $record->workTicket->markCompleted();
+        }
+
+        TimeManagement::recalculateDailyOvertime(
+            $record->employee_id,
+            $record->user_id,
+            $workDate
+        );
+
+        $message = $completeTicket
+            ? 'Visit stopped and ticket completed.'
+            : 'Visit stopped. Ticket remains open for another visit.';
+
+        return $this->workLogRedirect($request, true)
+            ->with('success', $message.' Time worked: '.TimeManagement::formatDuration($duration).'.');
     }
 
     public function edit($id)
@@ -403,7 +433,7 @@ class TimeManagementController extends Controller
         $rules = [
             'job_card_date' => 'required|date',
             'start_time_hour' => 'required|date_format:H:i',
-            'end_time_hour' => 'required|date_format:H:i',
+            'end_time_hour' => 'nullable|date_format:H:i',
             'action_taken' => 'nullable|string',
             'status' => 'required|in:pending,completed',
             'remarks' => 'nullable|string',
@@ -411,8 +441,8 @@ class TimeManagementController extends Controller
 
         if (! $record->work_ticket_id) {
             $rules = array_merge($rules, [
-                'ticket_number' => 'required|string|max:50',
-                'category' => 'required|string|max:100',
+                'ticket_number' => 'nullable|string|max:50',
+                'category' => 'nullable|string|max:100',
                 'task_description' => 'required|string|max:50',
                 'site_location' => 'required|string|max:255',
             ]);
@@ -421,16 +451,45 @@ class TimeManagementController extends Controller
         $validated = $request->validate($rules);
 
         $start = Carbon::parse($validated['job_card_date'] . ' ' . $validated['start_time_hour']);
-        $end = Carbon::parse($validated['job_card_date'] . ' ' . $validated['end_time_hour']);
+        $end = null;
+        $duration = 0.0;
 
-        if ($end->lessThanOrEqualTo($start)) {
-            return back()->withInput()->withErrors(['end_time_hour' => 'End time must be after start time.']);
+        if (! empty($validated['end_time_hour'])) {
+            $end = Carbon::parse($validated['job_card_date'] . ' ' . $validated['end_time_hour']);
+            if ($end->lessThanOrEqualTo($start)) {
+                return back()->withInput()->withErrors(['end_time_hour' => 'End time must be after start time.']);
+            }
+            $duration = TimeManagement::calculateDurationHours($start, $end);
+        } elseif ($validated['status'] === 'completed') {
+            return back()->withInput()->withErrors(['end_time_hour' => 'End time is required to mark completed, or use the Stop button.']);
         }
-        $duration = TimeManagement::calculateDurationHours($start, $end);
+
+        // Only one running timer per user
+        if ($end === null) {
+            $otherRunning = TimeManagement::query()
+                ->whereNull('end_time')
+                ->where('id', '!=', $record->id)
+                ->where(function ($q) use ($record) {
+                    if ($record->user_id) {
+                        $q->where('user_id', $record->user_id);
+                    }
+                    if ($record->employee_id) {
+                        $q->orWhere('employee_id', $record->employee_id);
+                    }
+                })
+                ->exists();
+
+            if ($otherRunning) {
+                return back()->withInput()->withErrors([
+                    'end_time_hour' => 'Another work log is already running. Stop it first.',
+                ]);
+            }
+        }
+
         $oldEmployeeId = $record->employee_id;
         $oldDate = $record->job_card_date?->format('Y-m-d');
 
-        $visitStatus = $validated['status'];
+        $visitStatus = ($end === null) ? 'pending' : $validated['status'];
         $record->fill([
             'job_card_date' => $validated['job_card_date'],
             'start_time' => $start,
@@ -444,8 +503,8 @@ class TimeManagementController extends Controller
 
         if (! $record->work_ticket_id) {
             $record->fill([
-                'ticket_number' => $validated['ticket_number'],
-                'category' => $validated['category'],
+                'ticket_number' => $validated['ticket_number'] ?? $record->ticket_number,
+                'category' => $validated['category'] ?? $record->category,
                 'task_description' => $validated['task_description'],
                 'site_location' => $validated['site_location'],
             ]);
@@ -464,11 +523,13 @@ class TimeManagementController extends Controller
             }
         }
 
-        TimeManagement::recalculateDailyOvertime(
-            $record->employee_id,
-            $record->user_id,
-            $validated['job_card_date']
-        );
+        if ($end !== null) {
+            TimeManagement::recalculateDailyOvertime(
+                $record->employee_id,
+                $record->user_id,
+                $validated['job_card_date']
+            );
+        }
 
         if ($oldDate && $oldDate !== $validated['job_card_date']) {
             TimeManagement::recalculateDailyOvertime($oldEmployeeId, $record->user_id, $oldDate);
@@ -503,6 +564,10 @@ class TimeManagementController extends Controller
     {
         if ($user->employee_id) {
             return Employee::find($user->employee_id);
+        }
+
+        if (! Schema::hasTable('employees') || empty($user->email)) {
+            return null;
         }
 
         return Employee::whereRaw('LOWER(email) = ?', [strtolower($user->email)])->first();

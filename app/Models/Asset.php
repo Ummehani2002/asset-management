@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class Asset extends Model
@@ -81,6 +82,41 @@ public function featureValues()
 {
     return $this->hasMany(CategoryFeatureValue::class, 'asset_id');
 }
+
+    /**
+     * Planned asset life from purchase date through expiry date.
+     */
+    public function agingLabel(): string
+    {
+        if (empty($this->purchase_date) || empty($this->expiry_date)) {
+            return 'N/A';
+        }
+
+        try {
+            $purchaseDate = Carbon::parse($this->purchase_date)->startOfDay();
+            $expiryDate = Carbon::parse($this->expiry_date)->startOfDay();
+
+            if ($expiryDate->lessThan($purchaseDate)) {
+                return 'Invalid date range';
+            }
+
+            $months = (int) floor($purchaseDate->diffInMonths($expiryDate));
+            $years = intdiv($months, 12);
+            $remainingMonths = $months % 12;
+
+            $parts = [];
+            if ($years > 0) {
+                $parts[] = $years.' '.($years === 1 ? 'year' : 'years');
+            }
+            if ($remainingMonths > 0) {
+                $parts[] = $remainingMonths.' '.($remainingMonths === 1 ? 'month' : 'months');
+            }
+
+            return $parts !== [] ? implode(' ', $parts) : '0 years';
+        } catch (\Throwable) {
+            return 'N/A';
+        }
+    }
 
     /** @var array<string, BrandModel|null> */
     private static array $linkedBrandModelCache = [];

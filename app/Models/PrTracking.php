@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PrTracking extends Model
 {
+    public const APPROVER_KEYS = ['one', 'two', 'three'];
+
     protected $fillable = [
         'requisition_date',
         'requisition_number',
@@ -22,6 +24,9 @@ class PrTracking extends Model
         'approver_two_email',
         'approver_two_status',
         'approver_two_action_at',
+        'approver_three_email',
+        'approver_three_status',
+        'approver_three_action_at',
         'approval_requested_at',
     ];
 
@@ -31,7 +36,54 @@ class PrTracking extends Model
         'forwarded_to_purchase_date' => 'date',
         'approver_one_action_at' => 'datetime',
         'approver_two_action_at' => 'datetime',
+        'approver_three_action_at' => 'datetime',
         'approval_requested_at' => 'datetime',
     ];
-}
 
+    public function approverEmail(string $key): ?string
+    {
+        return match ($key) {
+            'one' => $this->approver_one_email,
+            'two' => $this->approver_two_email,
+            'three' => $this->approver_three_email,
+            default => null,
+        };
+    }
+
+    public function approverStatus(string $key): string
+    {
+        return match ($key) {
+            'one' => $this->approver_one_status ?? 'pending',
+            'two' => $this->approver_two_status ?? 'pending',
+            'three' => $this->approver_three_status ?? 'pending',
+            default => 'pending',
+        };
+    }
+
+    /**
+     * Next approver who still needs to act (sequential).
+     */
+    public function currentApproverKey(): ?string
+    {
+        foreach (self::APPROVER_KEYS as $key) {
+            if ($this->approverStatus($key) === 'pending') {
+                return $key;
+            }
+            if ($this->approverStatus($key) === 'rejected') {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    public function approverStepLabel(string $key): string
+    {
+        return match ($key) {
+            'one' => 'Step 1 of 3 — Umme Hani',
+            'two' => 'Step 2 of 3 — Ruman Mohammed',
+            'three' => 'Step 3 of 3 — Badruddin',
+            default => 'Approver',
+        };
+    }
+}

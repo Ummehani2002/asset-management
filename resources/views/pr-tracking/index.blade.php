@@ -31,7 +31,6 @@
     @endif
 
     <div class="master-form-card">
-        <h5 class="mb-3" style="color: var(--primary); font-weight: 600;">Add PR Tracking Record</h5>
         <form method="POST" action="{{ route('pr-tracking.store') }}" autocomplete="off">
             @csrf
             <div class="row g-3">
@@ -68,9 +67,10 @@
                     <label class="form-label">Forwarded To Purchase Date</label>
                     <input type="date" name="forwarded_to_purchase_date" class="form-control" value="{{ old('forwarded_to_purchase_date') }}">
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Approvers</label>
-                    <input type="text" class="form-control" value="{{ $defaultApproverOne }}, {{ $defaultApproverTwo }}" readonly>
+                <div class="col-md-12">
+                    <label class="form-label">Approval chain (sequential)</label>
+                    <input type="text" class="form-control" value="1) {{ $defaultApproverOne }} → 2) {{ $defaultApproverTwo }} → 3) {{ $defaultApproverThree }}" readonly>
+                    <div class="form-text">Only the current person is emailed. Next person is notified after approval.</div>
                 </div>
                 <div class="col-md-12">
                     <label class="form-label">Comments</label>
@@ -103,14 +103,24 @@
                             <th>Approved Request Status</th>
                             <th>Forwarded To Purchase Date</th>
                             <th>Comments</th>
-                            <th>Approver 1</th>
-                            <th>Approver 2</th>
+                            <th>1. Umme Hani</th>
+                            <th>2. Ruman</th>
+                            <th>3. Badruddin</th>
                             <th>Overall Approval</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($records as $record)
+                            @php
+                                $currentKey = $record->currentApproverKey();
+                                $resendLabel = match ($currentKey) {
+                                    'one' => 'Umme Hani (step 1)',
+                                    'two' => 'Ruman Mohammed (step 2)',
+                                    'three' => 'Badruddin (step 3)',
+                                    default => 'current approver',
+                                };
+                            @endphp
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
                                 <td>{{ optional($record->requisition_date)->format('d-m-Y') ?? '-' }}</td>
@@ -122,15 +132,24 @@
                                 <td>{{ optional($record->forwarded_to_purchase_date)->format('d-m-Y') ?? '-' }}</td>
                                 <td>{{ $record->comments ?? '-' }}</td>
                                 <td>
-                                    <div>{{ $record->approver_one_email ?? '-' }}</div>
-                                    <span class="badge {{ $record->approver_one_status === 'approved' ? 'bg-success' : ($record->approver_one_status === 'rejected' ? 'bg-danger' : 'bg-secondary') }}">
+                                    <div class="small text-muted">{{ $record->approver_one_email ?? $defaultApproverOne }}</div>
+                                    <span class="badge {{ ($record->approver_one_status ?? 'pending') === 'approved' ? 'bg-success' : (($record->approver_one_status ?? '') === 'rejected' ? 'bg-danger' : ($currentKey === 'one' ? 'bg-info text-dark' : 'bg-secondary')) }}">
                                         {{ ucfirst(str_replace('_', ' ', $record->approver_one_status ?? 'pending')) }}
+                                        @if($currentKey === 'one') · waiting @endif
                                     </span>
                                 </td>
                                 <td>
-                                    <div>{{ $record->approver_two_email ?? '-' }}</div>
-                                    <span class="badge {{ $record->approver_two_status === 'approved' ? 'bg-success' : ($record->approver_two_status === 'rejected' ? 'bg-danger' : 'bg-secondary') }}">
+                                    <div class="small text-muted">{{ $record->approver_two_email ?? $defaultApproverTwo }}</div>
+                                    <span class="badge {{ ($record->approver_two_status ?? 'pending') === 'approved' ? 'bg-success' : (($record->approver_two_status ?? '') === 'rejected' ? 'bg-danger' : ($currentKey === 'two' ? 'bg-info text-dark' : 'bg-secondary')) }}">
                                         {{ ucfirst(str_replace('_', ' ', $record->approver_two_status ?? 'pending')) }}
+                                        @if($currentKey === 'two') · waiting @endif
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="small text-muted">{{ $record->approver_three_email ?? $defaultApproverThree }}</div>
+                                    <span class="badge {{ ($record->approver_three_status ?? 'pending') === 'approved' ? 'bg-success' : (($record->approver_three_status ?? '') === 'rejected' ? 'bg-danger' : ($currentKey === 'three' ? 'bg-info text-dark' : 'bg-secondary')) }}">
+                                        {{ ucfirst(str_replace('_', ' ', $record->approver_three_status ?? 'pending')) }}
+                                        @if($currentKey === 'three') · waiting @endif
                                     </span>
                                 </td>
                                 <td>
@@ -146,20 +165,20 @@
                                 </td>
                                 <td>
                                     @if($record->approval_status !== 'approved')
-                                        <form method="POST" action="{{ route('pr-tracking.request-approval', $record->id) }}" class="d-inline" onsubmit="return confirm('Send approval request email to both approvers and Umme Hani?');">
+                                        <form method="POST" action="{{ route('pr-tracking.request-approval', $record->id) }}" class="d-inline" onsubmit="return confirm('Send / resend approval email to {{ $resendLabel }}?');">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-send me-1"></i>Send for Approval
+                                                <i class="bi bi-send me-1"></i>{{ $record->approval_status === 'draft' ? 'Send for Approval' : 'Resend to current' }}
                                             </button>
                                         </form>
                                     @else
-                                        <span class="text-success fw-semibold">Approved by all</span>
+                                        <span class="text-success fw-semibold">Fully approved</span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="text-center text-muted py-4">No PR tracking records found.</td>
+                                <td colspan="14" class="text-center text-muted py-4">No PR tracking records found.</td>
                             </tr>
                         @endforelse
                     </tbody>

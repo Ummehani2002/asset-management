@@ -68,11 +68,37 @@ class TimeManagement extends Model
 
     public function ticketStatus(): string
     {
+        if ($this->isRunning()) {
+            return 'pending';
+        }
+
+        if ($this->status === 'completed') {
+            return 'completed';
+        }
+
         if ($this->workTicket) {
             return $this->workTicket->status === 'completed' ? 'completed' : 'pending';
         }
 
         return $this->status === 'in_progress' ? 'pending' : ($this->status ?? 'pending');
+    }
+
+    public function isRunning(): bool
+    {
+        return $this->end_time === null && ! empty($this->start_time);
+    }
+
+    public function elapsedHours(?Carbon $until = null): float
+    {
+        if (! $this->start_time) {
+            return 0.0;
+        }
+
+        $end = $this->end_time
+            ? Carbon::parse($this->end_time)
+            : ($until ?? now());
+
+        return self::calculateDurationHours(Carbon::parse($this->start_time), $end);
     }
 
     public static function generateTicketNumber(): string
@@ -83,6 +109,25 @@ class TimeManagement extends Model
             : 0;
 
         return 'TCKT' . str_pad((string) ($lastNumber + 1), 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Active timer for a user/employee (pending visit with no end time).
+     */
+    public static function findRunningForUser(User $user): ?self
+    {
+        return self::query()
+            ->whereNull('end_time')
+            ->whereNotNull('start_time')
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+                if ($user->employee_id) {
+                    $q->orWhere('employee_id', $user->employee_id);
+                }
+            })
+            ->orderByDesc('start_time')
+            ->orderByDesc('id')
+            ->first();
     }
 
     public static function calculateDurationHours(Carbon $start, Carbon $end): float

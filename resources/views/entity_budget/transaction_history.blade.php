@@ -94,7 +94,13 @@
                         </thead>
                         <tbody>
                             @forelse($expenseRows as $i => $row)
-                                @php $e = $row->expense; @endphp
+                                @php
+                                    $e = $row->expense;
+                                    $ids = collect($row->ids ?? [$e->id])->filter()->values();
+                                    $idsQuery = $ids->implode(',');
+                                    $printUrl = route('budget-expenses.print', $e->id) . ($ids->count() > 1 ? ('?ids=' . $idsQuery) : '');
+                                    $description = $row->description ?? ($e->description ?? '—');
+                                @endphp
                                 <tr>
                                     <td>{{ $i + 1 }}</td>
                                     <td>{{ $e->expense_date ? \Carbon\Carbon::parse($e->expense_date)->format('d-M-Y') : '—' }}</td>
@@ -105,13 +111,16 @@
                                     <td>{{ number_format($row->amount, 2) }}</td>
                                     <td>{{ number_format($row->cumulative_spent, 2) }}</td>
                                     <td>{{ number_format($row->balance_after, 2) }}</td>
-                                    <td>{{ Str::limit($e->description ?? '—', 50) }}</td>
+                                    <td>{{ Str::limit($description, 80) }}</td>
                                     <td class="no-print">
                                         <a href="{{ route('budget-expenses.edit', $e->id) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
-                                        <a href="{{ route('budget-expenses.print', $e->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Print</a>
-                                        <form action="{{ route('budget-expenses.destroy', $e->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this expense?');">
+                                        <a href="{{ $printUrl }}" target="_blank" class="btn btn-sm btn-outline-secondary me-1">Print</a>
+                                        <form action="{{ route('budget-expenses.destroy', $e->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this expense{{ $ids->count() > 1 ? ' (all ' . $ids->count() . ' lines)' : '' }}?');">
                                             @csrf
                                             @method('DELETE')
+                                            @if($ids->count() > 1)
+                                                <input type="hidden" name="ids" value="{{ $idsQuery }}">
+                                            @endif
                                             <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                                         </form>
                                     </td>

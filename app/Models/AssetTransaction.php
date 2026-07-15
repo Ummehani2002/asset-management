@@ -14,6 +14,7 @@ class AssetTransaction extends Model
         'issue_date',
         'return_date',
         'receive_date',
+        'received_by',
         'delivery_date',
         'assigned_to',
         'assigned_to_type',

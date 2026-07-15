@@ -121,6 +121,7 @@
                                     <td>
                                         @if($t->transaction_type == 'system_maintenance')
                                             <div><strong>Receive:</strong> {{ $t->receive_date ?? 'N/A' }}</div>
+                                            <div><strong>Received By:</strong> {{ $t->received_by ?? 'N/A' }}</div>
                                             @if($t->delivery_date)
                                                 <div><strong>Delivery:</strong> {{ $t->delivery_date }}</div>
                                             @endif

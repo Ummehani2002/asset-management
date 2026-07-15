@@ -14,16 +14,18 @@ class PrTrackingApprovalRequestMail extends Mailable
 
     public PrTracking $prTracking;
     public string $approverKey;
+    public string $approverStepLabel;
 
     public function __construct(PrTracking $prTracking, string $approverKey)
     {
         $this->prTracking = $prTracking;
         $this->approverKey = $approverKey;
+        $this->approverStepLabel = $prTracking->approverStepLabel($approverKey);
     }
 
     public function build()
     {
-        return $this->subject('PR Approval Request: ' . $this->prTracking->requisition_number)
+        return $this->subject('PR Approval Request: ' . $this->prTracking->requisition_number . ' (' . $this->approverStepLabel . ')')
             ->view('emails.pr_tracking_approval_request')
             ->with([
                 'approveUrl' => URL::temporarySignedRoute(
@@ -36,7 +38,7 @@ class PrTrackingApprovalRequestMail extends Mailable
                     now()->addDays(7),
                     ['id' => $this->prTracking->id, 'approver' => $this->approverKey]
                 ),
+                'approverStepLabel' => $this->approverStepLabel,
             ]);
     }
 }
-

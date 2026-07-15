@@ -299,6 +299,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/time-management/create', [TimeManagementController::class, 'create'])->name('time.create');
     Route::get('/time-management/ticket/{id}', [TimeManagementController::class, 'showTicket'])->name('time.ticket.show');
     Route::post('/time-management/store', [TimeManagementController::class, 'store'])->name('time.store');
+    Route::post('/time-management/{id}/stop', [TimeManagementController::class, 'stop'])->whereNumber('id')->name('time.stop');
     Route::get('/time-management/{id}/edit', [TimeManagementController::class, 'edit'])->name('time.edit');
     Route::post('/time-management/{id}/update', [TimeManagementController::class, 'update'])->name('time.update');
     Route::delete('/time-management/{id}', [TimeManagementController::class, 'destroy'])->name('time.destroy');

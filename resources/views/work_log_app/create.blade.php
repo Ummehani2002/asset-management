@@ -1,33 +1,19 @@
 @extends('layouts.work-log-app')
 
 @section('title', 'Work Log Form')
-@section('page-title', 'Work Log Form')
+@section('page-title', 'Start Work')
 
 @section('content')
 @if(session('success'))
     <div class="alert alert-success py-2">{{ session('success') }}</div>
 @endif
+@if(session('warning'))
+    <div class="alert alert-warning py-2">{{ session('warning') }}</div>
+@endif
 @if($errors->any())
     <div class="alert alert-danger py-2">
         <ul class="mb-0 ps-3">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
     </div>
-@endif
-
-@if(!empty($openTickets) && $openTickets->isNotEmpty())
-<div class="mb-3">
-    <div class="log-card" style="border-left: 4px solid #198754;">
-        <div class="fw-semibold mb-2">Open Tickets</div>
-        @foreach($openTickets as $ticket)
-            <div class="d-flex justify-content-between align-items-center small py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
-                <div>
-                    <strong>{{ $ticket->ticket_number }}</strong>
-                    <div class="text-muted">{{ $ticket->site_location }}</div>
-                </div>
-                <a href="{{ route('worklog.create', ['work_ticket_id' => $ticket->id]) }}" class="btn btn-sm btn-success">Add Visit</a>
-            </div>
-        @endforeach
-    </div>
-</div>
 @endif
 
 <div class="form-card">
@@ -37,6 +23,7 @@
         'record' => null,
         'todayTotals' => $todayTotals ?? ['total_hours' => 0, 'job_count' => 0],
         'isAdmin' => $isAdmin ?? false,
+        'runningLog' => $runningLog ?? null,
         'openTickets' => $openTickets ?? collect(),
         'continueTicket' => $continueTicket ?? null,
     ])
@@ -45,29 +32,73 @@
 @if(!empty($todayJobs) && $todayJobs->isNotEmpty())
 <div class="mt-4">
     <h6 class="fw-semibold mb-2">Today's jobs</h6>
-    @foreach($todayJobs as $job)
-        @php $jobStatus = $job->status === 'in_progress' ? 'pending' : $job->status; @endphp
-        <div class="log-card {{ $jobStatus }} mb-2">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <strong class="small">{{ $job->task_description }}</strong>
-                    <div class="small text-muted">
-                        {{ $job->start_time?->format('H:i') }}–{{ $job->end_time?->format('H:i') }}
-                        · {{ \App\Models\TimeManagement::formatDuration($job->duration_hours) }}
-                    </div>
-                </div>
-                <span class="badge {{ $jobStatus === 'completed' ? 'bg-success' : 'bg-warning text-dark' }}">
-                    {{ ucfirst($jobStatus) }}
-                </span>
-            </div>
-            <div class="mt-2 d-grid gap-1">
-                <a href="{{ route('worklog.edit', $job->id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                @if($jobStatus !== 'completed')
-                <a href="{{ route('worklog.edit', $job->id) }}?status=completed" class="btn btn-sm btn-success">Mark Completed</a>
-                @endif
-            </div>
-        </div>
-    @endforeach
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered bg-white mb-0" style="font-size: 0.8rem;">
+            <thead class="table-light">
+                <tr>
+                    <th>Ticket</th>
+                    <th>Start</th>
+                    <th>Time</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($todayJobs as $job)
+                <tr>
+                    <td>
+                        <strong>{{ $job->ticket_number }}</strong>
+                        <div class="text-muted">{{ \Illuminate\Support\Str::limit($job->task_description, 28) }}</div>
+                    </td>
+                    <td>{{ $job->start_time?->format('H:i') }}</td>
+                    <td>
+                        @if($job->isRunning())
+                            <span class="text-warning fw-semibold" data-elapsed-start="{{ $job->start_time?->toIso8601String() }}">…</span>
+                        @else
+                            {{ \App\Models\TimeManagement::formatDuration($job->duration_hours) }}
+                        @endif
+                    </td>
+                    <td>
+                        @if($job->isRunning())
+                            <form action="{{ route('time.stop', $job->id) }}" method="POST" class="mb-1">
+                                @csrf
+                                <input type="hidden" name="_from_app" value="1">
+                                <input type="hidden" name="complete_ticket" value="0">
+                                <button type="submit" class="btn btn-sm btn-warning w-100">Stop Visit</button>
+                            </form>
+                            <form action="{{ route('time.stop', $job->id) }}" method="POST" class="m-0"
+                                  onsubmit="return confirm('Stop this visit and complete the ticket?');">
+                                @csrf
+                                <input type="hidden" name="_from_app" value="1">
+                                <input type="hidden" name="complete_ticket" value="1">
+                                <button type="submit" class="btn btn-sm btn-danger w-100">Complete</button>
+                            </form>
+                        @else
+                            <span class="badge bg-success">Done</span>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 </div>
 @endif
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/format-work-duration.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function tickElapsed() {
+        document.querySelectorAll('[data-elapsed-start]').forEach(function (el) {
+            const start = new Date(el.getAttribute('data-elapsed-start'));
+            if (isNaN(start.getTime())) return;
+            const hours = Math.max(0, (Date.now() - start.getTime()) / (1000 * 60 * 60));
+            el.textContent = typeof formatWorkDuration === 'function' ? formatWorkDuration(hours) : hours.toFixed(2) + ' hrs';
+        });
+    }
+    tickElapsed();
+    setInterval(tickElapsed, 30000);
+});
+</script>
+@endpush

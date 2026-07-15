@@ -10,9 +10,7 @@
         table { width: 100%; border-collapse: collapse; margin: 12px 0; }
         td { border: 1px solid #e5e7eb; padding: 8px; vertical-align: top; }
         td:first-child { width: 40%; font-weight: 600; background: #f9fafb; }
-        .btn { display: inline-block; padding: 10px 16px; margin-right: 8px; text-decoration: none; border-radius: 6px; color: #fff !important; font-weight: 600; }
-        .btn-approve { background: #16a34a; }
-        .btn-reject { background: #dc2626; }
+        .step { background: #eff6ff; border: 1px solid #bfdbfe; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
     </style>
 </head>
 <body>
@@ -22,6 +20,13 @@
         </div>
         <div class="content">
             <p>Hello,</p>
+            <div class="step">
+                <strong>Your turn:</strong> {{ $approverStepLabel ?? 'Approver' }}<br>
+                <span style="font-size: 13px; color: #4b5563;">
+                    Approvals are sequential: Umme Hani → Ruman Mohammed → Badruddin.
+                    The next person is emailed only after you approve.
+                </span>
+            </div>
             <p>Please review and approve this PR tracking request:</p>
 
             <table>
@@ -63,4 +68,3 @@
     </div>
 </body>
 </html>
-

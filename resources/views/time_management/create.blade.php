@@ -28,6 +28,7 @@
                 'record' => null,
                 'todayTotals' => $todayTotals ?? ['total_hours' => 0, 'job_count' => 0],
                 'isAdmin' => $isAdmin ?? false,
+                'runningLog' => $runningLog ?? null,
                 'openTickets' => $openTickets ?? collect(),
                 'continueTicket' => $continueTicket ?? null,
             ])
