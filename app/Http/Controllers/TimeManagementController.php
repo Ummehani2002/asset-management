@@ -245,14 +245,6 @@ class TimeManagementController extends Controller
 
         $validated = $request->validate($rules);
 
-        if ($running = TimeManagement::findRunningForUser($user)) {
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'task_description' => 'You already have a running work log ('.$running->ticket_number.'). Stop it before starting a new one.',
-                ]);
-        }
-
         $employee = $this->resolveEmployeeForUser($user);
         $now = now();
         $workDate = $now->toDateString();
@@ -450,28 +442,6 @@ class TimeManagementController extends Controller
             $duration = TimeManagement::calculateDurationHours($start, $end);
         } elseif ($validated['status'] === 'completed') {
             return back()->withInput()->withErrors(['end_time_hour' => 'End time is required to mark completed, or use the Stop button.']);
-        }
-
-        // Only one running timer per user
-        if ($end === null) {
-            $otherRunning = TimeManagement::query()
-                ->whereNull('end_time')
-                ->where('id', '!=', $record->id)
-                ->where(function ($q) use ($record) {
-                    if ($record->user_id) {
-                        $q->where('user_id', $record->user_id);
-                    }
-                    if ($record->employee_id) {
-                        $q->orWhere('employee_id', $record->employee_id);
-                    }
-                })
-                ->exists();
-
-            if ($otherRunning) {
-                return back()->withInput()->withErrors([
-                    'end_time_hour' => 'Another work log is already running. Stop it first.',
-                ]);
-            }
         }
 
         $oldEmployeeId = $record->employee_id;

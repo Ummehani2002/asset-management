@@ -13,16 +13,12 @@
 @endphp
 
 @if(! $isEdit && $runningLog)
-    <div class="alert alert-warning">
+    <div class="alert alert-info">
         You already have a running work log
         <strong>{{ $runningLog->ticket_number }}</strong>
         (started {{ $runningLog->start_time?->format('H:i') }}).
-        Stop it before starting a new one.
-        <form action="{{ route('time.stop', $runningLog->id) }}" method="POST" class="d-inline ms-2">
-            @csrf
-            <button type="submit" class="btn btn-sm btn-danger">Stop Now</button>
-        </form>
-        <a href="{{ route('time.index') }}" class="btn btn-sm btn-outline-secondary ms-1">View logs</a>
+        You can still start another job — both will stay active until you stop each one.
+        <a href="{{ route('time.index') }}" class="btn btn-sm btn-outline-secondary ms-2">View logs</a>
     </div>
 @endif
 
@@ -187,7 +183,7 @@
                 <i class="bi bi-check-circle me-2"></i>Update Work Log
             </button>
         @else
-            <button type="submit" class="btn btn-primary" {{ $runningLog ? 'disabled' : '' }}>
+            <button type="submit" class="btn btn-primary">
                 <i class="bi bi-play-circle me-2"></i>Start Work
             </button>
         @endif

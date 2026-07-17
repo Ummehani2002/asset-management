@@ -72,12 +72,14 @@ class TimeManagement extends Model
             return 'pending';
         }
 
-        if ($this->status === 'completed') {
-            return 'completed';
-        }
-
+        // A linked ticket is the source of truth: a stopped visit does not
+        // complete the ticket unless "Stop & Complete" closed the ticket.
         if ($this->workTicket) {
             return $this->workTicket->status === 'completed' ? 'completed' : 'pending';
+        }
+
+        if ($this->status === 'completed') {
+            return 'completed';
         }
 
         return $this->status === 'in_progress' ? 'pending' : ($this->status ?? 'pending');

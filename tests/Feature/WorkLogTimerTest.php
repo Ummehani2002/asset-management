@@ -132,7 +132,7 @@ it('starts a work log with a manual ticket and automatic timer fields', function
     expect(WorkTicket::first()->status)->toBe('pending');
 });
 
-it('blocks starting a second running work log', function () {
+it('allows starting a second running work log while another is pending', function () {
     $user = makeWorkLogUser();
 
     $this->actingAs($user)->post(route('time.store'), [
@@ -143,7 +143,7 @@ it('blocks starting a second running work log', function () {
         'task_description' => 'First job here',
     ])->assertRedirect(route('time.index'));
 
-    $response = $this->actingAs($user)->from(route('time.create'))->post(route('time.store'), [
+    $response = $this->actingAs($user)->post(route('time.store'), [
         'log_type' => 'new',
         'ticket_number' => 'INC-0003',
         'category' => 'Software',
@@ -151,9 +151,10 @@ it('blocks starting a second running work log', function () {
         'task_description' => 'Second job here',
     ]);
 
-    $response->assertRedirect(route('time.create'));
-    $response->assertSessionHasErrors('task_description');
-    expect(TimeManagement::count())->toBe(1);
+    $response->assertRedirect(route('time.index'));
+    expect(TimeManagement::count())->toBe(2);
+    expect(TimeManagement::whereNull('end_time')->count())->toBe(2);
+    expect(WorkTicket::where('status', 'pending')->count())->toBe(2);
 });
 
 it('stops a running work log and calculates duration', function () {

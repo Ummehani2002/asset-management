@@ -13,10 +13,10 @@
 @endphp
 
     @if(! $isEdit && $runningLog)
-    <div class="alert alert-warning py-2">
-        Running: <strong>{{ $runningLog->ticket_number }}</strong>
+    <div class="alert alert-info py-2">
+        Also running: <strong>{{ $runningLog->ticket_number }}</strong>
         since {{ $runningLog->start_time?->format('H:i') }}.
-        Stop it from <a href="{{ route('worklog.index') }}">My Jobs</a> before starting another.
+        You can start another job — stop each one separately from <a href="{{ route('worklog.index') }}">My Jobs</a>.
     </div>
     @endif
 
@@ -164,7 +164,7 @@
     </div>
     @endif
 
-    <button type="submit" class="btn-app" {{ (! $isEdit && $runningLog) ? 'disabled' : '' }}>
+    <button type="submit" class="btn-app">
         <i class="bi bi-{{ $isEdit ? 'check' : 'play' }}-circle me-1"></i>
         {{ $isEdit ? 'Update Work Log' : 'Start Work' }}
     </button>
