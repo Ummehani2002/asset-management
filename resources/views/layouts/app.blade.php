@@ -577,6 +577,11 @@
             margin-bottom: 24px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             border-left: 4px solid var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .page-header h2 {
@@ -590,6 +595,45 @@
             margin: 5px 0 0 0;
             color: #6c757d;
             font-size: 14px;
+        }
+
+        .page-header-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .page-header-profile .profile-avatar {
+            font-size: 28px;
+            color: var(--primary);
+            line-height: 1;
+        }
+
+        .page-header-profile .profile-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary);
+            line-height: 1.2;
+        }
+
+        .page-header-profile .profile-email {
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.2;
+            word-break: break-all;
+        }
+
+        .app-profile-fallback {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--primary);
+            display: flex;
+            justify-content: flex-end;
         }
 
         .stat-card {
@@ -720,6 +764,11 @@
             margin-bottom: 24px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             border-left: 4px solid var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .master-page .page-header h1,
@@ -1062,6 +1111,15 @@
 
     {{-- Page Content --}}
     <div class="content">
+        @auth
+        <div id="app-user-profile" class="page-header-profile no-print" hidden>
+            <div class="profile-avatar" aria-hidden="true"><i class="bi bi-person-circle"></i></div>
+            <div>
+                <div class="profile-name">{{ auth()->user()->name }}</div>
+                <div class="profile-email">{{ auth()->user()->email }}</div>
+            </div>
+        </div>
+        @endauth
 
         @if(isset($errors) && $errors->any())
             <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
@@ -1105,6 +1163,27 @@
                 allowEmptyOption: true
             });
         });
+    });
+    </script>
+    <!-- Place logged-in profile in the page header (top right) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var profile = document.getElementById('app-user-profile');
+        if (!profile) return;
+        var header = document.querySelector('.content .page-header');
+        if (header) {
+            profile.hidden = false;
+            header.appendChild(profile);
+        } else {
+            var wrap = document.createElement('div');
+            wrap.className = 'app-profile-fallback no-print';
+            profile.hidden = false;
+            wrap.appendChild(profile);
+            var content = document.querySelector('.content');
+            if (content) {
+                content.insertBefore(wrap, content.firstChild);
+            }
+        }
     });
     </script>
     <!-- Auto-dismiss all success messages after 3 seconds -->
