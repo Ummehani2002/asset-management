@@ -23,7 +23,7 @@
             <div class="step">
                 <strong>Your turn:</strong> {{ $approverStepLabel ?? 'Approver' }}<br>
                 <span style="font-size: 13px; color: #4b5563;">
-                    Approvals are sequential: Umme Hani → Aaliya Afra.
+                    Approvals are sequential: Ruman Mohammed → Badruddin.
                     The next person is emailed only after you approve.
                 </span>
             </div>

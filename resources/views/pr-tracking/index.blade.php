@@ -103,8 +103,8 @@
                             <th>Approved Request Status</th>
                             <th>Forwarded To Purchase Date</th>
                             <th>Comments</th>
-                            <th>1. Umme Hani</th>
-                            <th>2. Aaliya Afra</th>
+                            <th>1. Ruman Mohammed</th>
+                            <th>2. Badruddin</th>
                             <th>Overall Approval</th>
                             <th>Actions</th>
                         </tr>
@@ -114,8 +114,8 @@
                             @php
                                 $currentKey = $record->currentApproverKey();
                                 $resendLabel = match ($currentKey) {
-                                    'one' => 'Umme Hani (step 1)',
-                                    'two' => 'Aaliya Afra (step 2)',
+                                    'one' => 'Ruman Mohammed (step 1)',
+                                    'two' => 'Badruddin (step 2)',
                                     default => 'current approver',
                                 };
                             @endphp

@@ -81,8 +81,8 @@ class PrTracking extends Model
     public function approverStepLabel(string $key): string
     {
         return match ($key) {
-            'one' => 'Step 1 of 2 — Umme Hani',
-            'two' => 'Step 2 of 2 — Aaliya Afra',
+            'one' => 'Step 1 of 2 — Ruman Mohammed',
+            'two' => 'Step 2 of 2 — Badruddin',
             default => 'Approver',
         };
     }

@@ -88,7 +88,7 @@ function signedRejectUrl(int $id, string $approver): string
     );
 }
 
-test('send for approval emails only umme first', function () {
+test('send for approval emails only ruman first', function () {
     Mail::fake();
     $user = makePrUser();
 
@@ -100,7 +100,7 @@ test('send for approval emails only umme first', function () {
     ])->assertRedirect(route('pr-tracking.index'));
 
     Mail::assertSent(PrTrackingApprovalRequestMail::class, function ($mail) {
-        return $mail->hasTo('umme.hani@tanseeqinvestment.com')
+        return $mail->hasTo('rumanmohammed@tanseeqinvestment.com')
             && $mail->approverKey === 'one';
     });
     Mail::assertNotSent(PrTrackingApprovalRequestMail::class, function ($mail) {
@@ -110,11 +110,11 @@ test('send for approval emails only umme first', function () {
     $pr = PrTracking::where('requisition_number', 'PR-SEQ-001')->first();
     expect($pr)->not->toBeNull()
         ->and($pr->approval_status)->toBe('pending_approval')
-        ->and($pr->approver_one_email)->toBe('umme.hani@tanseeqinvestment.com')
-        ->and($pr->approver_two_email)->toBe('aaliya.afra@tanseeqinvestment.com');
+        ->and($pr->approver_one_email)->toBe('rumanmohammed@tanseeqinvestment.com')
+        ->and($pr->approver_two_email)->toBe('badruddin@tanseeqinvestment.com');
 });
 
-test('umme approval forwards email to aaliya', function () {
+test('ruman approval forwards email to badr', function () {
     Mail::fake();
     $pr = PrTracking::create([
         'requisition_date' => '2026-07-15',
@@ -122,9 +122,9 @@ test('umme approval forwards email to aaliya', function () {
         'item_requested' => 'Laptop',
         'approval_status' => 'pending_approval',
         'approved_request_status' => 'Pending Approval',
-        'approver_one_email' => 'umme.hani@tanseeqinvestment.com',
+        'approver_one_email' => 'rumanmohammed@tanseeqinvestment.com',
         'approver_one_status' => 'pending',
-        'approver_two_email' => 'aaliya.afra@tanseeqinvestment.com',
+        'approver_two_email' => 'badruddin@tanseeqinvestment.com',
         'approver_two_status' => 'pending',
         'approver_three_status' => 'approved',
     ]);
@@ -136,21 +136,21 @@ test('umme approval forwards email to aaliya', function () {
         ->and($pr->approval_status)->toBe('partially_approved');
 
     Mail::assertSent(PrTrackingApprovalRequestMail::class, function ($mail) {
-        return $mail->hasTo('aaliya.afra@tanseeqinvestment.com')
+        return $mail->hasTo('badruddin@tanseeqinvestment.com')
             && $mail->approverKey === 'two';
     });
 });
 
-test('aaliya approval marks pr fully approved', function () {
+test('badr approval marks pr fully approved', function () {
     Mail::fake();
     $pr = PrTracking::create([
         'requisition_date' => '2026-07-15',
         'requisition_number' => 'PR-SEQ-003',
         'item_requested' => 'Monitor',
         'approval_status' => 'partially_approved',
-        'approver_one_email' => 'umme.hani@tanseeqinvestment.com',
+        'approver_one_email' => 'rumanmohammed@tanseeqinvestment.com',
         'approver_one_status' => 'approved',
-        'approver_two_email' => 'aaliya.afra@tanseeqinvestment.com',
+        'approver_two_email' => 'badruddin@tanseeqinvestment.com',
         'approver_two_status' => 'pending',
         'approver_three_status' => 'approved',
     ]);
@@ -175,8 +175,8 @@ test('out of order approval link is rejected', function () {
         'approver_one_status' => 'pending',
         'approver_two_status' => 'pending',
         'approver_three_status' => 'approved',
-        'approver_one_email' => 'umme.hani@tanseeqinvestment.com',
-        'approver_two_email' => 'aaliya.afra@tanseeqinvestment.com',
+        'approver_one_email' => 'rumanmohammed@tanseeqinvestment.com',
+        'approver_two_email' => 'badruddin@tanseeqinvestment.com',
     ]);
 
     $this->get(signedApproveUrl($pr->id, 'two'))
@@ -199,8 +199,8 @@ test('rejection by current approver stops the chain', function () {
         'approver_one_status' => 'pending',
         'approver_two_status' => 'pending',
         'approver_three_status' => 'approved',
-        'approver_one_email' => 'umme.hani@tanseeqinvestment.com',
-        'approver_two_email' => 'aaliya.afra@tanseeqinvestment.com',
+        'approver_one_email' => 'rumanmohammed@tanseeqinvestment.com',
+        'approver_two_email' => 'badruddin@tanseeqinvestment.com',
     ]);
 
     $this->get(signedRejectUrl($pr->id, 'one'))->assertRedirect(route('login'));
@@ -221,9 +221,9 @@ test('resend emails only the current pending approver', function () {
         'requisition_number' => 'PR-SEQ-007',
         'item_requested' => 'Headset',
         'approval_status' => 'partially_approved',
-        'approver_one_email' => 'umme.hani@tanseeqinvestment.com',
+        'approver_one_email' => 'rumanmohammed@tanseeqinvestment.com',
         'approver_one_status' => 'approved',
-        'approver_two_email' => 'aaliya.afra@tanseeqinvestment.com',
+        'approver_two_email' => 'badruddin@tanseeqinvestment.com',
         'approver_two_status' => 'pending',
         'approver_three_status' => 'approved',
     ]);
@@ -234,7 +234,7 @@ test('resend emails only the current pending approver', function () {
 
     Mail::assertSent(PrTrackingApprovalRequestMail::class, 1);
     Mail::assertSent(PrTrackingApprovalRequestMail::class, function ($mail) {
-        return $mail->hasTo('aaliya.afra@tanseeqinvestment.com')
+        return $mail->hasTo('badruddin@tanseeqinvestment.com')
             && $mail->approverKey === 'two';
     });
 

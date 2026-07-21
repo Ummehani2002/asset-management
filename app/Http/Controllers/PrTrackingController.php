@@ -10,14 +10,16 @@ use Illuminate\Support\Facades\Mail;
 
 class PrTrackingController extends Controller
 {
-    /** Testing flow: Umme → Aaliya → completed */
-    private const APPROVER_ONE_EMAIL = 'umme.hani@tanseeqinvestment.com';
-    private const APPROVER_TWO_EMAIL = 'aaliya.afra@tanseeqinvestment.com';
+    /** Production flow: Ruman → Badr → completed */
+    private const APPROVER_ONE_EMAIL = 'rumanmohammed@tanseeqinvestment.com';
+    private const APPROVER_TWO_EMAIL = 'badruddin@tanseeqinvestment.com';
 
     private const APPROVER_LABELS = [
-        'one' => 'Umme Hani',
-        'two' => 'Aaliya Afra',
+        'one' => 'Ruman Mohammed',
+        'two' => 'Badruddin',
     ];
+
+    private const CHAIN_LABEL = 'Ruman Mohammed → Badruddin';
 
     public function index(Request $request)
     {
@@ -111,7 +113,7 @@ class PrTrackingController extends Controller
         if ($currentKey !== $approver) {
             return redirect()->route('login')->with(
                 'error',
-                'This approval link is not active yet. Approvals must follow order: Umme Hani → Aaliya Afra.'
+                'This approval link is not active yet. Approvals must follow order: ' . self::CHAIN_LABEL . '.'
             );
         }
 
@@ -131,7 +133,7 @@ class PrTrackingController extends Controller
 
             return redirect()->route('login')->with(
                 'success',
-                'Approved. This PR is now fully approved (Umme Hani → Aaliya Afra).'
+                'Approved. This PR is now fully approved (' . self::CHAIN_LABEL . ').'
             );
         }
 
@@ -246,8 +248,8 @@ class PrTrackingController extends Controller
         }
 
         $stepNote = match ($currentKey) {
-            'one' => 'Step 1 of 2: email sent to Umme Hani. After approval, Aaliya Afra will be notified.',
-            'two' => 'Step 2 of 2: email sent to Aaliya Afra. After approval, the PR will be fully approved.',
+            'one' => 'Step 1 of 2: email sent to Ruman Mohammed. After approval, Badruddin will be notified.',
+            'two' => 'Step 2 of 2: email sent to Badruddin. After approval, the PR will be fully approved.',
             default => 'Approval email sent.',
         };
 
