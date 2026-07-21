@@ -69,7 +69,7 @@
                 </div>
                 <div class="col-md-12">
                     <label class="form-label">Approval chain (sequential)</label>
-                    <input type="text" class="form-control" value="1) {{ $defaultApproverOne }} → 2) {{ $defaultApproverTwo }} → 3) {{ $defaultApproverThree }}" readonly>
+                    <input type="text" class="form-control" value="1) {{ $defaultApproverOne }} → 2) {{ $defaultApproverTwo }}" readonly>
                     <div class="form-text">Only the current person is emailed. Next person is notified after approval.</div>
                 </div>
                 <div class="col-md-12">
@@ -104,8 +104,7 @@
                             <th>Forwarded To Purchase Date</th>
                             <th>Comments</th>
                             <th>1. Umme Hani</th>
-                            <th>2. Ruman</th>
-                            <th>3. Badruddin</th>
+                            <th>2. Aaliya Afra</th>
                             <th>Overall Approval</th>
                             <th>Actions</th>
                         </tr>
@@ -116,8 +115,7 @@
                                 $currentKey = $record->currentApproverKey();
                                 $resendLabel = match ($currentKey) {
                                     'one' => 'Umme Hani (step 1)',
-                                    'two' => 'Ruman Mohammed (step 2)',
-                                    'three' => 'Badruddin (step 3)',
+                                    'two' => 'Aaliya Afra (step 2)',
                                     default => 'current approver',
                                 };
                             @endphp
@@ -146,13 +144,6 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="small text-muted">{{ $record->approver_three_email ?? $defaultApproverThree }}</div>
-                                    <span class="badge {{ ($record->approver_three_status ?? 'pending') === 'approved' ? 'bg-success' : (($record->approver_three_status ?? '') === 'rejected' ? 'bg-danger' : ($currentKey === 'three' ? 'bg-info text-dark' : 'bg-secondary')) }}">
-                                        {{ ucfirst(str_replace('_', ' ', $record->approver_three_status ?? 'pending')) }}
-                                        @if($currentKey === 'three') · waiting @endif
-                                    </span>
-                                </td>
-                                <td>
                                     <span class="badge
                                         @if($record->approval_status === 'approved') bg-success
                                         @elseif($record->approval_status === 'rejected') bg-danger
@@ -178,7 +169,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="14" class="text-center text-muted py-4">No PR tracking records found.</td>
+                                <td colspan="13" class="text-center text-muted py-4">No PR tracking records found.</td>
                             </tr>
                         @endforelse
                     </tbody>

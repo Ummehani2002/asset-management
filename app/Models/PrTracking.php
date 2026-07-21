@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PrTracking extends Model
 {
-    public const APPROVER_KEYS = ['one', 'two', 'three'];
+    /** Active sequential approvers for the current workflow. */
+    public const APPROVER_KEYS = ['one', 'two'];
 
     protected $fillable = [
         'requisition_date',
@@ -80,9 +81,8 @@ class PrTracking extends Model
     public function approverStepLabel(string $key): string
     {
         return match ($key) {
-            'one' => 'Step 1 of 3 — Umme Hani',
-            'two' => 'Step 2 of 3 — Ruman Mohammed',
-            'three' => 'Step 3 of 3 — Badruddin',
+            'one' => 'Step 1 of 2 — Umme Hani',
+            'two' => 'Step 2 of 2 — Aaliya Afra',
             default => 'Approver',
         };
     }

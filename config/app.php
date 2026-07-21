@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public URL for email links
+    |--------------------------------------------------------------------------
+    |
+    | Signed Approve/Reject links in emails must be reachable by recipients.
+    | When developing locally (e.g. http://final_asset.test), set this to your
+    | public/production URL so approvers outside your machine can open links.
+    |
+    */
+
+    'mail_url' => env('MAIL_APP_URL', env('APP_URL', 'http://localhost')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
