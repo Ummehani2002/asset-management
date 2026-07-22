@@ -113,12 +113,7 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 (function () {
-    var allModels = @json($models->map(fn ($m) => [
-        'id' => $m->id,
-        'brand_id' => $m->brand_id,
-        'brand_name' => $m->brand->name ?? '',
-        'model_number' => $m->model_number ?? '',
-    ])->values());
+    var allModels = @json($modelsJson);
     var selectedModelId = @json(old('brand_model_id', $selectedBrandModelId));
     var settingBrandFromModel = false;
 

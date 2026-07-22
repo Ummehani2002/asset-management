@@ -727,7 +727,22 @@ private function parseImportDate($value)
             }
         }
 
-        return view('assets.edit', compact('asset', 'brands', 'models', 'selectedBrandModelId'));
+        $modelsJson = $models->map(function (BrandModel $m) {
+            return [
+                'id' => $m->id,
+                'brand_id' => $m->brand_id,
+                'brand_name' => $m->brand->name ?? '',
+                'model_number' => $m->model_number ?? '',
+            ];
+        })->values()->all();
+
+        return view('assets.edit', compact(
+            'asset',
+            'brands',
+            'models',
+            'selectedBrandModelId',
+            'modelsJson'
+        ));
     }
 
     public function update(Request $request, Asset $asset)
