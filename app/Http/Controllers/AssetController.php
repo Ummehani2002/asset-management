@@ -683,9 +683,51 @@ private function parseImportDate($value)
 
     public function edit(Asset $asset)
     {
-        $categories = AssetCategory::orderBy('category_name')->get();
-        $entities = Schema::hasTable('entities') ? \App\Models\Entity::orderBy('name')->get() : collect([]);
-        return view('assets.edit', compact('asset', 'categories', 'entities'));
+        $asset->load(['category', 'brand']);
+
+        $brands = collect();
+        $models = collect();
+        $selectedBrandModelId = null;
+
+        if ($asset->asset_category_id && Schema::hasTable('brands')) {
+            $brands = Brand::where('asset_category_id', $asset->asset_category_id)
+                ->orderBy('name')
+                ->get();
+
+            // Keep current brand visible even if it was moved/orphaned from this category
+            if ($asset->brand_id && !$brands->contains('id', $asset->brand_id)) {
+                $currentBrand = Brand::find($asset->brand_id);
+                if ($currentBrand) {
+                    $brands = $brands->prepend($currentBrand)->unique('id')->values();
+                }
+            }
+        }
+
+        if ($asset->asset_category_id && Schema::hasTable('brand_models')) {
+            $models = BrandModel::with('brand')
+                ->whereHas('brand', function ($q) use ($asset) {
+                    $q->where('asset_category_id', $asset->asset_category_id);
+                })
+                ->orderBy('model_number')
+                ->get();
+
+            $currentModel = strtolower(trim((string) ($asset->model_number ?? '')));
+            if ($currentModel !== '') {
+                $matched = $models->first(function (BrandModel $m) use ($asset, $currentModel) {
+                    $sameNumber = strtolower(trim((string) ($m->model_number ?? ''))) === $currentModel;
+                    if (!$sameNumber) {
+                        return false;
+                    }
+                    if ($asset->brand_id) {
+                        return (int) $m->brand_id === (int) $asset->brand_id;
+                    }
+                    return true;
+                });
+                $selectedBrandModelId = $matched?->id;
+            }
+        }
+
+        return view('assets.edit', compact('asset', 'brands', 'models', 'selectedBrandModelId'));
     }
 
     public function update(Request $request, Asset $asset)
@@ -694,14 +736,57 @@ private function parseImportDate($value)
             $request->merge(['serial_number' => trim((string) $request->serial_number)]);
         }
 
-        $validated = $request->validate([
+        $rules = [
             'serial_number' => ['required', 'string', 'max:100', Rule::unique('assets', 'serial_number')->ignore($asset->id)],
             'po_number' => 'nullable|string|max:255',
             'vendor_name' => 'nullable|string|max:255',
             'value' => 'nullable|numeric|min:0',
-        ]);
+            'brand_model_id' => 'nullable',
+        ];
 
-        $asset->update($validated);
+        if (Schema::hasTable('brands')) {
+            $rules['brand_id'] = 'required|exists:brands,id';
+        } else {
+            $rules['brand_id'] = 'nullable';
+        }
+
+        if (Schema::hasTable('brand_models')) {
+            $rules['brand_model_id'] = 'nullable|exists:brand_models,id';
+        }
+
+        $validated = $request->validate($rules);
+
+        $updateData = [
+            'serial_number' => $validated['serial_number'],
+            'po_number' => $validated['po_number'] ?? null,
+            'vendor_name' => $validated['vendor_name'] ?? null,
+            'value' => $validated['value'] ?? null,
+        ];
+
+        if (array_key_exists('brand_id', $validated) && $validated['brand_id']) {
+            $updateData['brand_id'] = $validated['brand_id'];
+        }
+
+        if (Schema::hasColumn('assets', 'model_number')) {
+            if (!empty($validated['brand_model_id'])) {
+                $selectedModel = BrandModel::find($validated['brand_model_id']);
+                if ($selectedModel) {
+                    $updateData['model_number'] = $selectedModel->model_number;
+                    // Keep brand in sync with selected model
+                    if ($selectedModel->brand_id) {
+                        $updateData['brand_id'] = $selectedModel->brand_id;
+                    }
+                }
+            } elseif ($request->exists('brand_model_id') && $request->input('brand_model_id') === '') {
+                $updateData['model_number'] = null;
+            }
+        }
+
+        $asset->update($updateData);
+
+        if (!empty($validated['brand_model_id']) && Schema::hasTable('category_feature_values')) {
+            $this->copyBrandModelFeaturesToAsset($asset, (int) $validated['brand_model_id']);
+        }
 
         return redirect()->route('assets.index')->with('success', 'Asset updated successfully.');
     }
