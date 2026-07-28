@@ -6,6 +6,9 @@
     <meta name="autocomplete" content="off">
     <meta name="format-detection" content="telephone=no">
     <title>Asset Management System - Tanseeq Investment</title>
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/favicon-64.png') }}">
 
     <!-- Bootstrap & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
