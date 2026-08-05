@@ -103,6 +103,34 @@ class TimeManagement extends Model
         return $this->status === 'in_progress' ? 'pending' : ($this->status ?? 'pending');
     }
 
+    /**
+     * UI label for list badges: Running / Continue Visit / Completed / Pending.
+     */
+    public function displayStatusLabel(): string
+    {
+        if ($this->isRunning()) {
+            return 'Running';
+        }
+
+        if ($this->workTicket && $this->workTicket->isOpen()) {
+            return 'Continue Visit';
+        }
+
+        if ($this->ticketStatus() === 'completed') {
+            return 'Completed';
+        }
+
+        return 'Pending';
+    }
+
+    public function canContinueVisit(): bool
+    {
+        return ! $this->isRunning()
+            && $this->work_ticket_id
+            && $this->workTicket
+            && $this->workTicket->isOpen();
+    }
+
     public function isRunning(): bool
     {
         return $this->end_time === null && ! empty($this->start_time);

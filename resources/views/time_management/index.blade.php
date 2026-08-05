@@ -206,8 +206,9 @@
                         @forelse($tasks as $key => $task)
                         @php
                             $isRunning = $task->isRunning();
-                            $displayStatus = $isRunning ? 'running' : $task->ticketStatus();
+                            $statusLabel = $task->displayStatusLabel();
                             $canStop = $isRunning && $task->isOwnedBy(auth()->user());
+                            $canContinue = ! $isRunning && $task->canContinueVisit() && $task->isOwnedBy(auth()->user());
                         @endphp
                         <tr class="{{ $isRunning ? 'table-warning' : '' }}">
                             <td>{{ $key + 1 }}</td>
@@ -247,10 +248,12 @@
                             <td>
                                 @if($isRunning)
                                     <span class="badge bg-warning text-dark">Running</span>
+                                @elseif($statusLabel === 'Continue Visit')
+                                    <span class="badge bg-info text-dark">Continue Visit</span>
+                                @elseif($statusLabel === 'Completed')
+                                    <span class="badge bg-success">Completed</span>
                                 @else
-                                    <span class="badge {{ $displayStatus === 'completed' ? 'bg-success' : 'bg-warning text-dark' }}">
-                                        {{ ucfirst($displayStatus) }}
-                                    </span>
+                                    <span class="badge bg-secondary">{{ $statusLabel }}</span>
                                 @endif
                             </td>
                             <td class="text-nowrap">
@@ -270,6 +273,11 @@
                                             <i class="bi bi-check-circle"></i> Stop & Complete
                                         </button>
                                     </form>
+                                @endif
+                                @if($canContinue)
+                                    <a href="{{ route('time.create', ['work_ticket_id' => $task->work_ticket_id]) }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-play-circle"></i> Continue Visit
+                                    </a>
                                 @endif
                                 @if($task->work_ticket_id)
                                     <a href="{{ route('time.ticket.show', $task->work_ticket_id) }}" class="btn btn-sm btn-outline-primary">

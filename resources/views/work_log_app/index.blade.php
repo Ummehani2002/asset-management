@@ -137,7 +137,9 @@
                 @foreach($tasks as $task)
                 @php
                     $isRunning = $task->isRunning();
+                    $statusLabel = $task->displayStatusLabel();
                     $canStop = $isRunning && $task->isOwnedBy(auth()->user());
+                    $canContinue = ! $isRunning && $task->canContinueVisit() && $task->isOwnedBy(auth()->user());
                 @endphp
                 <tr class="{{ $isRunning ? 'table-warning' : '' }}">
                     <td>
@@ -164,10 +166,12 @@
                     <td>
                         @if($isRunning)
                             <span class="badge bg-warning text-dark">Running</span>
+                        @elseif($statusLabel === 'Continue Visit')
+                            <span class="badge bg-info text-dark">Continue Visit</span>
+                        @elseif($statusLabel === 'Completed')
+                            <span class="badge bg-success">Completed</span>
                         @else
-                            <span class="badge {{ $task->ticketStatus() === 'completed' ? 'bg-success' : 'bg-secondary' }}">
-                                {{ ucfirst($task->ticketStatus()) }}
-                            </span>
+                            <span class="badge bg-secondary">{{ $statusLabel }}</span>
                         @endif
                     </td>
                     <td class="text-nowrap">
@@ -185,6 +189,8 @@
                                 <input type="hidden" name="complete_ticket" value="1">
                                 <button type="submit" class="btn btn-sm btn-danger py-0 px-2 w-100">Complete</button>
                             </form>
+                        @elseif($canContinue)
+                            <a href="{{ route('worklog.create', ['work_ticket_id' => $task->work_ticket_id]) }}" class="btn btn-sm btn-primary py-0 px-2">Continue</a>
                         @elseif(! $isAdmin && ! $isRunning)
                             <a href="{{ route('worklog.edit', $task->id) }}" class="btn btn-sm btn-outline-primary py-0 px-2">Edit</a>
                         @endif

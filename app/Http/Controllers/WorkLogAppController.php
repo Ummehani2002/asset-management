@@ -231,10 +231,10 @@ class WorkLogAppController extends Controller
         $isAdmin = $user->isTimeManagementAdmin();
         $todayTotals = TimeManagement::getDailyTotals($user->id, $user->employee_id, date('Y-m-d'));
         $runningLog = TimeManagement::findRunningForUser($user);
-        $openTickets = $isAdmin ? collect() : WorkTicket::openTicketsForUser($user);
+        $openTickets = WorkTicket::openTicketsForUser($user);
         $continueTicket = null;
 
-        if (! $isAdmin && $request->filled('work_ticket_id')) {
+        if ($request->filled('work_ticket_id')) {
             $continueTicket = $openTickets->firstWhere('id', (int) $request->work_ticket_id);
         }
 
@@ -278,7 +278,7 @@ class WorkLogAppController extends Controller
             'record' => $record->load('workTicket'),
             'todayTotals' => $todayTotals,
             'isAdmin' => $user->isTimeManagementAdmin(),
-            'openTickets' => $user->isTimeManagementAdmin() ? collect() : WorkTicket::openTicketsForUser($user),
+            'openTickets' => WorkTicket::openTicketsForUser($user),
         ]);
     }
 }

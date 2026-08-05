@@ -108,11 +108,7 @@ class WorkTicket extends Model
             return collect();
         }
 
-        // Open tickets are for employees to continue their own work only.
-        if ($user->isTimeManagementAdmin()) {
-            return collect();
-        }
-
+        // Time admins can still continue their own open tickets when logging work.
         self::syncFromPendingLogs($user);
 
         return self::query()
