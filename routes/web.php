@@ -108,9 +108,8 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryFeatureController;
 Route::middleware(['auth'])->group(function () {
     Route::get('/brands', [BrandController::class, 'index'])->name('brands.index');
-});
 
-Route::middleware(['auth', 'admin'])->group(function () {
+    // Brand / model / feature master data — same users who can open Add Brand & Model
     Route::post('/brands/store', [AssetCategoryController::class, 'storeBrand'])->name('brands.store');
     Route::post('/brand-models', [AssetCategoryController::class, 'storeModel'])->name('brand-models.store');
     Route::get('/brand-models/{id}/edit', [AssetCategoryController::class, 'editModel'])->name('brand-models.edit');
