@@ -285,6 +285,18 @@ class TimeManagementController extends Controller
                 ]);
             }
 
+            $alreadyRunning = TimeManagement::query()
+                ->where('work_ticket_id', $workTicket->id)
+                ->whereNull('end_time')
+                ->whereNotNull('start_time')
+                ->exists();
+
+            if ($alreadyRunning) {
+                return back()->withInput()->withErrors([
+                    'work_ticket_id' => 'A visit is already running on this ticket. Stop it before starting another.',
+                ]);
+            }
+
             $ticketNumber = $workTicket->ticket_number;
             $category = $workTicket->category;
             $taskDescription = $workTicket->task_description;
@@ -523,7 +535,7 @@ class TimeManagementController extends Controller
         return $this->workLogRedirect($request, true)->with('success', 'Work log updated successfully.');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $record = TimeManagement::findOrFail($id);
         $this->authorizeRecord($record);
@@ -531,6 +543,7 @@ class TimeManagementController extends Controller
         $employeeId = $record->employee_id;
         $userId = $record->user_id;
         $date = $record->job_card_date?->format('Y-m-d');
+        $ticketId = $record->work_ticket_id;
 
         $record->delete();
 
@@ -538,7 +551,13 @@ class TimeManagementController extends Controller
             TimeManagement::recalculateDailyOvertime($employeeId, $userId, $date);
         }
 
-        $redirect = request()->input('_from_app')
+        if ($request->input('_from_ticket') && $ticketId) {
+            return redirect()
+                ->route('time.ticket.show', $ticketId)
+                ->with('success', 'Visit removed successfully.');
+        }
+
+        $redirect = $request->input('_from_app')
             ? redirect()->route('worklog.index')
             : redirect()->route('time.index');
 

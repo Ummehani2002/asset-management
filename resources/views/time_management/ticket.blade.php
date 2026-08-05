@@ -84,10 +84,19 @@
                             <td><strong>{{ \App\Models\TimeManagement::formatDuration($visit->duration_hours ?? 0) }}</strong></td>
                             <td>{{ $visit->action_taken ?? '-' }}</td>
                             <td>{{ $visit->remarks ?? '-' }}</td>
-                            <td>
+                            <td class="text-nowrap">
                                 @unless($isAdmin)
                                 <a href="{{ route('time.edit', $visit->id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
                                 @endunless
+                                <form action="{{ route('time.destroy', $visit->id) }}" method="POST" class="d-inline"
+                                      onsubmit="return confirm('Remove this visit? Total time will update.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <input type="hidden" name="_from_ticket" value="1">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Remove
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                         @empty

@@ -254,6 +254,65 @@ it('keeps a ticket open after stopping a visit and allows a continued visit', fu
         ->and($sum)->toBeGreaterThan((float) $firstVisit->fresh()->duration_hours);
 });
 
+it('blocks starting another visit while one is already running on the same ticket', function () {
+    $user = makeWorkLogUser();
+
+    $this->actingAs($user)->post(route('time.store'), [
+        'log_type' => 'new',
+        'ticket_number' => 'INC-0200',
+        'category' => 'Software',
+        'site_location' => 'IDS Madurai',
+        'task_description' => 'Onboarding process',
+    ])->assertRedirect(route('time.index'));
+
+    $ticket = WorkTicket::first();
+
+    $this->actingAs($user)->from(route('time.create', ['work_ticket_id' => $ticket->id]))
+        ->post(route('time.store'), [
+            'log_type' => 'continue',
+            'work_ticket_id' => $ticket->id,
+        ])
+        ->assertRedirect(route('time.create', ['work_ticket_id' => $ticket->id]))
+        ->assertSessionHasErrors('work_ticket_id');
+
+    expect(TimeManagement::count())->toBe(1);
+});
+
+it('removes a visit from the ticket page and returns there', function () {
+    $user = makeWorkLogUser();
+
+    $this->actingAs($user)->post(route('time.store'), [
+        'log_type' => 'new',
+        'ticket_number' => 'INC-0201',
+        'category' => 'Network',
+        'site_location' => 'Office',
+        'task_description' => 'Duplicate cleanup',
+    ]);
+
+    $first = TimeManagement::first();
+    $ticket = $first->workTicket;
+
+    $this->travel(1)->hours();
+    $this->actingAs($user)->post(route('time.stop', $first->id), ['complete_ticket' => 0]);
+
+    $this->actingAs($user)->post(route('time.store'), [
+        'log_type' => 'continue',
+        'work_ticket_id' => $ticket->id,
+    ]);
+
+    $second = TimeManagement::orderByDesc('id')->first();
+    $this->travel(30)->minutes();
+    $this->actingAs($user)->post(route('time.stop', $second->id), ['complete_ticket' => 0]);
+
+    expect($ticket->fresh()->visitCount())->toBe(2);
+
+    $this->actingAs($user)
+        ->delete(route('time.destroy', $second->id), ['_from_ticket' => 1])
+        ->assertRedirect(route('time.ticket.show', $ticket->id));
+
+    expect($ticket->fresh()->visitCount())->toBe(1);
+});
+
 it('assigns overtime after more than eight completed hours in a day', function () {
     $user = makeWorkLogUser();
 
