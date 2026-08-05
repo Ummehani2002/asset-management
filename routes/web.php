@@ -74,10 +74,16 @@ use App\Http\Controllers\ActivityLogController;
 Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware(['auth', 'admin'])->name('activity-logs.index');
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AiAssistantController;
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/export', [DashboardController::class, 'export'])->name('dashboard.export');
     Route::get('/dashboard/assets-export', [DashboardController::class, 'exportAssets'])->name('dashboard.assets-export');
+
+    Route::get('/ai/status', [AiAssistantController::class, 'status'])->name('ai.status');
+    Route::post('/ai/chat', [AiAssistantController::class, 'chat'])
+        ->middleware('throttle:20,1')
+        ->name('ai.chat');
 });
 
 use App\Http\Controllers\AssetCategoryController;

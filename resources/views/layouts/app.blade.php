@@ -1388,5 +1388,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+@include('partials.ai-assistant')
+
 </body>
 </html>

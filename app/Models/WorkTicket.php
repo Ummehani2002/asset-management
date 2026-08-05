@@ -124,6 +124,7 @@ class WorkTicket extends Model
                 }
             })
             ->withCount('visits')
+            ->withSum('visits as visits_total_hours', 'duration_hours')
             ->orderByDesc('updated_at')
             ->get();
     }

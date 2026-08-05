@@ -66,6 +66,24 @@ class TimeManagement extends Model
         return $this->belongsTo(WorkTicket::class);
     }
 
+    public function ticketTotalHours(): float
+    {
+        if (!$this->work_ticket_id) {
+            return round((float) ($this->duration_hours ?? 0), 2);
+        }
+
+        if ($this->relationLoaded('workTicket') && $this->workTicket) {
+            if (isset($this->workTicket->visits_total_hours)) {
+                return round((float) $this->workTicket->visits_total_hours, 2);
+            }
+
+            return $this->workTicket->totalDurationHours();
+        }
+
+        return WorkTicket::find($this->work_ticket_id)?->totalDurationHours()
+            ?? round((float) ($this->duration_hours ?? 0), 2);
+    }
+
     public function ticketStatus(): string
     {
         if ($this->isRunning()) {

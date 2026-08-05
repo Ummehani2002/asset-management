@@ -56,6 +56,9 @@
                         @else
                             {{ \App\Models\TimeManagement::formatDuration($job->duration_hours) }}
                         @endif
+                        @if($job->work_ticket_id)
+                            <div class="small text-muted">Ticket {{ \App\Models\TimeManagement::formatDuration($job->ticketTotalHours()) }}</div>
+                        @endif
                     </td>
                     <td>
                         @if($job->isRunning())

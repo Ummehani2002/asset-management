@@ -80,8 +80,11 @@
                                 data-category="{{ $ticket->category }}"
                                 data-location="{{ $ticket->site_location }}"
                                 data-description="{{ $ticket->task_description }}"
+                                data-visits="{{ $ticket->visits_count }}"
+                                data-total-hours="{{ round((float) ($ticket->visits_total_hours ?? 0), 2) }}"
+                                data-total-label="{{ \App\Models\TimeManagement::formatDuration($ticket->visits_total_hours ?? 0) }}"
                                 {{ (string) old('work_ticket_id', $continueTicket?->id) === (string) $ticket->id ? 'selected' : '' }}>
-                            {{ $ticket->ticket_number }} — {{ $ticket->site_location }} ({{ $ticket->visits_count }} visit{{ $ticket->visits_count === 1 ? '' : 's' }})
+                            {{ $ticket->ticket_number }} — {{ $ticket->site_location }} ({{ $ticket->visits_count }} visit{{ $ticket->visits_count === 1 ? '' : 's' }}, {{ \App\Models\TimeManagement::formatDuration($ticket->visits_total_hours ?? 0) }} so far)
                         </option>
                     @endforeach
                 </select>
@@ -225,9 +228,10 @@ document.addEventListener('DOMContentLoaded', function () {
             ticketSummary.textContent = '';
             return;
         }
-        ticketSummary.textContent = option.dataset.ticket + ' · ' +
-            option.dataset.category + ' · ' + option.dataset.location + ' · ' +
-            option.dataset.description;
+        ticketSummary.innerHTML = '<strong>' + option.dataset.ticket + '</strong> · ' +
+            option.dataset.category + ' · ' + option.dataset.location +
+            '<br>Already logged on this ticket: <strong>' + (option.dataset.totalLabel || '0 hrs') +
+            '</strong> (' + (option.dataset.visits || '0') + ' visit(s)). New visit hours will add to this total.';
     }
 
     if (newRadio) newRadio.addEventListener('change', updateTicketMode);

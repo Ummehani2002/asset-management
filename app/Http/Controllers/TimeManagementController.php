@@ -32,7 +32,7 @@ class TimeManagementController extends Controller
             $isAdmin = $user->isTimeManagementAdmin();
 
             $query = TimeManagement::query()
-                ->with('workTicket')
+                ->with(['workTicket' => fn ($q) => $q->withSum('visits as visits_total_hours', 'duration_hours')])
                 ->orderByDesc('job_card_date')
                 ->orderByDesc('start_time');
 
@@ -77,7 +77,7 @@ class TimeManagementController extends Controller
             }
 
             if ($tasks->isNotEmpty()) {
-                $tasks = TimeManagement::with('workTicket')
+                $tasks = TimeManagement::with(['workTicket' => fn ($q) => $q->withSum('visits as visits_total_hours', 'duration_hours')])
                     ->whereIn('id', $tasks->pluck('id'))
                     ->orderByDesc('job_card_date')
                     ->orderByDesc('start_time')
@@ -364,12 +364,17 @@ class TimeManagementController extends Controller
             $workDate
         );
 
-        $message = $completeTicket
-            ? 'Visit stopped and ticket completed.'
-            : 'Visit stopped. Ticket remains open for another visit.';
+        $ticketTotal = $record->workTicket
+            ? $record->workTicket->fresh()->totalDurationHours()
+            : $duration;
+        $visitLabel = TimeManagement::formatDuration($duration);
+        $ticketLabel = TimeManagement::formatDuration($ticketTotal);
 
-        return $this->workLogRedirect($request, true)
-            ->with('success', $message.' Time worked: '.TimeManagement::formatDuration($duration).'.');
+        $message = $completeTicket
+            ? "Visit stopped ({$visitLabel}). Ticket completed — total time on ticket: {$ticketLabel}."
+            : "Visit stopped ({$visitLabel}). Ticket remains open — total time on ticket so far: {$ticketLabel}.";
+
+        return $this->workLogRedirect($request, true)->with('success', $message);
     }
 
     public function edit($id)

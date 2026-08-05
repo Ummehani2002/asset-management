@@ -117,7 +117,7 @@ class WorkLogAppController extends Controller
             $isAdmin = $user->isTimeManagementAdmin();
 
             $query = TimeManagement::query()
-                ->with('workTicket')
+                ->with(['workTicket' => fn ($q) => $q->withSum('visits as visits_total_hours', 'duration_hours')])
                 ->orderByDesc('job_card_date')
                 ->orderByDesc('start_time');
 
@@ -151,7 +151,7 @@ class WorkLogAppController extends Controller
             }
 
             if ($tasks->isNotEmpty()) {
-                $tasks = TimeManagement::with('workTicket')
+                $tasks = TimeManagement::with(['workTicket' => fn ($q) => $q->withSum('visits as visits_total_hours', 'duration_hours')])
                     ->whereIn('id', $tasks->pluck('id'))
                     ->orderByDesc('job_card_date')
                     ->orderByDesc('start_time')
@@ -239,6 +239,7 @@ class WorkLogAppController extends Controller
         }
 
         $todayJobs = TimeManagement::query()
+            ->with(['workTicket' => fn ($q) => $q->withSum('visits as visits_total_hours', 'duration_hours')])
             ->whereDate('job_card_date', today())
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id);

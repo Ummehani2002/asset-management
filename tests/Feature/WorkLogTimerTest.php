@@ -221,12 +221,14 @@ it('keeps a ticket open after stopping a visit and allows a continued visit', fu
     $firstVisit = TimeManagement::first();
     $ticket = $firstVisit->workTicket;
 
+    $this->travel(5)->hours();
     $this->actingAs($user)->post(route('time.stop', $firstVisit->id), [
         'complete_ticket' => 0,
     ]);
 
     expect($ticket->fresh()->status)->toBe('pending')
-        ->and($firstVisit->fresh()->status)->toBe('completed');
+        ->and($firstVisit->fresh()->status)->toBe('completed')
+        ->and((float) $firstVisit->fresh()->duration_hours)->toBeGreaterThan(0);
 
     $this->actingAs($user)->post(route('time.store'), [
         'log_type' => 'continue',
@@ -240,6 +242,16 @@ it('keeps a ticket open after stopping a visit and allows a continued visit', fu
         ->and($secondVisit->category)->toBe('Software')
         ->and($secondVisit->site_location)->toBe('Branch Office')
         ->and($secondVisit->isRunning())->toBeTrue();
+
+    $this->travel(2)->hours();
+    $this->actingAs($user)->post(route('time.stop', $secondVisit->id), [
+        'complete_ticket' => 0,
+    ]);
+
+    $ticket->refresh();
+    $sum = round((float) $ticket->visits()->sum('duration_hours'), 2);
+    expect($ticket->totalDurationHours())->toBe($sum)
+        ->and($sum)->toBeGreaterThan((float) $firstVisit->fresh()->duration_hours);
 });
 
 it('assigns overtime after more than eight completed hours in a day', function () {

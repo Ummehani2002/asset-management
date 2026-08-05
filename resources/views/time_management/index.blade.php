@@ -231,6 +231,9 @@
                                 @else
                                     {{ \App\Models\TimeManagement::formatDuration($task->duration_hours ?? 0) }}
                                 @endif
+                                @if($task->work_ticket_id)
+                                    <div class="small text-muted">Ticket total: {{ \App\Models\TimeManagement::formatDuration($task->ticketTotalHours()) }}</div>
+                                @endif
                             </td>
                             @if($isAdmin)
                             <td>

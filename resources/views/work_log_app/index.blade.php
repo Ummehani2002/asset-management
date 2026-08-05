@@ -157,6 +157,9 @@
                         @else
                             {{ \App\Models\TimeManagement::formatDuration($task->duration_hours) }}
                         @endif
+                        @if($task->work_ticket_id)
+                            <div class="small text-muted">Total {{ \App\Models\TimeManagement::formatDuration($task->ticketTotalHours()) }}</div>
+                        @endif
                     </td>
                     <td>
                         @if($isRunning)
