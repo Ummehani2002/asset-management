@@ -126,7 +126,7 @@ class WorkTicket extends Model
     }
 
     /**
-     * Ensure older pending work logs become open tickets that can be continued.
+     * Link orphan work logs (any status) to a shared work ticket by ticket number.
      */
     public static function syncFromPendingLogs(User $user): void
     {
@@ -134,14 +134,13 @@ class WorkTicket extends Model
             return;
         }
 
+        if (! Schema::hasColumn('time_managements', 'work_ticket_id')) {
+            return;
+        }
+
         $logs = TimeManagement::query()
             ->whereNotNull('ticket_number')
             ->where('ticket_number', '!=', '')
-            ->where(function ($q) {
-                $q->whereNull('status')
-                    ->orWhere('status', 'pending')
-                    ->orWhere('status', 'in_progress');
-            })
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id);
                 if ($user->employee_id) {
@@ -161,7 +160,6 @@ class WorkTicket extends Model
 
             $first = $group->first();
             $ticket = self::query()
-                ->where('status', 'pending')
                 ->whereRaw('LOWER(ticket_number) = ?', [$ticketNumber])
                 ->where(function ($q) use ($user) {
                     $q->where('user_id', $user->id);
@@ -169,9 +167,11 @@ class WorkTicket extends Model
                         $q->orWhere('employee_id', $user->employee_id);
                     }
                 })
+                ->orderByDesc('id')
                 ->first();
 
             if (! $ticket) {
+                $hasRunning = $group->contains(fn ($log) => $log->end_time === null);
                 $ticket = self::create([
                     'ticket_number' => $first->ticket_number,
                     'user_id' => $first->user_id ?? $user->id,
@@ -180,8 +180,11 @@ class WorkTicket extends Model
                     'category' => $first->category ?? TimeManagement::DEFAULT_CATEGORY,
                     'task_description' => $first->task_description ?? 'Work log',
                     'site_location' => $first->site_location ?? 'N/A',
+                    // Keep open so Continue Visit works unless every visit was fully closed intentionally.
                     'status' => 'pending',
+                    'completed_at' => null,
                 ]);
+                unset($hasRunning);
             }
 
             TimeManagement::whereIn('id', $group->pluck('id'))

@@ -72,11 +72,8 @@ class TimeManagement extends Model
             return round((float) ($this->duration_hours ?? 0), 2);
         }
 
+        // Always sum from DB so every visit row shows the full ticket total.
         if ($this->relationLoaded('workTicket') && $this->workTicket) {
-            if (isset($this->workTicket->visits_total_hours)) {
-                return round((float) $this->workTicket->visits_total_hours, 2);
-            }
-
             return $this->workTicket->totalDurationHours();
         }
 
@@ -184,7 +181,8 @@ class TimeManagement extends Model
             return 0;
         }
 
-        return round(abs($start->diffInMinutes($end)) / 60, 2);
+        // Use seconds so short visits (1–2 min) add up correctly on the ticket.
+        return round(abs($start->diffInSeconds($end)) / 3600, 4);
     }
 
     /**

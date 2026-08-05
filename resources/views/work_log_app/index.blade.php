@@ -153,15 +153,16 @@
                     <td>{{ $task->start_time?->format('H:i') ?? '-' }}</td>
                     <td>{{ $task->end_time?->format('H:i') ?? '—' }}</td>
                     <td>
+                        @php
+                            $ticketTotal = $task->ticketTotalHours();
+                            $visitCount = $task->workTicket?->visitCount() ?? 1;
+                        @endphp
                         @if($isRunning)
                             <span class="text-warning fw-semibold"
                                   data-elapsed-start="{{ $task->start_time?->toIso8601String() }}">…</span>
-                        @else
-                            {{ \App\Models\TimeManagement::formatDuration($task->duration_hours) }}
                         @endif
-                        @if($task->work_ticket_id)
-                            <div class="small text-muted">Total {{ \App\Models\TimeManagement::formatDuration($task->ticketTotalHours()) }}</div>
-                        @endif
+                        <strong>{{ \App\Models\TimeManagement::formatDuration($ticketTotal) }}</strong>
+                        <div class="small text-muted">{{ $visitCount }} visit{{ $visitCount === 1 ? '' : 's' }}</div>
                     </td>
                     <td>
                         @if($isRunning)

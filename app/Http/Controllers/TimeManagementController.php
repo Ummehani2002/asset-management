@@ -31,8 +31,22 @@ class TimeManagementController extends Controller
             $user = Auth::user();
             $isAdmin = $user->isTimeManagementAdmin();
 
+            // Link any orphan visits (e.g. created before work_tickets migration).
+            if ($isAdmin) {
+                $userIds = TimeManagement::query()
+                    ->when($request->filled('user_id'), fn ($q) => $q->where('user_id', $request->user_id))
+                    ->whereNotNull('user_id')
+                    ->distinct()
+                    ->pluck('user_id');
+                foreach (User::whereIn('id', $userIds)->get() as $teamUser) {
+                    WorkTicket::syncFromPendingLogs($teamUser);
+                }
+            } else {
+                WorkTicket::syncFromPendingLogs($user);
+            }
+
             $query = TimeManagement::query()
-                ->with(['workTicket' => fn ($q) => $q->withSum('visits as visits_total_hours', 'duration_hours')])
+                ->with('workTicket')
                 ->orderByDesc('job_card_date')
                 ->orderByDesc('start_time');
 
@@ -77,12 +91,20 @@ class TimeManagementController extends Controller
             }
 
             if ($tasks->isNotEmpty()) {
-                $tasks = TimeManagement::with(['workTicket' => fn ($q) => $q->withSum('visits as visits_total_hours', 'duration_hours')])
+                $tasks = TimeManagement::with('workTicket')
                     ->whereIn('id', $tasks->pluck('id'))
                     ->orderByDesc('job_card_date')
                     ->orderByDesc('start_time')
                     ->get();
             }
+
+            // One list row per ticket (latest visit), so totals are not duplicated.
+            $tasks = $tasks
+                ->groupBy(fn ($task) => $task->work_ticket_id ? 't'.$task->work_ticket_id : 'l'.$task->id)
+                ->map(function ($group) {
+                    return $group->sortByDesc(fn ($task) => $task->start_time?->timestamp ?? 0)->first();
+                })
+                ->values();
 
             $teamMembers = $isAdmin
                 ? User::orderBy('name')->get(['id', 'name'])
