@@ -191,9 +191,9 @@ class TimeManagementController extends Controller
         $dailySummaryTotals = TimeManagement::summarizeDailyTotals($dailySummaries);
 
         $visitsQuery = TimeManagement::query()
+            ->with(['user:id,name', 'workTicket:id,ticket_number,task_description,status'])
             ->whereDate('job_card_date', $summaryDate)
             ->whereNotNull('start_time')
-            ->whereNotNull('end_time')
             ->orderBy('employee_name')
             ->orderBy('start_time');
 
@@ -201,14 +201,79 @@ class TimeManagementController extends Controller
             $visitsQuery->where('user_id', $filterUserId);
         }
 
-        $visits = $visitsQuery->get();
+        $visits = $visitsQuery->get()->map(function (TimeManagement $visit) {
+            $employeeName = trim((string) ($visit->employee_name ?: $visit->user?->name ?: 'Unknown Employee'));
+            $ticketNumber = $visit->ticket_number
+                ?: $visit->workTicket?->ticket_number
+                ?: 'N/A';
+            $taskDescription = trim((string) (
+                $visit->task_description
+                ?: $visit->workTicket?->task_description
+                ?: 'No work description recorded'
+            ));
+            $isRunning = $visit->end_time === null;
+            $hours = $isRunning
+                ? round(max(0, now()->diffInMinutes($visit->start_time) / 60), 2)
+                : round((float) ($visit->duration_hours ?? 0), 2);
+
+            return [
+                'employee_name' => $employeeName,
+                'user_id' => $visit->user_id,
+                'ticket_number' => $ticketNumber,
+                'category' => $visit->category ?: TimeManagement::DEFAULT_CATEGORY,
+                'task_description' => $taskDescription,
+                'site_location' => $visit->site_location ?: '-',
+                'start_time' => $visit->start_time?->format('H:i') ?? '-',
+                'end_time' => $isRunning ? 'Running' : ($visit->end_time?->format('H:i') ?? '-'),
+                'hours' => $hours,
+                'overtime_hours' => round((float) ($visit->overtime_hours ?? 0), 2),
+                'action_taken' => $visit->action_taken ?: '-',
+                'status' => $isRunning
+                    ? 'Running'
+                    : ucfirst($visit->status === 'in_progress' ? 'pending' : ($visit->status ?? 'pending')),
+                'remarks' => $visit->remarks ?: '-',
+                'is_running' => $isRunning,
+            ];
+        });
+
+        // Prefer proper account names in employee summary when available.
+        $dailySummaries = collect($dailySummaries)->map(function (array $summary) use ($teamMembers) {
+            if (! empty($summary['user_id'])) {
+                $member = $teamMembers->firstWhere('id', $summary['user_id']);
+                if ($member) {
+                    $summary['employee_name'] = $member->name;
+                }
+            }
+
+            return $summary;
+        })->values()->all();
+
+        $groupedByEmployee = $visits
+            ->groupBy('employee_name')
+            ->map(function ($employeeVisits, $employeeName) use ($dailySummaries) {
+                $summary = collect($dailySummaries)->first(function ($row) use ($employeeName, $employeeVisits) {
+                    return ($row['employee_name'] ?? '') === $employeeName
+                        || ((int) ($row['user_id'] ?? 0) > 0 && (int) ($row['user_id'] ?? 0) === (int) ($employeeVisits->first()['user_id'] ?? 0));
+                });
+
+                return [
+                    'employee_name' => $employeeName,
+                    'total_hours' => round((float) ($summary['total_hours'] ?? $employeeVisits->sum('hours')), 2),
+                    'overtime_hours' => round((float) ($summary['overtime_hours'] ?? $employeeVisits->sum('overtime_hours')), 2),
+                    'visit_count' => $employeeVisits->count(),
+                    'visits' => $employeeVisits->values()->all(),
+                ];
+            })
+            ->sortKeys()
+            ->values();
+
         $format = $request->get('format', 'pdf');
 
         if ($format === 'excel' || $format === 'csv') {
-            return $this->exportDailyExcel($summaryDate, $dailySummaries, $dailySummaryTotals, $visits);
+            return $this->exportDailyExcel($summaryDate, $dailySummaries, $dailySummaryTotals, $groupedByEmployee);
         }
 
-        return $this->exportDailyPdf($summaryDate, $dailySummaries, $dailySummaryTotals, $visits);
+        return $this->exportDailyPdf($summaryDate, $dailySummaries, $dailySummaryTotals, $groupedByEmployee);
     }
 
     private function exportPdf($tasks, $status)
@@ -261,53 +326,48 @@ class TimeManagementController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    private function exportDailyPdf(string $summaryDate, array $dailySummaries, array $dailySummaryTotals, $visits)
+    private function exportDailyPdf(string $summaryDate, array $dailySummaries, array $dailySummaryTotals, $groupedByEmployee)
     {
         $pdf = \PDF::loadView('time_management.export-daily-pdf', compact(
             'summaryDate',
             'dailySummaries',
             'dailySummaryTotals',
-            'visits'
-        ))->setPaper('a4', 'landscape');
+            'groupedByEmployee'
+        ))->setPaper('a4', 'portrait');
 
         return $pdf->download('daily-work-report-' . $summaryDate . '.pdf');
     }
 
-    private function exportDailyExcel(string $summaryDate, array $dailySummaries, array $dailySummaryTotals, $visits)
+    private function exportDailyExcel(string $summaryDate, array $dailySummaries, array $dailySummaryTotals, $groupedByEmployee)
     {
         $filename = 'daily-work-report-' . $summaryDate . '.csv';
         $headers = [
-            'Content-Type' => 'text/csv',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function () use ($summaryDate, $dailySummaries, $dailySummaryTotals, $visits) {
+        $callback = function () use ($summaryDate, $dailySummaries, $dailySummaryTotals, $groupedByEmployee) {
             $file = fopen('php://output', 'w');
+            // Excel UTF-8 BOM so Arabic/special names open correctly.
+            fwrite($file, "\xEF\xBB\xBF");
 
             fputcsv($file, ['Daily Work Report']);
-            fputcsv($file, ['Date', $summaryDate]);
-            fputcsv($file, ['Generated', now()->format('Y-m-d H:i:s')]);
-            fputcsv($file, [
-                'Employees Worked',
-                $dailySummaryTotals['active_count'] ?? 0,
-                'Team Hours',
-                $dailySummaryTotals['total_hours'] ?? 0,
-                'Overtime Hours',
-                $dailySummaryTotals['overtime_hours'] ?? 0,
-            ]);
+            fputcsv($file, ['Work Date', Carbon::parse($summaryDate)->format('l, F j, Y')]);
+            fputcsv($file, ['Generated At', now()->format('Y-m-d H:i:s')]);
+            fputcsv($file, []);
+            fputcsv($file, ['Employees Worked', $dailySummaryTotals['active_count'] ?? 0]);
+            fputcsv($file, ['Team Hours', $dailySummaryTotals['total_hours'] ?? 0]);
+            fputcsv($file, ['Overtime Hours', $dailySummaryTotals['overtime_hours'] ?? 0]);
             fputcsv($file, []);
 
-            fputcsv($file, ['EMPLOYEE SUMMARY']);
-            fputcsv($file, ['#', 'Employee', 'Visits', 'Total Hours', 'Overtime Hours']);
-            $row = 0;
+            fputcsv($file, ['WHO WORKED TODAY']);
+            fputcsv($file, ['Employee Name', 'Visits', 'Total Hours', 'Overtime Hours']);
             foreach ($dailySummaries as $summary) {
                 if (($summary['total_hours'] ?? 0) <= 0) {
                     continue;
                 }
-                $row++;
                 fputcsv($file, [
-                    $row,
-                    $summary['employee_name'] ?? 'N/A',
+                    $summary['employee_name'] ?? 'Unknown Employee',
                     $summary['job_count'] ?? 0,
                     $summary['total_hours'] ?? 0,
                     $summary['overtime_hours'] ?? 0,
@@ -315,28 +375,45 @@ class TimeManagementController extends Controller
             }
 
             fputcsv($file, []);
-            fputcsv($file, ['DETAILED WORK LOG']);
+            fputcsv($file, ['FULL WORK DETAILS BY EMPLOYEE']);
             fputcsv($file, [
-                '#', 'Employee', 'Ticket', 'Category', 'Task Description', 'Site/Location',
-                'Start Time', 'End Time', 'Hours', 'Overtime', 'Action/Resolution', 'Status', 'Remarks',
+                'Employee Name',
+                'Ticket Number',
+                'Category',
+                'Work Details',
+                'Site / Location',
+                'Start Time',
+                'End Time',
+                'Hours Worked',
+                'Overtime Hours',
+                'Action / Resolution',
+                'Status',
+                'Remarks',
             ]);
 
-            foreach ($visits as $index => $visit) {
-                fputcsv($file, [
-                    $index + 1,
-                    $visit->employee_name ?? 'N/A',
-                    $visit->ticket_number ?? 'N/A',
-                    $visit->category ?? 'N/A',
-                    $visit->task_description ?? 'N/A',
-                    $visit->site_location ?? 'N/A',
-                    $visit->start_time ? $visit->start_time->format('Y-m-d H:i') : 'N/A',
-                    $visit->end_time ? $visit->end_time->format('Y-m-d H:i') : 'N/A',
-                    $visit->duration_hours ?? 0,
-                    $visit->overtime_hours ?? 0,
-                    $visit->action_taken ?? 'N/A',
-                    ucfirst($visit->status ?? 'N/A'),
-                    $visit->remarks ?? 'N/A',
-                ]);
+            if ($groupedByEmployee->isEmpty()) {
+                fputcsv($file, ['No work logs found for this date.']);
+            } else {
+                foreach ($groupedByEmployee as $employeeGroup) {
+                    foreach ($employeeGroup['visits'] as $visit) {
+                        fputcsv($file, [
+                            $visit['employee_name'],
+                            $visit['ticket_number'],
+                            $visit['category'],
+                            $visit['task_description'],
+                            $visit['site_location'],
+                            $visit['start_time'],
+                            $visit['end_time'],
+                            $visit['hours'],
+                            $visit['overtime_hours'],
+                            $visit['action_taken'],
+                            $visit['status'],
+                            $visit['remarks'],
+                        ]);
+                    }
+                    // Blank separator between employees for readability.
+                    fputcsv($file, []);
+                }
             }
 
             fclose($file);
