@@ -168,6 +168,49 @@ class TimeManagementController extends Controller
         return $this->exportPdf($tasks, $status);
     }
 
+    /**
+     * Admin end-of-day report: who worked, how long, and on what (PDF or Excel/CSV).
+     */
+    public function exportDaily(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user->isTimeManagementAdmin()) {
+            abort(403, 'Only Time Management admins can download the daily report.');
+        }
+
+        $summaryDate = $request->input('summary_date', today()->format('Y-m-d'));
+        try {
+            $summaryDate = Carbon::parse($summaryDate)->format('Y-m-d');
+        } catch (\Exception $e) {
+            $summaryDate = today()->format('Y-m-d');
+        }
+
+        $filterUserId = $request->filled('user_id') ? (int) $request->user_id : null;
+        $teamMembers = User::orderBy('name')->get(['id', 'name']);
+        $dailySummaries = TimeManagement::getAdminDailySummaries($summaryDate, $filterUserId, $teamMembers);
+        $dailySummaryTotals = TimeManagement::summarizeDailyTotals($dailySummaries);
+
+        $visitsQuery = TimeManagement::query()
+            ->whereDate('job_card_date', $summaryDate)
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time')
+            ->orderBy('employee_name')
+            ->orderBy('start_time');
+
+        if ($filterUserId) {
+            $visitsQuery->where('user_id', $filterUserId);
+        }
+
+        $visits = $visitsQuery->get();
+        $format = $request->get('format', 'pdf');
+
+        if ($format === 'excel' || $format === 'csv') {
+            return $this->exportDailyExcel($summaryDate, $dailySummaries, $dailySummaryTotals, $visits);
+        }
+
+        return $this->exportDailyPdf($summaryDate, $dailySummaries, $dailySummaryTotals, $visits);
+    }
+
     private function exportPdf($tasks, $status)
     {
         $pdf = \PDF::loadView('time_management.export-pdf', compact('tasks', 'status'))
@@ -209,6 +252,90 @@ class TimeManagementController extends Controller
                     $task->action_taken ?? 'N/A',
                     ucfirst($task->status ?? 'N/A'),
                     $task->remarks ?? 'N/A',
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    private function exportDailyPdf(string $summaryDate, array $dailySummaries, array $dailySummaryTotals, $visits)
+    {
+        $pdf = \PDF::loadView('time_management.export-daily-pdf', compact(
+            'summaryDate',
+            'dailySummaries',
+            'dailySummaryTotals',
+            'visits'
+        ))->setPaper('a4', 'landscape');
+
+        return $pdf->download('daily-work-report-' . $summaryDate . '.pdf');
+    }
+
+    private function exportDailyExcel(string $summaryDate, array $dailySummaries, array $dailySummaryTotals, $visits)
+    {
+        $filename = 'daily-work-report-' . $summaryDate . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($summaryDate, $dailySummaries, $dailySummaryTotals, $visits) {
+            $file = fopen('php://output', 'w');
+
+            fputcsv($file, ['Daily Work Report']);
+            fputcsv($file, ['Date', $summaryDate]);
+            fputcsv($file, ['Generated', now()->format('Y-m-d H:i:s')]);
+            fputcsv($file, [
+                'Employees Worked',
+                $dailySummaryTotals['active_count'] ?? 0,
+                'Team Hours',
+                $dailySummaryTotals['total_hours'] ?? 0,
+                'Overtime Hours',
+                $dailySummaryTotals['overtime_hours'] ?? 0,
+            ]);
+            fputcsv($file, []);
+
+            fputcsv($file, ['EMPLOYEE SUMMARY']);
+            fputcsv($file, ['#', 'Employee', 'Visits', 'Total Hours', 'Overtime Hours']);
+            $row = 0;
+            foreach ($dailySummaries as $summary) {
+                if (($summary['total_hours'] ?? 0) <= 0) {
+                    continue;
+                }
+                $row++;
+                fputcsv($file, [
+                    $row,
+                    $summary['employee_name'] ?? 'N/A',
+                    $summary['job_count'] ?? 0,
+                    $summary['total_hours'] ?? 0,
+                    $summary['overtime_hours'] ?? 0,
+                ]);
+            }
+
+            fputcsv($file, []);
+            fputcsv($file, ['DETAILED WORK LOG']);
+            fputcsv($file, [
+                '#', 'Employee', 'Ticket', 'Category', 'Task Description', 'Site/Location',
+                'Start Time', 'End Time', 'Hours', 'Overtime', 'Action/Resolution', 'Status', 'Remarks',
+            ]);
+
+            foreach ($visits as $index => $visit) {
+                fputcsv($file, [
+                    $index + 1,
+                    $visit->employee_name ?? 'N/A',
+                    $visit->ticket_number ?? 'N/A',
+                    $visit->category ?? 'N/A',
+                    $visit->task_description ?? 'N/A',
+                    $visit->site_location ?? 'N/A',
+                    $visit->start_time ? $visit->start_time->format('Y-m-d H:i') : 'N/A',
+                    $visit->end_time ? $visit->end_time->format('Y-m-d H:i') : 'N/A',
+                    $visit->duration_hours ?? 0,
+                    $visit->overtime_hours ?? 0,
+                    $visit->action_taken ?? 'N/A',
+                    ucfirst($visit->status ?? 'N/A'),
+                    $visit->remarks ?? 'N/A',
                 ]);
             }
 

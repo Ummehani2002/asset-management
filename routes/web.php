@@ -301,6 +301,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/time-management', [TimeManagementController::class, 'index'])->name('time.index');
     Route::get('/time-management/export', [TimeManagementController::class, 'export'])->name('time.export');
+    Route::get('/time-management/export-daily', [TimeManagementController::class, 'exportDaily'])->name('time.export.daily');
     Route::get('/time-management/create', [TimeManagementController::class, 'create'])->name('time.create');
     Route::get('/time-management/ticket/{id}', [TimeManagementController::class, 'showTicket'])->name('time.ticket.show');
     Route::post('/time-management/store', [TimeManagementController::class, 'store'])->name('time.store');

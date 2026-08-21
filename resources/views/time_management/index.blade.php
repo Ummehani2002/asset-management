@@ -40,14 +40,33 @@
             <h5 style="color: white; margin: 0;">
                 <i class="bi bi-bar-chart-fill me-2"></i>Employee Work Hours — {{ \Carbon\Carbon::parse($summaryDate ?? today())->format('D, M j, Y') }}
             </h5>
-            <form method="GET" action="{{ route('time.index') }}" class="d-flex align-items-center gap-2 mb-0">
-                @foreach(request()->except('summary_date') as $key => $value)
-                    @if(is_scalar($value) && $value !== '')
-                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
-                    @endif
-                @endforeach
-                <input type="date" name="summary_date" class="form-control form-control-sm" value="{{ $summaryDate ?? today()->format('Y-m-d') }}" onchange="this.form.submit()">
-            </form>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <form method="GET" action="{{ route('time.index') }}" class="d-flex align-items-center gap-2 mb-0">
+                    @foreach(request()->except('summary_date') as $key => $value)
+                        @if(is_scalar($value) && $value !== '')
+                            <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                        @endif
+                    @endforeach
+                    <input type="date" name="summary_date" class="form-control form-control-sm" value="{{ $summaryDate ?? today()->format('Y-m-d') }}" onchange="this.form.submit()">
+                </form>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-download"></i> Download Daily Report
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'user_id' => request('user_id'), 'format' => 'pdf'])) }}">
+                                <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'user_id' => request('user_id'), 'format' => 'csv'])) }}">
+                                <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (CSV)
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
         <div class="card-body">
             @php

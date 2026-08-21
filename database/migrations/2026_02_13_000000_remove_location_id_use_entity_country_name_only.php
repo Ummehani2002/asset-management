@@ -39,6 +39,17 @@ return new class extends Migration
 
         // 2. Drop location_id column from locations table (unique index is dropped with column)
         if (Schema::hasTable('locations') && Schema::hasColumn('locations', 'location_id')) {
+            // SQLite can fail dropping a column when a stale unique index still references it.
+            if (DB::getDriverName() === 'sqlite') {
+                try {
+                    Schema::table('locations', function (Blueprint $table) {
+                        $table->dropUnique('locations_location_id_unique');
+                    });
+                } catch (\Throwable $e) {
+                    // Ignore if index does not exist in this environment.
+                }
+            }
+
             Schema::table('locations', function (Blueprint $table) {
                 $table->dropColumn('location_id');
             });
