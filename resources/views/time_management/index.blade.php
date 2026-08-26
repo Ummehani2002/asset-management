@@ -208,15 +208,6 @@
                         <i class="bi bi-funnel me-1"></i> Filter
                     </button>
                     <a href="{{ route('time.index', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'daily_user_id' => $dailyUserId ?? null])) }}" class="btn btn-secondary">Clear</a>
-                    <div class="dropdown d-inline-block ms-2">
-                        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-download"></i> Export List
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ route('time.export', array_merge(request()->query(), ['format' => 'pdf'])) }}">PDF</a></li>
-                            <li><a class="dropdown-item" href="{{ route('time.export', array_merge(request()->query(), ['format' => 'csv'])) }}">CSV</a></li>
-                        </ul>
-                    </div>
                 </div>
             </form>
         </div>
