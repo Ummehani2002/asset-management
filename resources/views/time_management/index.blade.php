@@ -36,39 +36,64 @@
 
     @if($isAdmin)
     <div class="master-table-card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="card-header">
             <h5 style="color: white; margin: 0;">
-                <i class="bi bi-bar-chart-fill me-2"></i>Employee Work Hours — {{ \Carbon\Carbon::parse($summaryDate ?? today())->format('D, M j, Y') }}
+                <i class="bi bi-file-earmark-bar-graph me-2"></i>Daily Report — End of Day
             </h5>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <form method="GET" action="{{ route('time.index') }}" class="d-flex align-items-center gap-2 mb-0">
-                    @foreach(request()->except('summary_date') as $key => $value)
-                        @if(is_scalar($value) && $value !== '')
-                            <input type="hidden" name="{{ $key }}" value="{{ $value }}">
-                        @endif
-                    @endforeach
-                    <input type="date" name="summary_date" class="form-control form-control-sm" value="{{ $summaryDate ?? today()->format('Y-m-d') }}" onchange="this.form.submit()">
-                </form>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-download"></i> Download Daily Report
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'user_id' => request('user_id'), 'format' => 'pdf'])) }}">
-                                <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'user_id' => request('user_id'), 'format' => 'csv'])) }}">
-                                <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (CSV)
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
         </div>
         <div class="card-body">
+            <p class="text-muted small mb-3">
+                Download who worked, on which ticket, and what was done. Includes <strong>completed</strong> work only for the selected date.
+            </p>
+            <form method="GET" action="{{ route('time.index') }}" class="row g-3 align-items-end mb-4">
+                @foreach(request()->except(['summary_date', 'daily_user_id']) as $key => $value)
+                    @if(is_scalar($value) && $value !== '')
+                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                    @endif
+                @endforeach
+                <div class="col-md-3">
+                    <label class="form-label">Report Date</label>
+                    <input type="date" name="summary_date" class="form-control" value="{{ $summaryDate ?? today()->format('Y-m-d') }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Employee</label>
+                    <select name="daily_user_id" class="form-control">
+                        <option value="">All Employees</option>
+                        @foreach($teamMembers as $member)
+                            <option value="{{ $member->id }}" {{ ($dailyUserId ?? null) == $member->id ? 'selected' : '' }}>
+                                {{ $member->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-search me-1"></i> View Summary
+                    </button>
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-download me-1"></i> Download Report
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'daily_user_id' => $dailyUserId ?? null, 'format' => 'pdf'])) }}">
+                                    <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'daily_user_id' => $dailyUserId ?? null, 'format' => 'csv'])) }}">
+                                    <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (CSV)
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </form>
+
+            <h6 class="mb-3">
+                <i class="bi bi-bar-chart-fill me-2"></i>
+                Summary for {{ \Carbon\Carbon::parse($summaryDate ?? today())->format('l, M j, Y') }}
+            </h6>
             @php
                 $activeDailySummaries = collect($dailySummaries ?? [])
                     ->filter(fn ($summary) => ($summary['total_hours'] ?? 0) > 0)
@@ -133,7 +158,7 @@
                     </div>
                 </div>
             @empty
-                <div class="text-center text-muted py-4">No completed work hours logged for this date.</div>
+                <div class="text-center text-muted py-4">No completed work logged for this date. Use <strong>Stop &amp; Complete</strong> on tickets to include them in the daily report.</div>
             @endforelse
 
             <div class="d-flex gap-3 small text-muted border-top pt-3 mt-3">
@@ -146,11 +171,19 @@
     @endif
 
     <div class="master-table-card mb-4">
+        <div class="card-header">
+            <h5 style="color: white; margin: 0;">
+                <i class="bi bi-funnel me-2"></i>Filter Work Logs
+            </h5>
+        </div>
         <div class="card-body">
             <form method="GET" action="{{ route('time.index') }}" class="row g-3 align-items-end">
                 @if($isAdmin)
                 <input type="hidden" name="summary_date" value="{{ $summaryDate ?? today()->format('Y-m-d') }}">
-                <div class="col-md-3">
+                @if(!empty($dailyUserId))
+                <input type="hidden" name="daily_user_id" value="{{ $dailyUserId }}">
+                @endif
+                <div class="col-md-4">
                     <label class="form-label">Team Member</label>
                     <select name="user_id" class="form-control">
                         <option value="">All Members</option>
@@ -162,7 +195,7 @@
                     </select>
                 </div>
                 @endif
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label">Status</label>
                     <select name="status" class="form-control">
                         <option value="">All</option>
@@ -170,20 +203,14 @@
                         <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">From Date</label>
-                    <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">To Date</label>
-                    <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
-                </div>
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-primary me-2">Filter</button>
-                    <a href="{{ route('time.index') }}" class="btn btn-secondary">Clear</a>
+                <div class="col-md-5">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-funnel me-1"></i> Filter
+                    </button>
+                    <a href="{{ route('time.index', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'daily_user_id' => $dailyUserId ?? null])) }}" class="btn btn-secondary">Clear</a>
                     <div class="dropdown d-inline-block ms-2">
                         <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-download"></i> Export
+                            <i class="bi bi-download"></i> Export List
                         </button>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ route('time.export', array_merge(request()->query(), ['format' => 'pdf'])) }}">PDF</a></li>

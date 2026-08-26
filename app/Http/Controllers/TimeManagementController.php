@@ -111,10 +111,11 @@ class TimeManagementController extends Controller
                 : collect();
 
             $summaryDate = $request->input('summary_date', today()->format('Y-m-d'));
+            $dailyUserId = $request->filled('daily_user_id') ? (int) $request->daily_user_id : null;
             $dailySummaries = $isAdmin
                 ? TimeManagement::getAdminDailySummaries(
                     $summaryDate,
-                    $request->filled('user_id') ? (int) $request->user_id : null,
+                    $dailyUserId,
                     $teamMembers
                 )
                 : [];
@@ -122,7 +123,7 @@ class TimeManagementController extends Controller
                 ? TimeManagement::summarizeDailyTotals($dailySummaries)
                 : ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0];
 
-            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers', 'dailySummaries', 'summaryDate', 'dailySummaryTotals'));
+            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers', 'dailySummaries', 'summaryDate', 'dailySummaryTotals', 'dailyUserId'));
         } catch (\Exception $e) {
             Log::error('TimeManagement index error: ' . $e->getMessage());
 
@@ -185,20 +186,20 @@ class TimeManagementController extends Controller
             $summaryDate = today()->format('Y-m-d');
         }
 
-        $filterUserId = $request->filled('user_id') ? (int) $request->user_id : null;
+        $dailyUserId = $request->filled('daily_user_id') ? (int) $request->daily_user_id : null;
         $teamMembers = User::orderBy('name')->get(['id', 'name']);
-        $dailySummaries = TimeManagement::getAdminDailySummaries($summaryDate, $filterUserId, $teamMembers);
+        $dailySummaries = TimeManagement::getAdminDailySummaries($summaryDate, $dailyUserId, $teamMembers);
         $dailySummaryTotals = TimeManagement::summarizeDailyTotals($dailySummaries);
 
         $visitsQuery = TimeManagement::query()
             ->with(['user:id,name', 'workTicket:id,ticket_number,task_description,status'])
             ->whereDate('job_card_date', $summaryDate)
-            ->whereNotNull('start_time')
+            ->reportableCompleted()
             ->orderBy('employee_name')
             ->orderBy('start_time');
 
-        if ($filterUserId) {
-            $visitsQuery->where('user_id', $filterUserId);
+        if ($dailyUserId) {
+            $visitsQuery->where('user_id', $dailyUserId);
         }
 
         $visits = $visitsQuery->get()->map(function (TimeManagement $visit) {
@@ -354,6 +355,7 @@ class TimeManagementController extends Controller
             fputcsv($file, ['Daily Work Report']);
             fputcsv($file, ['Work Date', Carbon::parse($summaryDate)->format('l, F j, Y')]);
             fputcsv($file, ['Generated At', now()->format('Y-m-d H:i:s')]);
+            fputcsv($file, ['Status Filter', 'Completed only']);
             fputcsv($file, []);
             fputcsv($file, ['Employees Worked', $dailySummaryTotals['active_count'] ?? 0]);
             fputcsv($file, ['Team Hours', $dailySummaryTotals['total_hours'] ?? 0]);

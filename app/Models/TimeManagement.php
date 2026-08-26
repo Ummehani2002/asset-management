@@ -133,6 +133,23 @@ class TimeManagement extends Model
         return $this->end_time === null && ! empty($this->start_time);
     }
 
+    /**
+     * Completed visits only — stopped visits with ticket or visit marked completed.
+     */
+    public function scopeReportableCompleted($query)
+    {
+        return $query
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time')
+            ->where(function ($q) {
+                $q->whereHas('workTicket', fn ($ticketQuery) => $ticketQuery->where('status', 'completed'))
+                    ->orWhere(function ($q2) {
+                        $q2->whereNull('work_ticket_id')
+                            ->where('status', 'completed');
+                    });
+            });
+    }
+
     public function elapsedHours(?Carbon $until = null): float
     {
         if (! $this->start_time) {
@@ -251,9 +268,7 @@ class TimeManagement extends Model
      */
     public static function getAdminDailySummaries(string $date, ?int $filterUserId = null, ?iterable $teamMembers = null): array
     {
-        $dayQuery = self::whereDate('job_card_date', $date)
-            ->whereNotNull('start_time')
-            ->whereNotNull('end_time');
+        $dayQuery = self::whereDate('job_card_date', $date)->reportableCompleted();
 
         if ($filterUserId) {
             $dayQuery->where('user_id', $filterUserId);
@@ -263,9 +278,7 @@ class TimeManagement extends Model
             self::recalculateDailyOvertime($entry->employee_id, $entry->user_id, $date);
         }
 
-        $query = self::whereDate('job_card_date', $date)
-            ->whereNotNull('start_time')
-            ->whereNotNull('end_time');
+        $query = self::whereDate('job_card_date', $date)->reportableCompleted();
 
         if ($filterUserId) {
             $query->where('user_id', $filterUserId);

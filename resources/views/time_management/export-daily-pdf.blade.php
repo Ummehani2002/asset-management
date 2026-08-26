@@ -32,6 +32,7 @@
     <div class="meta">
         <p><strong>Work Date:</strong> {{ \Carbon\Carbon::parse($summaryDate)->format('l, F j, Y') }}</p>
         <p><strong>Generated:</strong> {{ now()->format('Y-m-d H:i:s') }}</p>
+        <p><strong>Status:</strong> Completed work only</p>
     </div>
 
     <table class="totals">
