@@ -118,7 +118,7 @@ class EmployeeController extends Controller
             }
 
             $data = $request->validate([
-                'employee_id'    => 'required|unique:employees,employee_id|max:20',
+                'employee_id'    => 'nullable|string|max:20|unique:employees,employee_id',
                 'name'           => 'nullable|string|max:100',
                 'email'          => 'nullable|email|max:100',
                 'phone'          => 'nullable|string|max:20',
@@ -129,6 +129,7 @@ class EmployeeController extends Controller
 
             // Keep compatibility with non-null DB column while allowing optional input.
             $data['department_name'] = trim($data['department_name'] ?? '') ?: 'N/A';
+            $data['employee_id'] = trim($data['employee_id'] ?? '') ?: null;
 
             Log::info('Creating employee with data:', $data);
             

@@ -32,8 +32,8 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Employee ID <span class="text-danger">*</span></label>
-                    <input type="text" name="employee_id" value="{{ old('employee_id') }}" class="form-control" autocomplete="off" required>
+                    <label class="form-label">Employee ID</label>
+                    <input type="text" name="employee_id" value="{{ old('employee_id') }}" class="form-control" autocomplete="off" placeholder="Optional">
                 </div>
 
                 <div class="col-md-6 mb-3">
