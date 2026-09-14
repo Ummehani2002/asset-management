@@ -84,23 +84,23 @@ public function featureValues()
 }
 
     /**
-     * Planned asset life from purchase date through expiry date.
+     * Age of the asset from purchase date to today.
      */
     public function agingLabel(): string
     {
-        if (empty($this->purchase_date) || empty($this->expiry_date)) {
+        if (empty($this->purchase_date)) {
             return 'N/A';
         }
 
         try {
             $purchaseDate = Carbon::parse($this->purchase_date)->startOfDay();
-            $expiryDate = Carbon::parse($this->expiry_date)->startOfDay();
+            $today = now()->startOfDay();
 
-            if ($expiryDate->lessThan($purchaseDate)) {
-                return 'Invalid date range';
+            if ($today->lessThan($purchaseDate)) {
+                return '0 years';
             }
 
-            $months = (int) floor($purchaseDate->diffInMonths($expiryDate));
+            $months = (int) floor($purchaseDate->diffInMonths($today));
             $years = intdiv($months, 12);
             $remainingMonths = $months % 12;
 
