@@ -129,6 +129,7 @@ Route::middleware(['auth'])->group(function () {
 
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetStockController;
 // Employee and Asset API endpoints - All authenticated users
 Route::middleware(['auth'])->group(function () {
     Route::get('/employees/autocomplete', [EmployeeController::class, 'autocomplete'])->name('employees.autocomplete');
@@ -143,6 +144,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/assets/import', [AssetController::class, 'import'])->name('assets.import');
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
     Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
+    Route::get('/asset-stock', [AssetStockController::class, 'index'])->name('asset-stock.index');
+    Route::post('/asset-stock', [AssetStockController::class, 'store'])->name('asset-stock.store');
     Route::post('/assets/{asset}/scrap', [AssetController::class, 'scrap'])->name('assets.scrap');
     Route::get('/assets/{asset}/edit', [AssetController::class, 'edit'])->name('assets.edit');
     Route::put('/assets/{asset}', [AssetController::class, 'update'])->name('assets.update');
