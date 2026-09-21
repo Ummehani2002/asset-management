@@ -13,7 +13,9 @@ class AssetStockController extends Controller
 {
     public function index()
     {
-        abort_unless(Auth::user()?->isAdmin(), 403);
+        if (! Auth::check()) {
+            abort(403);
+        }
 
         if (! Schema::hasTable('asset_categories')) {
             return view('asset_stock.index', [
@@ -73,7 +75,9 @@ class AssetStockController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless(Auth::user()?->isAdmin(), 403);
+        if (! Auth::check()) {
+            abort(403);
+        }
 
         $data = $request->validate([
             'asset_category_id' => 'required|exists:asset_categories,id',

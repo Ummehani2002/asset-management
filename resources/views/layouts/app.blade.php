@@ -1004,11 +1004,9 @@
     <a href="{{ route('assets.create') }}">
         <i class="bi bi-pc-display"></i> Asset Master
     </a>
-    @if(auth()->user()?->isAdmin())
     <a href="{{ route('asset-stock.index') }}" class="{{ request()->routeIs('asset-stock.*') ? 'active' : '' }}">
         <i class="bi bi-boxes"></i> Asset Stock
     </a>
-    @endif
     <a href="{{ route('assets.filter') }}">
         <i class="bi bi-funnel"></i> Filter Assets by Category
     </a>
