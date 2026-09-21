@@ -78,6 +78,15 @@ class TimeManagementController extends Controller
                 $query->whereDate('job_card_date', '<=', $request->to_date);
             }
 
+            $summaryDate = $request->input('summary_date', today()->format('Y-m-d'));
+            try {
+                $summaryDate = Carbon::parse($summaryDate)->format('Y-m-d');
+            } catch (\Exception $e) {
+                $summaryDate = today()->format('Y-m-d');
+            }
+
+            $query->whereDate('job_card_date', $summaryDate);
+
             $tasks = $query->get();
 
             foreach ($tasks->unique(fn ($task) => ($task->user_id ?? 0) . '|' . $task->job_card_date?->format('Y-m-d')) as $task) {
@@ -110,20 +119,24 @@ class TimeManagementController extends Controller
                 ? User::orderBy('name')->get(['id', 'name'])
                 : collect();
 
-            $summaryDate = $request->input('summary_date', today()->format('Y-m-d'));
-            $dailyUserId = $request->filled('daily_user_id') ? (int) $request->daily_user_id : null;
-            $dailySummaries = $isAdmin
-                ? TimeManagement::getAdminDailySummaries(
-                    $summaryDate,
-                    $dailyUserId,
-                    $teamMembers
-                )
+            $filterUserId = $request->filled('user_id') ? (int) $request->user_id : null;
+            $todayDate = today()->format('Y-m-d');
+            $todaySummaries = $isAdmin
+                ? TimeManagement::getAdminDailySummaries($todayDate, null, $teamMembers)
                 : [];
-            $dailySummaryTotals = $isAdmin
-                ? TimeManagement::summarizeDailyTotals($dailySummaries)
+            $todayTotals = $isAdmin
+                ? TimeManagement::summarizeDailyTotals($todaySummaries)
                 : ['total_hours' => 0, 'overtime_hours' => 0, 'employee_count' => 0, 'active_count' => 0];
 
-            return view('time_management.index', compact('tasks', 'isAdmin', 'teamMembers', 'dailySummaries', 'summaryDate', 'dailySummaryTotals', 'dailyUserId'));
+            return view('time_management.index', compact(
+                'tasks',
+                'isAdmin',
+                'teamMembers',
+                'summaryDate',
+                'filterUserId',
+                'todaySummaries',
+                'todayTotals'
+            ));
         } catch (\Exception $e) {
             Log::error('TimeManagement index error: ' . $e->getMessage());
 
@@ -186,24 +199,35 @@ class TimeManagementController extends Controller
             $summaryDate = today()->format('Y-m-d');
         }
 
-        $dailyUserId = $request->filled('daily_user_id') ? (int) $request->daily_user_id : null;
+        $filterUserId = $request->filled('user_id')
+            ? (int) $request->user_id
+            : ($request->filled('daily_user_id') ? (int) $request->daily_user_id : null);
+        $statusFilter = in_array($request->status, ['pending', 'completed'], true) ? $request->status : null;
         $teamMembers = User::orderBy('name')->get(['id', 'name']);
-        $dailySummaries = TimeManagement::getAdminDailySummaries($summaryDate, $dailyUserId, $teamMembers);
-        $dailySummaryTotals = TimeManagement::summarizeDailyTotals($dailySummaries);
 
         $visitsQuery = TimeManagement::query()
             ->with(['user:id,name', 'workTicket:id,ticket_number,task_description,status'])
             ->whereDate('job_card_date', $summaryDate)
-            ->reportableCompleted()
+            ->whereNotNull('start_time')
             ->orderBy('employee_name')
             ->orderBy('start_time');
 
-        if ($dailyUserId) {
-            $visitsQuery->where('user_id', $dailyUserId);
+        if ($filterUserId) {
+            $visitsQuery->where('user_id', $filterUserId);
         }
 
-        $visits = $visitsQuery->get()->map(function (TimeManagement $visit) {
-            $employeeName = trim((string) ($visit->employee_name ?: $visit->user?->name ?: 'Unknown Employee'));
+        if ($statusFilter === 'completed') {
+            $visitsQuery->reportableCompleted();
+        }
+
+        $visits = $visitsQuery->get()
+            ->when($statusFilter === 'pending', function ($collection) {
+                return $collection->filter(fn (TimeManagement $visit) => $visit->ticketStatus() !== 'completed')->values();
+            })
+            ->map(function (TimeManagement $visit) use ($teamMembers) {
+            $member = $teamMembers->firstWhere('id', $visit->user_id);
+            $memberName = $member?->name ?: ($visit->employee_name ?: ($visit->user?->name ?: 'Unknown Employee'));
+            $employeeName = trim((string) $memberName);
             $ticketNumber = $visit->ticket_number
                 ?: $visit->workTicket?->ticket_number
                 ?: 'N/A';
@@ -237,17 +261,21 @@ class TimeManagementController extends Controller
             ];
         });
 
-        // Prefer proper account names in employee summary when available.
-        $dailySummaries = collect($dailySummaries)->map(function (array $summary) use ($teamMembers) {
-            if (! empty($summary['user_id'])) {
-                $member = $teamMembers->firstWhere('id', $summary['user_id']);
-                if ($member) {
-                    $summary['employee_name'] = $member->name;
-                }
-            }
-
-            return $summary;
-        })->values()->all();
+        $dailySummaries = $visits
+            ->groupBy('employee_name')
+            ->map(function ($employeeVisits, $employeeName) {
+                return [
+                    'employee_name' => $employeeName,
+                    'user_id' => $employeeVisits->first()['user_id'] ?? null,
+                    'job_count' => $employeeVisits->count(),
+                    'total_hours' => round((float) $employeeVisits->sum('hours'), 2),
+                    'overtime_hours' => round((float) $employeeVisits->sum('overtime_hours'), 2),
+                ];
+            })
+            ->sortBy('employee_name')
+            ->values()
+            ->all();
+        $dailySummaryTotals = TimeManagement::summarizeDailyTotals($dailySummaries);
 
         $groupedByEmployee = $visits
             ->groupBy('employee_name')
