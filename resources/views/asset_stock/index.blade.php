@@ -4,7 +4,7 @@
 <div class="container-fluid master-page">
     <div class="page-header">
         <h2 class="mb-0"><i class="bi bi-boxes me-2"></i>Asset Stock</h2>
-        <p class="text-muted mb-0">Enter quantities when items arrive. Assigned, maintenance, and scrap items are taken off stock automatically.</p>
+        <p class="text-muted mb-0">Enter quantities when items arrive. In Stock = free assets + received qty − consumable issues. Assigned/Scrap columns are for info only.</p>
     </div>
 
     @if(session('success'))
