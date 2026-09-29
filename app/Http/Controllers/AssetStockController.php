@@ -60,12 +60,10 @@ class AssetStockController extends Controller
             $assigned = (int) ($counts['assigned'] ?? 0);
             $maintenance = (int) ($counts['under_maintenance'] ?? 0);
             $scrap = (int) ($counts['scrap'] ?? 0);
-            $available = (int) ($counts['available'] ?? 0) + (int) ($counts['returned'] ?? 0);
             $issued = (int) ($issuedByCategory[$category->id] ?? 0);
 
-            // In stock = free registered assets + newly received qty - consumable issues.
-            // Do not subtract assigned/scrap from receipts (those already reduced "available").
-            $inStock = $available + $received - $issued;
+            // Manual stock only: what you receive minus what you issue via IT Consumables.
+            $inStock = $received - $issued;
 
             return [
                 'category' => $category,
@@ -128,12 +126,6 @@ class AssetStockController extends Controller
             ? (int) AssetStockReceipt::where('asset_category_id', $categoryId)->sum('quantity')
             : 0;
 
-        $availableAssets = Schema::hasTable('assets')
-            ? (int) Asset::where('asset_category_id', $categoryId)
-                ->whereIn('status', ['available', 'returned'])
-                ->count()
-            : 0;
-
         $issued = 0;
         if (Schema::hasTable('it_consumable_issues') && Schema::hasColumn('it_consumables', 'asset_category_id')) {
             $issued = (int) ItConsumableIssue::query()
@@ -141,6 +133,6 @@ class AssetStockController extends Controller
                 ->sum('quantity');
         }
 
-        return $availableAssets + $received - $issued;
+        return $received - $issued;
     }
 }
