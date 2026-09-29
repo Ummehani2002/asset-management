@@ -12,6 +12,17 @@
             @method('PUT')
             <div class="row">
                 <div class="col-md-4 mb-3">
+                    <label class="form-label">Item Type (Stock Category) <span class="text-danger">*</span></label>
+                    <select name="asset_category_id" class="form-control" required>
+                        <option value="">-- Select --</option>
+                        @foreach($categories ?? [] as $cat)
+                            <option value="{{ $cat->id }}" {{ (string) old('asset_category_id', $item->asset_category_id) === (string) $cat->id ? 'selected' : '' }}>
+                                {{ $cat->category_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
                     <label class="form-label">ID No <span class="text-danger">*</span></label>
                     <input type="text" name="id_no" class="form-control" value="{{ old('id_no', $item->id_no) }}" required>
                 </div>

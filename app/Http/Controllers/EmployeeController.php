@@ -182,6 +182,7 @@ public function edit($id)
         $isInactive = Schema::hasColumn('employees', 'is_active') && $employee->is_active === false;
 
         $request->validate([
+            'employee_id'     => 'nullable|string|max:20|unique:employees,employee_id,'.$employee->id,
             'email'           => 'nullable|email|max:100',
             'phone'           => 'nullable|string|max:20',
             'entity_name'     => 'nullable|string|max:100',
@@ -195,6 +196,7 @@ public function edit($id)
         }
 
         if (!$isInactive) {
+            $employee->employee_id = trim((string) $request->input('employee_id', '')) ?: null;
             $employee->email = $request->input('email');
             $employee->phone = $request->input('phone');
             $entityInput = trim($request->input('entity_name', ''));

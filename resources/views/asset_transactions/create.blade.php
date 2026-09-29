@@ -67,14 +67,14 @@
         <div class="mb-3" id="asset_selection_section" style="{{ $isEdit ? 'display:block;' : 'display:none;' }}">
             <label for="asset_search">Asset <span class="text-danger">*</span></label>
             <div class="position-relative" id="asset_search_wrap">
-                <input type="text" id="asset_search" name="asset_search" class="form-control" placeholder="Type serial number or asset ID..."
+                <input type="text" id="asset_search" name="asset_search" class="form-control" placeholder="Type asset ID or serial (optional for accessories)..."
                        value="{{ $isEdit && $transaction->asset ? (($transaction->asset->serial_number ?: 'No Serial') . ' (' . ($transaction->asset->asset_id ?? '') . ')') : '' }}"
                        autocomplete="off" {{ $isEdit ? 'disabled' : '' }}>
                 <input type="hidden" name="asset_id" id="asset_id" value="{{ old('asset_id', $transaction->asset_id ?? $transaction->asset->id ?? '') }}" required>
                 <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded"
                      style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
             </div>
-            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Type serial number or asset ID to see matching assets (for Return: only currently assigned assets are listed).' }}</small>
+            <small class="text-muted" id="asset_status_info">{{ $isEdit ? 'Asset cannot be changed during edit.' : 'Search by asset ID. Serial is optional for Keyboard, Mouse, Headset, RAM, etc. Prefer IT Consumables for those items.' }}</small>
         </div>
 
         {{-- Employee Selection (for Laptop - Assign) - Type name or ID to search --}}

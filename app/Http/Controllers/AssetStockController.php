@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\AssetStockReceipt;
+use App\Models\ItConsumable;
+use App\Models\ItConsumableIssue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class AssetStockController extends Controller
@@ -21,7 +24,7 @@ class AssetStockController extends Controller
             return view('asset_stock.index', [
                 'rows' => collect(),
                 'receipts' => collect(),
-                'totals' => ['received' => 0, 'assigned' => 0, 'scrap' => 0, 'in_stock' => 0],
+                'totals' => ['received' => 0, 'assigned' => 0, 'issued' => 0, 'scrap' => 0, 'in_stock' => 0],
             ])->with('warning', 'Asset categories are not set up yet.');
         }
 
@@ -41,19 +44,31 @@ class AssetStockController extends Controller
                 ->groupBy('asset_category_id')
             : collect();
 
-        $rows = $categories->map(function (AssetCategory $category) use ($receivedByCategory, $statusCounts) {
+        $issuedByCategory = collect();
+        if (Schema::hasTable('it_consumable_issues') && Schema::hasColumn('it_consumables', 'asset_category_id')) {
+            $issuedByCategory = ItConsumableIssue::query()
+                ->join('it_consumables', 'it_consumables.id', '=', 'it_consumable_issues.it_consumable_id')
+                ->whereNotNull('it_consumables.asset_category_id')
+                ->selectRaw('it_consumables.asset_category_id, SUM(it_consumable_issues.quantity) as issued_qty')
+                ->groupBy('it_consumables.asset_category_id')
+                ->pluck('issued_qty', 'asset_category_id');
+        }
+
+        $rows = $categories->map(function (AssetCategory $category) use ($receivedByCategory, $statusCounts, $issuedByCategory) {
             $counts = collect($statusCounts->get($category->id, []))->pluck('total', 'status');
             $received = (int) ($receivedByCategory[$category->id] ?? 0);
             $assigned = (int) ($counts['assigned'] ?? 0);
             $maintenance = (int) ($counts['under_maintenance'] ?? 0);
             $scrap = (int) ($counts['scrap'] ?? 0);
-            $out = $assigned + $maintenance + $scrap;
+            $issued = (int) ($issuedByCategory[$category->id] ?? 0);
+            $out = $assigned + $maintenance + $scrap + $issued;
 
             return [
                 'category' => $category,
                 'received' => $received,
                 'assigned' => $assigned,
                 'maintenance' => $maintenance,
+                'issued' => $issued,
                 'scrap' => $scrap,
                 'in_stock' => $received - $out,
             ];
@@ -66,6 +81,7 @@ class AssetStockController extends Controller
         $totals = [
             'received' => (int) $rows->sum('received'),
             'assigned' => (int) $rows->sum('assigned'),
+            'issued' => (int) $rows->sum('issued'),
             'scrap' => (int) $rows->sum('scrap'),
             'in_stock' => (int) $rows->sum('in_stock'),
         ];
@@ -97,5 +113,30 @@ class AssetStockController extends Controller
         return redirect()
             ->route('asset-stock.index')
             ->with('success', 'Received quantity added to stock.');
+    }
+
+    /**
+     * Available stock for a category after asset assign/scrap and consumable issues.
+     */
+    public static function availableQty(int $categoryId): int
+    {
+        $received = Schema::hasTable('asset_stock_receipts')
+            ? (int) AssetStockReceipt::where('asset_category_id', $categoryId)->sum('quantity')
+            : 0;
+
+        $assetOut = Schema::hasTable('assets')
+            ? (int) Asset::where('asset_category_id', $categoryId)
+                ->whereIn('status', ['assigned', 'under_maintenance', 'scrap'])
+                ->count()
+            : 0;
+
+        $issued = 0;
+        if (Schema::hasTable('it_consumable_issues') && Schema::hasColumn('it_consumables', 'asset_category_id')) {
+            $issued = (int) ItConsumableIssue::query()
+                ->whereHas('consumable', fn ($q) => $q->where('asset_category_id', $categoryId))
+                ->sum('quantity');
+        }
+
+        return $received - $assetOut - $issued;
     }
 }

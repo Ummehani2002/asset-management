@@ -752,7 +752,7 @@ private function parseImportDate($value)
         }
 
         $rules = [
-            'serial_number' => ['required', 'string', 'max:100', Rule::unique('assets', 'serial_number')->ignore($asset->id)],
+            'serial_number' => $this->serialNumberRules($request->input('asset_category_id', $asset->asset_category_id), $asset->id),
             'po_number' => 'nullable|string|max:255',
             'vendor_name' => 'nullable|string|max:255',
             'value' => 'nullable|numeric|min:0',
@@ -772,7 +772,7 @@ private function parseImportDate($value)
         $validated = $request->validate($rules);
 
         $updateData = [
-            'serial_number' => $validated['serial_number'],
+            'serial_number' => trim((string) ($validated['serial_number'] ?? '')) !== '' ? trim((string) $validated['serial_number']) : null,
             'po_number' => $validated['po_number'] ?? null,
             'vendor_name' => $validated['vendor_name'] ?? null,
             'value' => $validated['value'] ?? null,
@@ -1333,7 +1333,7 @@ public function store(Request $request)
             'po_number' => 'nullable|string',
             'vendor_name' => 'nullable|string|max:255',
             'value' => 'nullable|numeric|min:0',
-            'serial_number' => ['required', 'string', 'max:100', Rule::unique('assets', 'serial_number')],
+            'serial_number' => $this->serialNumberRules($request->input('asset_category_id')),
             'invoice' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'features' => 'nullable|array',
             'features.*' => 'nullable',
@@ -1374,7 +1374,7 @@ public function store(Request $request)
             'po_number' => $request->po_number,
             'vendor_name' => $request->vendor_name,
             'value' => $request->value,
-            'serial_number' => $request->serial_number,
+            'serial_number' => trim((string) $request->serial_number) !== '' ? trim((string) $request->serial_number) : null,
             'status' => 'available', // Set default status
         ];
 
@@ -1682,6 +1682,29 @@ public function getAssetsByLocation($id)
 
     return response()->json($assets);
 }
+
+    /**
+     * Serial is optional for accessory / consumable categories (Keyboard, Mouse, etc.).
+     */
+    private function serialNumberRules($categoryId, $ignoreAssetId = null): array
+    {
+        $unique = Rule::unique('assets', 'serial_number');
+        if ($ignoreAssetId) {
+            $unique = $unique->ignore($ignoreAssetId);
+        }
+
+        $category = $categoryId ? AssetCategory::find($categoryId) : null;
+        $name = strtolower(trim((string) ($category->category_name ?? '')));
+        $optional = collect(config('asset_categories.no_serial_categories', []))
+            ->map(fn ($n) => strtolower(trim($n)))
+            ->contains($name);
+
+        if ($optional) {
+            return ['nullable', 'string', 'max:100', $unique];
+        }
+
+        return ['required', 'string', 'max:100', $unique];
+    }
 
 }
 

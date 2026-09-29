@@ -86,8 +86,9 @@
                     <input type="text" name="asset_id" class="form-control" value="{{ $autoAssetId }}" readonly>
                 </div>
                 <div class="mb-3">
-                    <label for="serial_number">Serial Number <span class="text-danger">*</span></label>
+                    <label for="serial_number">Serial Number <span class="text-danger" id="serial_required_mark">*</span></label>
                     <input type="text" name="serial_number" id="serial_number" class="form-control" required autocomplete="off">
+                    <small class="text-muted" id="serial_hint">Required for most assets. Optional for Keyboard, Mouse, Headset, RAM, etc.</small>
                 </div>
 
                 <div class="mb-3">
@@ -436,6 +437,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 $('#on_screen_takeoff_key').val('');
             }
         });
+
+        const noSerialCategories = @json(collect(config('asset_categories.no_serial_categories', []))->map(fn ($n) => strtolower(trim($n)))->values());
+        function syncSerialRequirement() {
+            const selected = $('#category option:selected').data('category-name') || '';
+            const optional = noSerialCategories.includes(String(selected).toLowerCase());
+            const serialInput = $('#serial_number');
+            if (optional) {
+                serialInput.prop('required', false);
+                $('#serial_required_mark').hide();
+                $('#serial_hint').text('Optional for this item type. Prefer IT Consumables + Asset Stock for Keyboard/Mouse/Headset/RAM.');
+            } else {
+                serialInput.prop('required', true);
+                $('#serial_required_mark').show();
+                $('#serial_hint').text('Required for this asset type.');
+            }
+        }
+        $('#category').on('change', syncSerialRequirement);
+        syncSerialRequirement();
     });
 
 </script>

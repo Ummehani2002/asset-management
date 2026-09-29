@@ -19,6 +19,18 @@
             @csrf
             <div class="row">
                 <div class="col-md-3 mb-3">
+                    <label class="form-label">Item Type (Stock Category) <span class="text-danger">*</span></label>
+                    <select name="asset_category_id" class="form-control" required>
+                        <option value="">-- Select --</option>
+                        @foreach($consumableCategories ?? [] as $cat)
+                            <option value="{{ $cat->id }}" {{ (string) old('asset_category_id') === (string) $cat->id ? 'selected' : '' }}>
+                                {{ $cat->category_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <small class="text-muted">Keyboard, Mouse, Headset, RAM, etc. (no serial)</small>
+                </div>
+                <div class="col-md-3 mb-3">
                     <label class="form-label">ID No <span class="text-danger">*</span></label>
                     <input type="text" name="id_no" class="form-control" value="{{ old('id_no') }}" required>
                 </div>
@@ -26,7 +38,7 @@
                     <label class="form-label">TKT Ref No <span class="text-danger">*</span></label>
                     <input type="text" name="tkt_ref_no" class="form-control" value="{{ old('tkt_ref_no') }}" required>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
                     <label class="form-label">Item Description <span class="text-danger">*</span></label>
                     <input type="text" name="item_description" class="form-control" value="{{ old('item_description') }}" required>
                 </div>
@@ -35,7 +47,7 @@
                     <input type="number" min="1" name="allocated_qty" class="form-control" value="{{ old('allocated_qty', 1) }}" required>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <label class="form-label">Issued Date <span class="text-danger">*</span></label>
+                    <label class="form-label">Received / Allocated Date <span class="text-danger">*</span></label>
                     <input type="date" name="issued_date" class="form-control" value="{{ old('issued_date') }}" required>
                 </div>
                 <div class="col-md-12 mb-3">
@@ -77,6 +89,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Item Type</th>
                             <th>ID No</th>
                             <th>TKT Ref No</th>
                             <th>Item Description</th>
@@ -92,6 +105,7 @@
                         @forelse($items as $item)
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
+                                <td>{{ $item->category->category_name ?? '-' }}</td>
                                 <td>{{ $item->id_no }}</td>
                                 <td>{{ $item->tkt_ref_no ?? '-' }}</td>
                                 <td>{{ $item->item_description }}</td>

@@ -34,12 +34,8 @@ return [
         'CCTV Camera',
         'NVR / DVR',
         'Projector',
-        // Monitor: assign to employee (same as Laptop/Desktop), not project name
-        'Keyboard',
-        'Mouse',
         'Docking Station',
         'Webcam',
-        'Headset',
         'Virtual Machine',
         '4G/5G Router',
         'Load Balancer',
@@ -47,5 +43,24 @@ return [
         'Network Cable',
         'SFP Module',
         'DR Site',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Categories without serial numbers
+    |--------------------------------------------------------------------------
+    | These items are tracked via IT Consumables + Asset Stock (qty based).
+    | Serial number is optional when registering them in Asset Master.
+    */
+    'no_serial_categories' => [
+        'Keyboard',
+        'Mouse',
+        'Headset',
+        'Keyboard and Mouse',
+        'RAM',
+        'Webcam',
+        'Docking Station',
+        'Network Cable',
+        'SFP Module',
     ],
 ];

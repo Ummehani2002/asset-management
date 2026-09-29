@@ -45,8 +45,9 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Employee ID</label>
-                    <input type="text" value="{{ $employee->employee_id }}" class="form-control bg-light" readonly disabled>
-               
+                    <input type="text" name="employee_id" value="{{ old('employee_id', $employee->employee_id) }}" class="form-control" maxlength="20" autocomplete="off"
+                           {{ $employee->is_active === false ? 'readonly disabled' : '' }}>
+                    @error('employee_id')<div class="text-danger small">{{ $message }}</div>@enderror
                 </div>
 
                 <div class="col-md-6 mb-3">

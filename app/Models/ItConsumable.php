@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ItConsumable extends Model
 {
     protected $fillable = [
+        'asset_category_id',
         'id_no',
         'tkt_ref_no',
         'item_description',
@@ -22,5 +23,10 @@ class ItConsumable extends Model
     public function issues()
     {
         return $this->hasMany(ItConsumableIssue::class, 'it_consumable_id');
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(AssetCategory::class, 'asset_category_id');
     }
 }

@@ -64,10 +64,31 @@ class TimeManagementController extends Controller
             }
 
             if ($request->filled('status') && in_array($request->status, ['pending', 'completed'], true)) {
-                $query->where(function ($q) use ($request) {
-                    $q->where('status', $request->status)
-                        ->orWhereHas('workTicket', fn ($ticketQuery) => $ticketQuery->where('status', $request->status));
-                });
+                $statusFilter = $request->status;
+                if ($statusFilter === 'completed') {
+                    // Ticket status is the source of truth (same as UI badges).
+                    $query->where(function ($q) {
+                        $q->whereHas('workTicket', fn ($ticketQuery) => $ticketQuery->where('status', 'completed'))
+                            ->orWhere(function ($q2) {
+                                $q2->whereNull('work_ticket_id')
+                                    ->where('status', 'completed')
+                                    ->whereNotNull('end_time');
+                            });
+                    });
+                } else {
+                    // Pending includes open tickets ("Continue Visit") and running visits.
+                    $query->where(function ($q) {
+                        $q->whereHas('workTicket', fn ($ticketQuery) => $ticketQuery->where('status', '!=', 'completed'))
+                            ->orWhere(function ($q2) {
+                                $q2->whereNull('work_ticket_id')
+                                    ->where(function ($q3) {
+                                        $q3->whereNull('status')
+                                            ->orWhereNotIn('status', ['completed']);
+                                    });
+                            })
+                            ->orWhereNull('end_time');
+                    });
+                }
             }
 
             if ($request->filled('from_date')) {
@@ -114,6 +135,14 @@ class TimeManagementController extends Controller
                     return $group->sortByDesc(fn ($task) => $task->start_time?->timestamp ?? 0)->first();
                 })
                 ->values();
+
+            // Final status filter using the same ticketStatus() logic as the badges.
+            if ($request->filled('status') && in_array($request->status, ['pending', 'completed'], true)) {
+                $statusFilter = $request->status;
+                $tasks = $tasks
+                    ->filter(fn ($task) => $task->ticketStatus() === $statusFilter)
+                    ->values();
+            }
 
             $teamMembers = $isAdmin
                 ? User::orderBy('name')->get(['id', 'name'])

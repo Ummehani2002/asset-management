@@ -19,25 +19,31 @@
     @endif
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
             <div class="border rounded p-3 bg-light h-100">
                 <div class="small text-muted">Received</div>
                 <div class="fs-4 fw-bold">{{ $totals['received'] ?? 0 }}</div>
             </div>
         </div>
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
             <div class="border rounded p-3 bg-light h-100">
-                <div class="small text-muted">Assigned</div>
+                <div class="small text-muted">Assigned (Assets)</div>
                 <div class="fs-4 fw-bold text-primary">{{ $totals['assigned'] ?? 0 }}</div>
             </div>
         </div>
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
+            <div class="border rounded p-3 bg-light h-100">
+                <div class="small text-muted">Issued (Consumables)</div>
+                <div class="fs-4 fw-bold text-warning">{{ $totals['issued'] ?? 0 }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
             <div class="border rounded p-3 bg-light h-100">
                 <div class="small text-muted">Scrap</div>
                 <div class="fs-4 fw-bold text-danger">{{ $totals['scrap'] ?? 0 }}</div>
             </div>
         </div>
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
             <div class="border rounded p-3 bg-light h-100">
                 <div class="small text-muted">In Stock</div>
                 <div class="fs-4 fw-bold text-success">{{ $totals['in_stock'] ?? 0 }}</div>
@@ -94,6 +100,7 @@
                             <th>Asset Type</th>
                             <th>Received</th>
                             <th>Assigned</th>
+                            <th>Issued (Consumables)</th>
                             <th>Maintenance</th>
                             <th>Scrap</th>
                             <th>In Stock</th>
@@ -105,13 +112,14 @@
                                 <td><strong>{{ $row['category']->category_name }}</strong></td>
                                 <td>{{ $row['received'] }}</td>
                                 <td>{{ $row['assigned'] }}</td>
+                                <td>{{ $row['issued'] ?? 0 }}</td>
                                 <td>{{ $row['maintenance'] }}</td>
                                 <td>{{ $row['scrap'] }}</td>
                                 <td class="fw-bold {{ $row['in_stock'] < 0 ? 'text-danger' : 'text-success' }}">{{ $row['in_stock'] }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No asset types found. Add categories first.</td>
+                                <td colspan="7" class="text-center text-muted py-4">No asset types found. Add categories first.</td>
                             </tr>
                         @endforelse
                     </tbody>
