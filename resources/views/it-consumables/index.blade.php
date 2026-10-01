@@ -53,6 +53,7 @@
                 <div class="col-md-12 mb-3">
                     <label class="form-label">Remarks</label>
                     <textarea name="remarks" class="form-control" rows="2">{{ old('remarks') }}</textarea>
+                    <small class="text-muted">Note only — does not change Issued / Remaining. Use the Issue button to assign to an employee.</small>
                 </div>
                 <div class="col-md-2 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-success w-100">
@@ -96,7 +97,7 @@
                             <th class="text-center">Allocated</th>
                             <th class="text-center">Issued</th>
                             <th class="text-center">Remaining</th>
-                            <th>Issued Date</th>
+                            <th>Received Date</th>
                             <th>Remarks</th>
                             <th>Actions</th>
                         </tr>
