@@ -8,6 +8,7 @@ use App\Models\ItConsumable;
 use App\Models\ItConsumableIssue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class ItConsumableController extends Controller
 {
@@ -68,17 +69,29 @@ class ItConsumableController extends Controller
 
     public function store(Request $request)
     {
+        $hasCategory = Schema::hasColumn('it_consumables', 'asset_category_id');
         $rules = [
-            'id_no' => 'required|string|max:100|unique:it_consumables,id_no',
             'item_description' => 'required|string|max:500',
             'issued_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',
         ];
-        if (Schema::hasColumn('it_consumables', 'asset_category_id')) {
+        if ($hasCategory) {
             $rules['asset_category_id'] = 'required|exists:asset_categories,id';
+            $rules['id_no'] = [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('it_consumables', 'id_no')->where(function ($query) use ($request) {
+                    return $query->where('asset_category_id', $request->input('asset_category_id'));
+                }),
+            ];
+        } else {
+            $rules['id_no'] = 'required|string|max:100|unique:it_consumables,id_no';
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'id_no.unique' => 'This ID No is already used for the same item type. You can reuse it for a different accessory.',
+        ]);
         $validated['tkt_ref_no'] = Schema::hasColumn('it_consumables', 'tkt_ref_no')
             ? (string) $request->input('tkt_ref_no', '')
             : null;
@@ -122,16 +135,29 @@ class ItConsumableController extends Controller
             : 0;
 
         $rules = [
-            'id_no' => 'required|string|max:100|unique:it_consumables,id_no,' . $item->id,
             'item_description' => 'required|string|max:500',
             'issued_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',
         ];
         if (Schema::hasColumn('it_consumables', 'asset_category_id')) {
             $rules['asset_category_id'] = 'required|exists:asset_categories,id';
+            $rules['id_no'] = [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('it_consumables', 'id_no')
+                    ->ignore($item->id)
+                    ->where(function ($query) use ($request) {
+                        return $query->where('asset_category_id', $request->input('asset_category_id'));
+                    }),
+            ];
+        } else {
+            $rules['id_no'] = 'required|string|max:100|unique:it_consumables,id_no,' . $item->id;
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'id_no.unique' => 'This ID No is already used for the same item type. You can reuse it for a different accessory.',
+        ]);
         $validated['tkt_ref_no'] = Schema::hasColumn('it_consumables', 'tkt_ref_no')
             ? (string) $request->input('tkt_ref_no', '')
             : null;
