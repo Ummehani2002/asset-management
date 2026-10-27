@@ -113,7 +113,7 @@ test('ai chat returns assistant reply from openai', function () {
             'choices' => [[
                 'message' => [
                     'role' => 'assistant',
-                    'content' => 'Go to PR Tracking Master and click Send for Approval.',
+                    'content' => 'Go to Time Management and filter by Pending.',
                 ],
             ]],
         ], 200),
@@ -122,10 +122,10 @@ test('ai chat returns assistant reply from openai', function () {
     $user = makeAiUser();
 
     $this->actingAs($user)
-        ->postJson(route('ai.chat'), ['message' => 'How do I send a PR for approval?'])
+        ->postJson(route('ai.chat'), ['message' => 'How do I see pending tickets?'])
         ->assertOk()
         ->assertJson([
-            'reply' => 'Go to PR Tracking Master and click Send for Approval.',
+            'reply' => 'Go to Time Management and filter by Pending.',
         ]);
 });
 

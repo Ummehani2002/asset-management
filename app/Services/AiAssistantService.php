@@ -157,7 +157,6 @@ Help topics you know:
 - Asset Master: add/edit assets, serial number, brand/model, PO/vendor/value.
 - Brand & Model: Add Brand & Model, Model Values; brands/models are per category.
 - Asset Transactions: assign, return, maintenance request/approval.
-- PR Tracking: sequential approval Ruman Mohammed then Badruddin; Send for Approval emails only the current approver; after Badr approves status is fully approved.
 - Users / masters: Employees, Projects, Locations, Entities (admin-heavy areas).
 - Time Management / Work Log: separate work-log flows for logging hours.
 

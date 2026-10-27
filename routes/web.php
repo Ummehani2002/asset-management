@@ -376,14 +376,4 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/it-consumables-master/{id}/issue', [ItConsumableController::class, 'issueForm'])->name('it-consumables.issue-form');
     Route::post('/it-consumables-master/{id}/issue', [ItConsumableController::class, 'issueStore'])->name('it-consumables.issue-store');
     Route::delete('/it-consumables-master/{id}', [ItConsumableController::class, 'destroy'])->name('it-consumables.destroy');
-
-    Route::get('/pr-tracking-master', [\App\Http\Controllers\PrTrackingController::class, 'index'])->name('pr-tracking.index');
-    Route::post('/pr-tracking-master', [\App\Http\Controllers\PrTrackingController::class, 'store'])->name('pr-tracking.store');
-    Route::post('/pr-tracking-master/{prTracking}/request-approval', [\App\Http\Controllers\PrTrackingController::class, 'requestApproval'])->name('pr-tracking.request-approval');
 });
-
-
-
-// PR Tracking signed approval links (no auth required)
-Route::get('/pr-tracking/{id}/approve/{approver}', [\App\Http\Controllers\PrTrackingController::class, 'approveSigned'])->name('pr-tracking.approve-signed');
-Route::get('/pr-tracking/{id}/reject/{approver}', [\App\Http\Controllers\PrTrackingController::class, 'rejectSigned'])->name('pr-tracking.reject-signed');
