@@ -91,14 +91,6 @@ class TimeManagementController extends Controller
                 }
             }
 
-            if ($request->filled('from_date')) {
-                $query->whereDate('job_card_date', '>=', $request->from_date);
-            }
-
-            if ($request->filled('to_date')) {
-                $query->whereDate('job_card_date', '<=', $request->to_date);
-            }
-
             $summaryDate = $request->input('summary_date', today()->format('Y-m-d'));
             try {
                 $summaryDate = Carbon::parse($summaryDate)->format('Y-m-d');
@@ -106,7 +98,22 @@ class TimeManagementController extends Controller
                 $summaryDate = today()->format('Y-m-d');
             }
 
-            $query->whereDate('job_card_date', $summaryDate);
+            $fromDate = $this->parseFilterDate($request->input('from_date'));
+            $toDate = $this->parseFilterDate($request->input('to_date'));
+            $statusFilter = ($request->filled('status') && in_array($request->status, ['pending', 'completed'], true))
+                ? $request->status
+                : null;
+
+            if ($fromDate) {
+                $query->whereDate('job_card_date', '>=', $fromDate);
+            }
+            if ($toDate) {
+                $query->whereDate('job_card_date', '<=', $toDate);
+            }
+            if (! $fromDate && ! $toDate) {
+                // No dates: Pending, Completed, and All show every ticket till today.
+                $query->whereDate('job_card_date', '<=', today()->format('Y-m-d'));
+            }
 
             $tasks = $query->get();
 
@@ -162,6 +169,9 @@ class TimeManagementController extends Controller
                 'isAdmin',
                 'teamMembers',
                 'summaryDate',
+                'fromDate',
+                'toDate',
+                'statusFilter',
                 'filterUserId',
                 'todaySummaries',
                 'todayTotals'
@@ -332,6 +342,19 @@ class TimeManagementController extends Controller
         }
 
         return $this->exportDailyPdf($summaryDate, $dailySummaries, $dailySummaryTotals, $groupedByEmployee);
+    }
+
+    private function parseFilterDate(?string $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     private function exportPdf($tasks, $status)

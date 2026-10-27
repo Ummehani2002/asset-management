@@ -135,12 +135,17 @@
                         <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                         <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                     </select>
+                    <small class="text-muted">No dates lists every ticket till today. Use From/To to narrow.</small>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Date</label>
-                    <input type="date" name="summary_date" class="form-control" value="{{ $summaryDate ?? today()->format('Y-m-d') }}" required>
+                    <label class="form-label">From Date</label>
+                    <input type="date" name="from_date" class="form-control" value="{{ $fromDate ?? '' }}">
                 </div>
-                <div class="col-md-5">
+                <div class="col-md-2">
+                    <label class="form-label">To Date</label>
+                    <input type="date" name="to_date" class="form-control" value="{{ $toDate ?? '' }}">
+                </div>
+                <div class="col-md-3">
                     <button type="submit" class="btn btn-primary me-2">
                         <i class="bi bi-search me-1"></i> View
                     </button>
@@ -151,12 +156,12 @@
                         </button>
                         <ul class="dropdown-menu">
                             <li>
-                                <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'user_id' => request('user_id'), 'status' => request('status'), 'format' => 'pdf'])) }}">
+                                <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $toDate ?? $fromDate ?? $summaryDate ?? today()->format('Y-m-d'), 'user_id' => request('user_id'), 'status' => request('status'), 'format' => 'pdf'])) }}">
                                     <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $summaryDate ?? today()->format('Y-m-d'), 'user_id' => request('user_id'), 'status' => request('status'), 'format' => 'csv'])) }}">
+                                <a class="dropdown-item" href="{{ route('time.export.daily', array_filter(['summary_date' => $toDate ?? $fromDate ?? $summaryDate ?? today()->format('Y-m-d'), 'user_id' => request('user_id'), 'status' => request('status'), 'format' => 'csv'])) }}">
                                     <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (CSV)
                                 </a>
                             </li>
@@ -177,12 +182,17 @@
                         <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                         <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                     </select>
+                    <small class="text-muted">No dates lists every ticket till today. Use From/To to narrow.</small>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Date</label>
-                    <input type="date" name="summary_date" class="form-control" value="{{ $summaryDate ?? today()->format('Y-m-d') }}">
+                <div class="col-md-2">
+                    <label class="form-label">From Date</label>
+                    <input type="date" name="from_date" class="form-control" value="{{ $fromDate ?? '' }}">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-2">
+                    <label class="form-label">To Date</label>
+                    <input type="date" name="to_date" class="form-control" value="{{ $toDate ?? '' }}">
+                </div>
+                <div class="col-md-5">
                     <button type="submit" class="btn btn-primary me-2">Filter</button>
                     <a href="{{ route('time.index') }}" class="btn btn-secondary">Clear</a>
                 </div>
@@ -194,7 +204,27 @@
     <div class="master-table-card">
         <div class="card-header">
             <h5 style="color: white; margin: 0;">
-                <i class="bi bi-list-ul me-2"></i>Work Logs for {{ \Carbon\Carbon::parse($summaryDate ?? today())->format('M j, Y') }} ({{ $tasks->count() }})
+                <i class="bi bi-list-ul me-2"></i>
+                @php
+                    $fromLabel = !empty($fromDate) ? \Carbon\Carbon::parse($fromDate)->format('M j, Y') : null;
+                    $toLabel = !empty($toDate) ? \Carbon\Carbon::parse($toDate)->format('M j, Y') : null;
+                @endphp
+                @php
+                    $statusHeading = match ($statusFilter ?? request('status')) {
+                        'pending' => 'Pending Tickets',
+                        'completed' => 'Completed Tickets',
+                        default => 'Work Logs',
+                    };
+                @endphp
+                @if($fromLabel && $toLabel)
+                    {{ $statusHeading }} from {{ $fromLabel }} to {{ $toLabel }} ({{ $tasks->count() }})
+                @elseif($fromLabel)
+                    {{ $statusHeading }} from {{ $fromLabel }} ({{ $tasks->count() }})
+                @elseif($toLabel)
+                    {{ $statusHeading }} till {{ $toLabel }} ({{ $tasks->count() }})
+                @else
+                    All {{ $statusHeading }} till {{ now()->format('M j, Y') }} ({{ $tasks->count() }})
+                @endif
             </h5>
         </div>
         <div class="card-body p-0">
