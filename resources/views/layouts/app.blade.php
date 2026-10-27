@@ -286,9 +286,127 @@
             margin-left: 260px; /* Account for fixed sidebar width */
         }
 
+        /* Top bar: masters (horizontal) + admin/profile menu */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 950;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px 4px;
+            margin: -24px -24px 24px;
+            padding: 8px 24px;
+            background: var(--white);
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        }
+
+        .topbar-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #6c757d;
+            margin-right: 8px;
+        }
+
+        .topbar-menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .topbar-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: var(--text-dark);
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+        }
+
+        .topbar-link:hover,
+        .topbar-link.show {
+            background: var(--bg-light);
+            color: var(--primary);
+        }
+
+        .topbar-link.active {
+            color: var(--primary);
+            background: var(--bg-light);
+            border-bottom-color: var(--sidebar-accent);
+        }
+
+        .topbar .dropdown-menu {
+            font-size: 13px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        }
+
+        .topbar .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-dark);
+        }
+
+        .topbar .dropdown-item.active,
+        .topbar .dropdown-item:active {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        .topbar-right {
+            margin-left: auto;
+        }
+
+        .topbar-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .topbar-user:hover {
+            background: var(--bg-light);
+            color: var(--primary);
+        }
+
+        .topbar-user > .bi {
+            font-size: 24px;
+            line-height: 1;
+        }
+
+        .topbar-user-text {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            line-height: 1.2;
+        }
+
+        .topbar-user-text .profile-name {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .topbar-user-text .profile-email {
+            font-size: 11px;
+            color: #6c757d;
+        }
+
         /* Print: hide sidebar and nav, show only main content */
         @media print {
-            .sidebar, .sidebar *, nav, .btn-print-hide, .no-print { display: none !important; }
+            .sidebar, .sidebar *, nav, .topbar, .btn-print-hide, .no-print { display: none !important; }
             .content { margin-left: 0 !important; width: 100% !important; }
             body { background: #fff !important; }
             .master-page, .container, .container-fluid { max-width: 100% !important; }
@@ -891,7 +1009,7 @@
 
 <body>
 
-    {{-- Sidebar --}}
+    {{-- Sidebar: day-to-day work --}}
 <div class="sidebar">
     <div class="text-center pb-3" style="border-bottom: 1px solid rgba(168, 212, 224, 0.3); padding: 15px 10px;">
         <a href="{{ route('dashboard') }}" style="display: block; text-decoration: none;">
@@ -907,106 +1025,16 @@
     </div>
 
     <div class="sidebar-section">
-        <div class="sidebar-section-label">Masters</div>
+        <div class="sidebar-section-label">Main</div>
         <a href="{{ route('dashboard') }}" class="sidebar-nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
             <i class="bi bi-speedometer2"></i> Dashboard
         </a>
-        @if(auth()->user() && auth()->user()->isAdmin())
-        <a href="{{ route('users.index') }}" class="sidebar-nav-item {{ request()->routeIs('users.*') ? 'active' : '' }}">
-            <i class="bi bi-people"></i> Users
-        </a>
-        @endif
-        @if(auth()->user() && auth()->user()->role === 'admin')
-        <a href="{{ route('activity-logs.index') }}" class="sidebar-nav-item {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}">
-            <i class="bi bi-journal-text"></i> User Logs
-        </a>
-        @endif
-        <div class="sidebar-dropdown {{ request()->routeIs('employees.*') || request()->is('employee-assets*') ? 'open' : '' }}">
+        <div class="sidebar-dropdown {{ request()->routeIs('assets.*') || request()->routeIs('asset-stock.*') ? 'open' : '' }}">
             <button class="sidebar-dropdown-toggle" type="button">
-                <span><i class="bi bi-person-badge"></i> Employee Master</span>
+                <span><i class="bi bi-pc-display"></i> Assets</span>
                 <span class="chevron">▾</span>
             </button>
             <div class="sidebar-dropdown-menu">
-                <a href="{{ route('employees.index') }}" class="{{ request()->routeIs('employees.index') || request()->routeIs('employees.create') ? 'active' : '' }}">
-                    <i class="bi bi-person-plus"></i> New Employee
-                </a>
-                <a href="{{ route('employees.search') }}" class="{{ request()->routeIs('employees.search') ? 'active' : '' }}">
-                    <i class="bi bi-search"></i> Search Employees
-                </a>
-                <a href="{{ url('/employee-assets') }}" class="{{ request()->is('employee-assets*') ? 'active' : '' }}">
-                    <i class="bi bi-box-seam"></i> Employee Asset Lookup
-                </a>
-            </div>
-        </div>
-        <div class="sidebar-dropdown {{ request()->routeIs('projects.*') ? 'open' : '' }}">
-            <button class="sidebar-dropdown-toggle" type="button">
-                <span><i class="bi bi-kanban"></i> Project Master</span>
-                <span class="chevron">▾</span>
-            </button>
-            <div class="sidebar-dropdown-menu">
-                <a href="{{ route('projects.index') }}" class="{{ request()->routeIs('projects.index') ? 'active' : '' }}">
-                    <i class="bi bi-card-checklist"></i> Projects List
-                </a>
-                <a href="{{ route('projects.create') }}" class="{{ request()->routeIs('projects.create') ? 'active' : '' }}">
-                    <i class="bi bi-plus-square"></i> Create Project
-                </a>
-            </div>
-        </div>
-        <div class="sidebar-dropdown {{ request()->routeIs('location-master.*') || request()->is('location-assets*') ? 'open' : '' }}">
-            <button class="sidebar-dropdown-toggle" type="button">
-                <span><i class="bi bi-geo-alt"></i> Location Master</span>
-                <span class="chevron">▾</span>
-            </button>
-            <div class="sidebar-dropdown-menu">
-                <a href="{{ route('location-master.index') }}" class="{{ request()->routeIs('location-master.index') ? 'active' : '' }}">
-                    <i class="bi bi-geo"></i> New Location
-                </a>
-                <a href="{{ route('location-master.search') }}" class="{{ request()->routeIs('location-master.search') ? 'active' : '' }}">
-                    <i class="bi bi-search"></i> Location Search
-                </a>
-                <a href="{{ url('/location-assets') }}" class="{{ request()->is('location-assets*') ? 'active' : '' }}">
-                    <i class="bi bi-pc-display"></i> Location Asset Lookup
-                </a>
-            </div>
-        </div>
-        <div class="sidebar-dropdown {{ request()->routeIs('entity-master.*') ? 'open' : '' }}">
-            <button class="sidebar-dropdown-toggle" type="button">
-                <span><i class="bi bi-building"></i> Entity Master</span>
-                <span class="chevron">▾</span>
-            </button>
-            <div class="sidebar-dropdown-menu">
-                <a href="{{ route('entity-master.index') }}" class="{{ request()->routeIs('entity-master.*') ? 'active' : '' }}">
-                    <i class="bi bi-building-add"></i> Entity Master
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <div class="sidebar-section">
-        <div class="sidebar-section-label">Assets</div>
-        <div class="sidebar-dropdown {{ request()->routeIs('asset-manager.*') ? 'open' : '' }}">
-            <button class="sidebar-dropdown-toggle" type="button">
-                <span><i class="bi bi-person-gear"></i> Asset Manager</span>
-                <span class="chevron">▾</span>
-            </button>
-            <div class="sidebar-dropdown-menu">
-                <a href="{{ route('asset-manager.index') }}" class="{{ request()->routeIs('asset-manager.*') ? 'active' : '' }}">
-                    <i class="bi bi-person-plus"></i> Assign Asset Manager
-                </a>
-            </div>
-        </div>
-        <div class="sidebar-dropdown {{ request()->routeIs('brand-management.*') || request()->routeIs('assets.*') || request()->routeIs('asset-stock.*') ? 'open' : '' }}">
-            <button class="sidebar-dropdown-toggle" type="button">
-                <span><i class="bi bi-pc-display"></i> Asset & Brand</span>
-                <span class="chevron">▾</span>
-            </button>
-            <div class="sidebar-dropdown-menu">
-                <a href="{{ route('brand-management.add-brand-model') }}" class="{{ request()->routeIs('brand-management.add-brand-model') ? 'active' : '' }}">
-                    <i class="bi bi-plus-circle"></i> Add Brand & Model
-                </a>
-                <a href="{{ route('brand-management.model-values') }}" class="{{ request()->routeIs('brand-management.model-values') ? 'active' : '' }}">
-                    <i class="bi bi-list-check"></i> Model Values
-                </a>
                 <a href="{{ route('assets.create') }}" class="{{ request()->routeIs('assets.create') || request()->routeIs('assets.store') ? 'active' : '' }}">
                     <i class="bi bi-pc-display"></i> Asset Master
                 </a>
@@ -1020,7 +1048,7 @@
         </div>
         <div class="sidebar-dropdown {{ request()->routeIs('asset-transactions.*') ? 'open' : '' }}">
             <button class="sidebar-dropdown-toggle" type="button">
-                <span><i class="bi bi-arrow-left-right"></i> Asset Transaction</span>
+                <span><i class="bi bi-arrow-left-right"></i> Asset Transactions</span>
                 <span class="chevron">▾</span>
             </button>
             <div class="sidebar-dropdown-menu">
@@ -1032,42 +1060,6 @@
                 </a>
                 <a href="{{ route('asset-transactions.maintenance') }}" class="{{ request()->routeIs('asset-transactions.maintenance') ? 'active' : '' }}">
                     <i class="bi bi-tools"></i> System Maintenance
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <div class="sidebar-section">
-        <div class="sidebar-section-label">IT & Operations</div>
-        <a href="{{ route('internet-services.index') }}" class="sidebar-nav-item {{ request()->routeIs('internet-services.*') ? 'active' : '' }}">
-            <i class="bi bi-wifi"></i> Internet Services
-        </a>
-        <a href="{{ route('nas-storage.index') }}" class="sidebar-nav-item {{ request()->routeIs('nas-storage.*') ? 'active' : '' }}">
-            <i class="bi bi-device-hdd-network"></i> NAS Storage
-        </a>
-        <a href="{{ route('it-consumables.index') }}" class="sidebar-nav-item {{ request()->routeIs('it-consumables.*') ? 'active' : '' }}">
-            <i class="bi bi-box-seam"></i> IT Consumables
-        </a>
-        <a href="{{ route('pr-tracking.index') }}" class="sidebar-nav-item {{ request()->routeIs('pr-tracking.*') ? 'active' : '' }}">
-            <i class="bi bi-journal-check"></i> PR Tracking
-        </a>
-        <a href="{{ route('time.index') }}" class="sidebar-nav-item {{ request()->routeIs('time.*') ? 'active' : '' }}">
-            <i class="bi bi-clock-history"></i> Time Management
-        </a>
-        <div class="sidebar-dropdown {{ request()->routeIs('entity_budget.*') || request()->routeIs('budget-expenses.*') ? 'open' : '' }}">
-            <button class="sidebar-dropdown-toggle" type="button">
-                <span><i class="bi bi-wallet2"></i> Budget Maintenance</span>
-                <span class="chevron">▾</span>
-            </button>
-            <div class="sidebar-dropdown-menu">
-                <a href="{{ route('entity_budget.create') }}" class="{{ request()->routeIs('entity_budget.create') ? 'active' : '' }}">
-                    <i class="bi bi-plus-circle"></i> Entity Budget
-                </a>
-                <a href="{{ route('entity_budget.transaction-history') }}" class="{{ request()->routeIs('entity_budget.transaction-history') ? 'active' : '' }}">
-                    <i class="bi bi-journal-text"></i> Transaction History
-                </a>
-                <a href="{{ route('budget-expenses.create') }}" class="{{ request()->routeIs('budget-expenses.*') ? 'active' : '' }}">
-                    <i class="bi bi-cash-coin"></i> Budget Expenses
                 </a>
             </div>
         </div>
@@ -1091,29 +1083,134 @@
                 </a>
             </div>
         </div>
+        <div class="sidebar-dropdown {{ request()->routeIs('entity_budget.*') || request()->routeIs('budget-expenses.*') ? 'open' : '' }}">
+            <button class="sidebar-dropdown-toggle" type="button">
+                <span><i class="bi bi-wallet2"></i> Budget Maintenance</span>
+                <span class="chevron">▾</span>
+            </button>
+            <div class="sidebar-dropdown-menu">
+                <a href="{{ route('entity_budget.create') }}" class="{{ request()->routeIs('entity_budget.create') ? 'active' : '' }}">
+                    <i class="bi bi-plus-circle"></i> Entity Budget
+                </a>
+                <a href="{{ route('entity_budget.transaction-history') }}" class="{{ request()->routeIs('entity_budget.transaction-history') ? 'active' : '' }}">
+                    <i class="bi bi-journal-text"></i> Transaction History
+                </a>
+                <a href="{{ route('budget-expenses.create') }}" class="{{ request()->routeIs('budget-expenses.*') ? 'active' : '' }}">
+                    <i class="bi bi-cash-coin"></i> Budget Expenses
+                </a>
+            </div>
+        </div>
+        <a href="{{ route('time.index') }}" class="sidebar-nav-item {{ request()->routeIs('time.*') ? 'active' : '' }}">
+            <i class="bi bi-clock-history"></i> Time Management
+        </a>
     </div>
 
-    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(198, 168, 125, 0.3);">
-        <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
-            @csrf
-            <button type="submit" class="btn btn-outline-danger w-100" style="border-color: #dc3545; color: #dc3545;">
-                <i class="bi bi-box-arrow-right me-2"></i> Logout
+    <div class="sidebar-section">
+        <div class="sidebar-section-label">Services</div>
+        <div class="sidebar-dropdown {{ request()->routeIs('internet-services.*') || request()->routeIs('nas-storage.*') || request()->routeIs('it-consumables.*') || request()->routeIs('pr-tracking.*') ? 'open' : '' }}">
+            <button class="sidebar-dropdown-toggle" type="button">
+                <span><i class="bi bi-grid-3x3-gap"></i> Other Services</span>
+                <span class="chevron">▾</span>
             </button>
-        </form>
+            <div class="sidebar-dropdown-menu">
+                <a href="{{ route('internet-services.index') }}" class="{{ request()->routeIs('internet-services.*') ? 'active' : '' }}">
+                    <i class="bi bi-wifi"></i> Internet Services
+                </a>
+                <a href="{{ route('nas-storage.index') }}" class="{{ request()->routeIs('nas-storage.*') ? 'active' : '' }}">
+                    <i class="bi bi-device-hdd-network"></i> NAS Storage
+                </a>
+                <a href="{{ route('it-consumables.index') }}" class="{{ request()->routeIs('it-consumables.*') ? 'active' : '' }}">
+                    <i class="bi bi-box-seam"></i> IT Consumables
+                </a>
+                <a href="{{ route('pr-tracking.index') }}" class="{{ request()->routeIs('pr-tracking.*') ? 'active' : '' }}">
+                    <i class="bi bi-journal-check"></i> PR Tracking
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
     {{-- Page Content --}}
     <div class="content">
-        @auth
-        <div id="app-user-profile" class="page-header-profile no-print" hidden>
-            <div class="profile-avatar" aria-hidden="true"><i class="bi bi-person-circle"></i></div>
-            <div>
-                <div class="profile-name">{{ auth()->user()->name }}</div>
-                <div class="profile-email">{{ auth()->user()->email }}</div>
+        {{-- Top bar: masters (horizontal) + admin + profile --}}
+        <nav class="topbar no-print">
+            <span class="topbar-label">Masters</span>
+            <ul class="topbar-menu">
+                <li class="dropdown">
+                    <a href="#" class="topbar-link dropdown-toggle {{ request()->routeIs('employees.*') || request()->is('employee-assets*') ? 'active' : '' }}" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-badge"></i> Employee
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {{ request()->routeIs('employees.index') || request()->routeIs('employees.create') ? 'active' : '' }}" href="{{ route('employees.index') }}"><i class="bi bi-person-plus"></i> New Employee</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('employees.search') ? 'active' : '' }}" href="{{ route('employees.search') }}"><i class="bi bi-search"></i> Search Employees</a></li>
+                        <li><a class="dropdown-item {{ request()->is('employee-assets*') ? 'active' : '' }}" href="{{ url('/employee-assets') }}"><i class="bi bi-box-seam"></i> Employee Asset Lookup</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#" class="topbar-link dropdown-toggle {{ request()->routeIs('projects.*') ? 'active' : '' }}" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-kanban"></i> Project
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {{ request()->routeIs('projects.index') ? 'active' : '' }}" href="{{ route('projects.index') }}"><i class="bi bi-card-checklist"></i> Projects List</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('projects.create') ? 'active' : '' }}" href="{{ route('projects.create') }}"><i class="bi bi-plus-square"></i> Create Project</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#" class="topbar-link dropdown-toggle {{ request()->routeIs('location-master.*') || request()->is('location-assets*') ? 'active' : '' }}" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-geo-alt"></i> Location
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {{ request()->routeIs('location-master.index') ? 'active' : '' }}" href="{{ route('location-master.index') }}"><i class="bi bi-geo"></i> New Location</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('location-master.search') ? 'active' : '' }}" href="{{ route('location-master.search') }}"><i class="bi bi-search"></i> Location Search</a></li>
+                        <li><a class="dropdown-item {{ request()->is('location-assets*') ? 'active' : '' }}" href="{{ url('/location-assets') }}"><i class="bi bi-pc-display"></i> Location Asset Lookup</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#" class="topbar-link dropdown-toggle {{ request()->routeIs('entity-master.*') || request()->routeIs('asset-manager.*') ? 'active' : '' }}" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-building"></i> Entity
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {{ request()->routeIs('entity-master.*') ? 'active' : '' }}" href="{{ route('entity-master.index') }}"><i class="bi bi-building-add"></i> Entity Master</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('asset-manager.*') ? 'active' : '' }}" href="{{ route('asset-manager.index') }}"><i class="bi bi-person-gear"></i> Assign Asset Manager</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#" class="topbar-link dropdown-toggle {{ request()->routeIs('brand-management.*') ? 'active' : '' }}" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-tags"></i> Brand &amp; Model
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {{ request()->routeIs('brand-management.add-brand-model') ? 'active' : '' }}" href="{{ route('brand-management.add-brand-model') }}"><i class="bi bi-plus-circle"></i> Add Brand &amp; Model</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('brand-management.model-values') ? 'active' : '' }}" href="{{ route('brand-management.model-values') }}"><i class="bi bi-list-check"></i> Model Values</a></li>
+                    </ul>
+                </li>
+            </ul>
+
+            @auth
+            <div class="topbar-right dropdown">
+                <a href="#" class="topbar-user dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle"></i>
+                    <span class="topbar-user-text">
+                        <span class="profile-name">{{ auth()->user()->name }}</span>
+                        <span class="profile-email">{{ auth()->user()->email }}</span>
+                    </span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    @if(auth()->user()->isAdmin())
+                    <li><h6 class="dropdown-header">Administration</h6></li>
+                    <li><a class="dropdown-item {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}"><i class="bi bi-people"></i> Users</a></li>
+                    <li><a class="dropdown-item {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}" href="{{ route('activity-logs.index') }}"><i class="bi bi-journal-text"></i> User Logs</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    @endif
+                    <li>
+                        <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
+                            @csrf
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-box-arrow-right"></i> Logout</button>
+                        </form>
+                    </li>
+                </ul>
             </div>
-        </div>
-        @endauth
+            @endauth
+        </nav>
 
         @if(isset($errors) && $errors->any())
             <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
@@ -1157,27 +1254,6 @@
                 allowEmptyOption: true
             });
         });
-    });
-    </script>
-    <!-- Place logged-in profile in the page header (top right) -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var profile = document.getElementById('app-user-profile');
-        if (!profile) return;
-        var header = document.querySelector('.content .page-header');
-        if (header) {
-            profile.hidden = false;
-            header.appendChild(profile);
-        } else {
-            var wrap = document.createElement('div');
-            wrap.className = 'app-profile-fallback no-print';
-            profile.hidden = false;
-            wrap.appendChild(profile);
-            var content = document.querySelector('.content');
-            if (content) {
-                content.insertBefore(wrap, content.firstChild);
-            }
-        }
     });
     </script>
     <!-- Auto-dismiss all success messages after 3 seconds -->
