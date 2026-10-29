@@ -127,6 +127,7 @@
                                 <th>Location</th>
                                 <th>Date</th>
                                 <th>Image</th>
+                                <th>Invoice</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -184,6 +185,29 @@
                                             </button>
                                         @else
                                             <span class="text-muted">No image</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($t->asset && $t->asset->invoice_path)
+                                            @php
+                                                $invoiceLink = null;
+                                                try {
+                                                    $disk = config('filesystems.default', 'public');
+                                                    $hasS3 = !empty(config('filesystems.disks.s3.key')) && !empty(config('filesystems.disks.s3.bucket'));
+                                                    if (($disk === 's3' || $disk === 'object-storage') && $hasS3) {
+                                                        $invoiceLink = \Illuminate\Support\Facades\Storage::disk($disk)->temporaryUrl($t->asset->invoice_path, now()->addMinutes(60));
+                                                    } else {
+                                                        $invoiceLink = asset('storage/' . $t->asset->invoice_path);
+                                                    }
+                                                } catch (\Exception $e) {
+                                                    $invoiceLink = asset('storage/' . $t->asset->invoice_path);
+                                                }
+                                            @endphp
+                                            <a href="{{ $invoiceLink }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-file-earmark-pdf me-1"></i>View
+                                            </a>
+                                        @else
+                                            <span class="text-muted">No invoice</span>
                                         @endif
                                     </td>
                                     <td>
