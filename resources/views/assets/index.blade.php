@@ -9,6 +9,9 @@
             <p class="mb-0">View and manage all assets in the system</p>
         </div>
         <div class="d-flex gap-2">
+            <a href="{{ route('assets.filter') }}" class="btn btn-outline-primary">
+                <i class="bi bi-funnel me-1"></i>Filter by Category
+            </a>
             <a href="{{ route('assets.import.form') }}" class="btn btn-outline-primary">
                 <i class="bi bi-upload me-1"></i>Import Assets
             </a>

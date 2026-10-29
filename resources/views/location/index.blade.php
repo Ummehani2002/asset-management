@@ -3,7 +3,15 @@
 @section('content')
 <div class="container-fluid master-page">
     <div class="page-header">
-        <h2><i class="bi bi-geo-alt me-2"></i>Location Master</h2>
+        <h2 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Location Master</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ route('location-master.search') }}" class="btn btn-outline-primary">
+                <i class="bi bi-search me-1"></i>Location Search
+            </a>
+            <a href="{{ route('location.assets') }}" class="btn btn-outline-primary">
+                <i class="bi bi-pc-display me-1"></i>Location Asset Lookup
+            </a>
+        </div>
     </div>
 
     @if(session('success'))

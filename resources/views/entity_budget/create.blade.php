@@ -5,6 +5,14 @@
 <div class="container-fluid master-page">
     <div class="page-header">
         <h2 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Entity Budget Management</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ route('entity_budget.transaction-history') }}" class="btn btn-outline-primary">
+                <i class="bi bi-journal-text me-1"></i>Transaction History
+            </a>
+            <a href="{{ route('budget-expenses.create') }}" class="btn btn-outline-primary">
+                <i class="bi bi-cash-coin me-1"></i>Budget Expenses
+            </a>
+        </div>
     </div>
     
     @if(session('success'))

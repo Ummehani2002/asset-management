@@ -119,14 +119,13 @@
                                 <th>Asset</th>
                                 <th>Category</th>
                                 <th>Model Number</th>
-                                <th>Features</th>
+                                <th>Warranty</th>
                                 <th>Status</th>
                                 <th>Employee ID</th>
                                 <th>Assigned To</th>
                                 <th>Entity</th>
                                 <th>Location</th>
                                 <th>Date</th>
-                                <th>Image</th>
                                 <th>Invoice</th>
                                 <th>Action</th>
                             </tr>
@@ -141,7 +140,33 @@
                                         <small class="text-muted">{{ $t->asset->serial_number ?? 'N/A' }}</small>
                                     </td>
                                     <td>{{ $t->asset->assetCategory->category_name ?? 'N/A' }}</td>
-                                    @include('partials.asset_master_model_features', ['asset' => $t->asset])
+                                    <td>{{ $t->asset ? $t->asset->resolveDisplayModel() : 'N/A' }}</td>
+                                    <td>
+                                        @php
+                                            $warrantyStart = $t->asset->warranty_start ?? null;
+                                            $warrantyExpiry = $t->asset->expiry_date ?? null;
+                                            $warrantyYears = $t->asset->warranty_years ?? null;
+                                            $fmt = function ($value) {
+                                                if (blank($value) || $value === 'N/A') {
+                                                    return null;
+                                                }
+                                                try {
+                                                    return \Carbon\Carbon::parse($value)->format('d-m-Y');
+                                                } catch (\Exception $e) {
+                                                    return (string) $value;
+                                                }
+                                            };
+                                            $startLabel = $fmt($warrantyStart);
+                                            $expiryLabel = $fmt($warrantyExpiry);
+                                        @endphp
+                                        @if($startLabel || $expiryLabel)
+                                            @if($startLabel)<div>Start: {{ $startLabel }}</div>@endif
+                                            @if($expiryLabel)<div>Expiry: {{ $expiryLabel }}</div>@endif
+                                            @if($warrantyYears)<div class="small text-muted">{{ $warrantyYears }} {{ (int) $warrantyYears === 1 ? 'year' : 'years' }}</div>@endif
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
                                     <td>
                                         <span class="badge 
                                             @if($t->asset->status == 'assigned') bg-primary
@@ -164,27 +189,6 @@
                                             @endif
                                         @else
                                             {{ $t->issue_date ?? $t->return_date ?? 'N/A' }}
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @php
-                                            $imagePath = null;
-                                            if ($t->transaction_type == 'assign' && $t->assign_image) {
-                                                $imagePath = $t->assign_image;
-                                            } elseif ($t->transaction_type == 'return' && $t->return_image) {
-                                                $imagePath = $t->return_image;
-                                            } elseif ($t->transaction_type == 'system_maintenance' && $t->maintenance_image) {
-                                                $imagePath = $t->maintenance_image;
-                                            }
-                                        @endphp
-                                        @if($imagePath)
-                                            <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#imageModal{{ $t->id }}">
-                                                <i class="bi bi-image me-1"></i>View
-                                            </button>
-                                        @else
-                                            <span class="text-muted">No image</span>
                                         @endif
                                     </td>
                                     <td>
@@ -223,31 +227,6 @@
                                         </form>
                                     </td>
                                 </tr>
-                                
-                                @if($imagePath)
-                                <!-- Image Modal -->
-                                <div class="modal fade" id="imageModal{{ $t->id }}" tabindex="-1" aria-labelledby="imageModalLabel{{ $t->id }}" aria-hidden="true">
-                                    <div class="modal-dialog modal-lg">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="imageModalLabel{{ $t->id }}">
-                                                    Asset Image - {{ ucfirst(str_replace('_', ' ', $t->transaction_type)) }}
-                                                </h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body text-center">
-                                                <img src="{{ asset('storage/' . $imagePath) }}" 
-                                                     alt="Transaction Image" 
-                                                     class="img-fluid" 
-                                                     style="max-height: 70vh;">
-                                                <p class="mt-2 text-muted">
-                                                    <small>Transaction ID: {{ $t->id }} | Date: {{ $t->issue_date ?? $t->return_date ?? $t->receive_date ?? 'N/A' }}</small>
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                @endif
                             @endforeach
                         </tbody>
                     </table>

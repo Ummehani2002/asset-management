@@ -15,6 +15,9 @@
                 <a href="{{ route('issue-note.create-return') }}" class="btn btn-success">
                     <i class="bi bi-arrow-return-left me-2"></i>New Return Note
                 </a>
+                <a href="{{ route('preventive-maintenance.index') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-tools me-2"></i>Preventive Maintenance
+                </a>
             </div>
         </div>
     </div>

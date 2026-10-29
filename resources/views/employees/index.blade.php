@@ -5,6 +5,14 @@
     <!-- Page Header -->
     <div class="page-header">
         <h2 class="mb-0"><i class="bi bi-person-badge me-2"></i>Employee Master</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ route('employees.search') }}" class="btn btn-outline-primary">
+                <i class="bi bi-search me-1"></i>Search Employees
+            </a>
+            <a href="{{ route('employee.assets') }}" class="btn btn-outline-primary">
+                <i class="bi bi-box-seam me-1"></i>Employee Asset Lookup
+            </a>
+        </div>
     </div>
 
     {{-- Success/Error Messages --}}
