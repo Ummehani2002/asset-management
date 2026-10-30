@@ -248,6 +248,7 @@ Route::prefix('asset-transactions')->group(function () {
 
         // Ajax helpers
         Route::get('/get-assets-by-category/{id}', [AssetTransactionController::class, 'getAssetsByCategory']);
+        Route::get('/get-employee-category-assets', [AssetTransactionController::class, 'getEmployeeCategoryAssets']);
         Route::get('/get-maintenance-assets-by-category/{id}', [AssetTransactionController::class, 'getMaintenanceAssetsByCategory']);
         Route::get('/get-category-name/{id}', [AssetTransactionController::class, 'getCategoryName']);
         Route::get('/get-asset-details/{assetId}', [AssetTransactionController::class, 'getAssetDetails']);

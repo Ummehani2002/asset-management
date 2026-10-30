@@ -1460,7 +1460,8 @@ class AssetTransactionController extends Controller
 
     public function getAssetsByCategory(Request $request, $categoryId)
     {
-        $query = Asset::with('assetCategory')->where('asset_category_id', $categoryId);
+        $query = Asset::with(['assetCategory', 'latestTransaction.employee'])
+            ->where('asset_category_id', $categoryId);
         $transactionType = trim($request->get('transaction_type', ''));
         // For return: only assets that are currently assigned (can be returned)
         if ($transactionType === 'return') {
@@ -1475,24 +1476,90 @@ class AssetTransactionController extends Controller
             $like = '%' . addcslashes($search, '%_\\') . '%';
             $query->where(function ($q) use ($like) {
                 $q->where('serial_number', 'LIKE', $like)
-                  ->orWhere('asset_id', 'LIKE', $like);
+                    ->orWhere('asset_id', 'LIKE', $like)
+                    ->orWhereHas('latestTransaction.employee', function ($eq) use ($like) {
+                        $eq->where('employee_id', 'LIKE', $like)
+                            ->orWhere('name', 'LIKE', $like);
+                    })
+                    ->orWhereHas('transactions.employee', function ($eq) use ($like) {
+                        $eq->where('employee_id', 'LIKE', $like)
+                            ->orWhere('name', 'LIKE', $like);
+                    });
             });
         }
         $assets = $query->get()
             ->map(function ($asset) {
                 $originalStatus = $asset->status ?? 'available';
                 $displayStatus = ($originalStatus === 'returned') ? 'available' : $originalStatus;
+                $employee = $asset->latestTransaction?->employee;
                 return [
                     'id' => $asset->id,
                     'asset_id' => $asset->asset_id,
                     'serial_number' => $asset->serial_number,
                     'status' => $displayStatus,
                     'original_status' => $originalStatus,
-                    'category_name' => $asset->assetCategory->category_name ?? 'N/A'
+                    'category_name' => $asset->assetCategory->category_name ?? 'N/A',
+                    'employee_id' => $employee->employee_id ?? null,
+                    'employee_name' => $employee->name ?? null,
                 ];
             });
 
         return response()->json($assets);
+    }
+
+    public function getEmployeeCategoryAssets(Request $request)
+    {
+        $employeeKey = trim((string) $request->get('employee_id', ''));
+        $categoryId = $request->get('category_id');
+        $status = trim((string) $request->get('status', ''));
+
+        if ($employeeKey === '' || ! $categoryId) {
+            return response()->json(['employee' => null, 'assets' => []]);
+        }
+
+        $employee = Employee::query()
+            ->where('id', $employeeKey)
+            ->orWhere('employee_id', $employeeKey)
+            ->first();
+
+        if (! $employee) {
+            return response()->json(['employee' => null, 'assets' => []]);
+        }
+
+        $query = Asset::with(['assetCategory', 'latestTransaction.employee'])
+            ->where('asset_category_id', $categoryId)
+            ->where(function ($q) use ($employee) {
+                $q->whereHas('latestTransaction', function ($t) use ($employee) {
+                    $t->where('employee_id', $employee->id);
+                })->orWhereHas('transactions', function ($t) use ($employee) {
+                    $t->where('employee_id', $employee->id);
+                });
+            });
+
+        if (in_array($status, ['assigned', 'under_maintenance', 'available'], true)) {
+            $query->where('status', $status);
+        }
+
+        $assets = $query->get()->map(function ($asset) use ($employee) {
+            return [
+                'id' => $asset->id,
+                'asset_id' => $asset->asset_id,
+                'serial_number' => $asset->serial_number,
+                'status' => $asset->status,
+                'category_name' => $asset->assetCategory->category_name ?? 'N/A',
+                'employee_id' => $employee->employee_id,
+                'employee_name' => $employee->name,
+            ];
+        })->values();
+
+        return response()->json([
+            'employee' => [
+                'id' => $employee->id,
+                'employee_id' => $employee->employee_id,
+                'name' => $employee->name,
+            ],
+            'assets' => $assets,
+        ]);
     }
 
     public function getLocations(Request $request)
@@ -1515,7 +1582,7 @@ class AssetTransactionController extends Controller
 
     public function getMaintenanceAssetsByCategory(Request $request, $categoryId)
     {
-        $query = Asset::with('assetCategory')
+        $query = Asset::with(['assetCategory', 'latestTransaction.employee'])
             ->where('asset_category_id', $categoryId)
             ->where('status', 'under_maintenance');
         $search = trim($request->get('q', ''));
@@ -1523,19 +1590,30 @@ class AssetTransactionController extends Controller
             $like = '%' . addcslashes($search, '%_\\') . '%';
             $query->where(function ($q) use ($like) {
                 $q->where('serial_number', 'LIKE', $like)
-                  ->orWhere('asset_id', 'LIKE', $like);
+                    ->orWhere('asset_id', 'LIKE', $like)
+                    ->orWhereHas('latestTransaction.employee', function ($eq) use ($like) {
+                        $eq->where('employee_id', 'LIKE', $like)
+                            ->orWhere('name', 'LIKE', $like);
+                    })
+                    ->orWhereHas('transactions.employee', function ($eq) use ($like) {
+                        $eq->where('employee_id', 'LIKE', $like)
+                            ->orWhere('name', 'LIKE', $like);
+                    });
             });
         }
         $assets = $query->get()
             ->map(function ($asset) {
                 $latest = $asset->latestTransaction;
                 $txnId = $latest && $latest->transaction_type === 'system_maintenance' ? $latest->id : null;
+                $employee = $latest?->employee;
                 return [
                     'id' => $asset->id,
                     'asset_id' => $asset->asset_id,
                     'serial_number' => $asset->serial_number,
                     'transaction_id' => $txnId,
                     'category_name' => $asset->assetCategory->category_name ?? 'N/A',
+                    'employee_id' => $employee->employee_id ?? null,
+                    'employee_name' => $employee->name ?? null,
                 ];
             });
 

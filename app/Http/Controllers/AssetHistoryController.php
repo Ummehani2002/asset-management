@@ -9,9 +9,19 @@ class AssetHistoryController extends Controller
 {
     public function show($asset_id)
     {
+        $data = $this->historyData($asset_id);
+
+        if (request()->boolean('partial')) {
+            return view('partials.asset_history_content', $data);
+        }
+
+        return view('assets.history', $data);
+    }
+
+    private function historyData($asset_id): array
+    {
         $asset = Asset::with('category', 'brand', 'location')->findOrFail($asset_id);
 
-        // Assign & Return only - tabular form
         $assignReturnHistory = AssetTransaction::with(['employee', 'location'])
             ->where('asset_id', $asset_id)
             ->whereIn('transaction_type', ['assign', 'return'])
@@ -26,14 +36,13 @@ class AssetHistoryController extends Controller
                 return $txn;
             });
 
-        // System maintenance only - with remarks
         $maintenanceHistory = AssetTransaction::with(['employee'])
             ->where('asset_id', $asset_id)
             ->where('transaction_type', 'system_maintenance')
             ->orderBy('created_at', 'ASC')
             ->get();
 
-        return view('assets.history', compact('asset', 'assignReturnHistory', 'maintenanceHistory'));
+        return compact('asset', 'assignReturnHistory', 'maintenanceHistory');
     }
 }
 

@@ -53,7 +53,16 @@
                         <tbody>
                             @foreach($allPendingAssignments as $pa)
                                 <tr>
-                                    <td>{{ $pa->asset->serial_number ?? 'N/A' }} ({{ $pa->asset->asset_id ?? '' }})</td>
+                                    <td>
+                                        {{ $pa->asset->serial_number ?? 'N/A' }} ({{ $pa->asset->asset_id ?? '' }})
+                                        @if($pa->asset_id)
+                                            <div>
+                                                <a href="{{ route('asset.history', $pa->asset_id) }}?from=maintenance" class="small">
+                                                    <i class="bi bi-clock-history"></i> History
+                                                </a>
+                                            </div>
+                                        @endif
+                                    </td>
                                     <td>{{ $pa->asset_entity ?? '-' }}</td>
                                     <td>{{ $pa->assignedBy->name ?? $pa->assignedBy->entity_name ?? 'N/A' }}<br><small class="text-muted">{{ $pa->assigned_by_entities ?? '-' }}</small></td>
                                     <td>{{ $pa->assigned_to_name ?? 'N/A' }}</td>
@@ -96,7 +105,16 @@
                         <tbody>
                             @foreach($pendingMaintenanceRequests as $req)
                                 <tr>
-                                    <td>{{ $req->asset->serial_number ?? 'N/A' }} ({{ $req->asset->asset_id ?? '' }})</td>
+                                    <td>
+                                        {{ $req->asset->serial_number ?? 'N/A' }} ({{ $req->asset->asset_id ?? '' }})
+                                        @if($req->asset_id)
+                                            <div>
+                                                <a href="{{ route('asset.history', $req->asset_id) }}?from=maintenance" class="small">
+                                                    <i class="bi bi-clock-history"></i> History
+                                                </a>
+                                            </div>
+                                        @endif
+                                    </td>
                                     <td>{{ $req->asset->assetCategory->category_name ?? '-' }}</td>
                                     <td>{{ $req->requestedByUser->name ?? $req->requestedByUser->email ?? 'N/A' }}</td>
                                     <td>{{ $req->created_at->format('d-M-Y H:i') }}</td>
@@ -131,7 +149,16 @@
                     <tbody>
                         @foreach($pendingApprovals as $pa)
                             <tr>
-                                <td>{{ $pa->asset->serial_number ?? 'N/A' }} ({{ $pa->asset->asset_id ?? '' }})</td>
+                                <td>
+                                    {{ $pa->asset->serial_number ?? 'N/A' }} ({{ $pa->asset->asset_id ?? '' }})
+                                    @if($pa->asset_id)
+                                        <div>
+                                            <a href="{{ route('asset.history', $pa->asset_id) }}?from=maintenance" class="small">
+                                                <i class="bi bi-clock-history"></i> History
+                                            </a>
+                                        </div>
+                                    @endif
+                                </td>
                                 <td>{{ $pa->asset_entity ?? '-' }}</td>
                                 <td>{{ $pa->assignedBy->name ?? $pa->assignedBy->entity_name ?? 'N/A' }}</td>
                                 <td>{{ $pa->assigned_by_entities ?? '-' }}</td>
@@ -174,6 +201,11 @@
                 <i class="bi bi-arrow-up-circle me-2"></i>Reassign from Maintenance
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#asset-history" type="button" role="tab">
+                <i class="bi bi-clock-history me-2"></i>Asset History
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content" id="maintenanceTabContent">
@@ -185,7 +217,7 @@
                 {{-- Asset Selection - Entity & AM auto-fill from asset's location (Location Master) --}}
                 <div class="master-form-card mb-4">
                     <h5 class="mb-3"><i class="bi bi-tag me-2"></i>Select Asset</h5>
-                    <p class="text-muted small mb-3">Select category and asset. Serial number is optional. Entity and Asset Manager will auto-fill from the assigned employee's entity.</p>
+                    <p class="text-muted small mb-3">Select category, then type Employee ID. Name and serial number fill automatically.</p>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="asset_category_id">Asset Category <span class="text-danger">*</span></label>
@@ -198,15 +230,30 @@
                         </div>
 
                         <div class="col-md-6 mb-3" id="asset_selection_section" style="display:none;">
-                            <label for="asset_search_input">Asset <span class="text-danger">*</span></label>
-                            <div class="position-relative" id="asset_search_wrap">
-                                <input type="text" id="asset_search_input" class="form-control" placeholder="Select Asset" autocomplete="off">
-                                <input type="hidden" name="asset_id" id="asset_id" value="" required>
-                                <div id="asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
+                            <label for="employee_search_input">Employee ID <span class="text-danger">*</span></label>
+                            <div class="position-relative" id="employee_search_wrap">
+                                <input type="text" id="employee_search_input" class="form-control" placeholder="Type Employee ID" autocomplete="off">
+                                <input type="hidden" id="selected_employee_db_id" value="">
+                                <div id="employee_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
                             </div>
-                            <small class="text-muted d-block mt-1">Type serial number or asset ID to search</small>
+                            <small class="text-muted d-block mt-1">Type the employee ID, then select it from the list</small>
+                        </div>
+                    </div>
+                    <div class="row" id="employee_asset_autofill" style="display:none;">
+                        <div class="col-md-6 mb-3">
+                            <label for="employee_name_display">Employee Name</label>
+                            <input type="text" id="employee_name_display" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="serial_select">Serial Number</label>
+                            <select id="serial_select" class="form-control" style="display:none;"></select>
+                            <input type="text" id="serial_display" class="form-control" readonly>
+                            <input type="hidden" name="asset_id" id="asset_id" value="" required>
                             <small class="text-muted d-block mt-1" id="asset_status_info"></small>
                             <small class="text-danger" id="asset_error_info"></small>
+                            <a href="#" id="send_asset_history_link" class="btn btn-sm btn-outline-info mt-2" style="display:none;" target="_blank">
+                                <i class="bi bi-clock-history me-1"></i>View Asset History
+                            </a>
                         </div>
                     </div>
                     {{-- Entity & Asset Manager — auto-filled from assigned employee's entity --}}
@@ -359,7 +406,7 @@
                                 <input type="hidden" name="asset_id" id="assign_asset_id" value="" required>
                                 <div id="assign_asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
                             </div>
-                            <small class="text-muted d-block mt-1">Type serial number or asset ID to search</small>
+                            <small class="text-muted d-block mt-1">Type serial number, asset ID, or employee ID to search</small>
                             <input type="hidden" name="asset_transaction_id" id="assign_asset_transaction_id">
                             <small class="text-muted d-block mt-1" id="assign_asset_info"></small>
                         </div>
@@ -438,7 +485,7 @@
                                 <input type="hidden" name="asset_id" id="reassign_asset_id" value="" required>
                                 <div id="reassign_asset_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
                             </div>
-                            <small class="text-muted d-block mt-1">Type serial number or asset ID to search</small>
+                            <small class="text-muted d-block mt-1">Type serial number, asset ID, or employee ID to search</small>
                             <small class="text-muted d-block mt-1" id="reassign_status_info"></small>
                             <small class="text-danger" id="reassign_error_info"></small>
                         </div>
@@ -617,6 +664,50 @@
                 </div>
             </form>
         </div>
+
+        <div class="tab-pane fade" id="asset-history" role="tabpanel">
+            <div class="master-form-card mb-4">
+                <h5 class="mb-3"><i class="bi bi-clock-history me-2"></i>View Asset History</h5>
+                <p class="text-muted small mb-3">Select category, then type Employee ID. Name and serial number fill automatically.</p>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="history_category_id">Asset Category <span class="text-danger">*</span></label>
+                        <select id="history_category_id" class="form-control">
+                            <option value="">Select Category</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->category_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3" id="history_asset_section" style="display:none;">
+                        <label for="history_employee_search_input">Employee ID <span class="text-danger">*</span></label>
+                        <div class="position-relative" id="history_employee_search_wrap">
+                            <input type="text" id="history_employee_search_input" class="form-control" placeholder="Type Employee ID" autocomplete="off">
+                            <input type="hidden" id="history_employee_db_id" value="">
+                            <div id="history_employee_dropdown" class="list-group position-absolute start-0 end-0 mt-1 shadow-sm border rounded" style="z-index: 9999; display: none; max-height: 220px; overflow-y: auto; background: #fff;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row" id="history_autofill" style="display:none;">
+                    <div class="col-md-6 mb-3">
+                        <label>Employee Name</label>
+                        <input type="text" id="history_employee_name" class="form-control" readonly>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Serial Number</label>
+                        <select id="history_serial_select" class="form-control" style="display:none;"></select>
+                        <input type="text" id="history_serial_display" class="form-control" readonly>
+                        <input type="hidden" id="history_asset_id" value="">
+                    </div>
+                </div>
+                <a href="#" id="history_open_full" class="btn btn-outline-primary" style="display:none;" target="_blank">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Open full history page
+                </a>
+            </div>
+            <div id="history_content">
+                <div class="alert alert-light border text-muted">Select an asset to load its history.</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -625,6 +716,21 @@
 $(document).ready(function() {
     let currentEmployeeId = null;
     let currentEmployeeName = null;
+
+    function assetSearchLabel(a, extra) {
+        const serial = (a.serial_number && String(a.serial_number).trim() !== '') ? a.serial_number : 'No Serial';
+        let text = serial + ' (' + (a.asset_id || '') + ')';
+        if (a.employee_id) {
+            text += ' - Emp ' + a.employee_id;
+            if (a.employee_name) {
+                text += ' ' + a.employee_name;
+            }
+        }
+        if (extra) {
+            text += ' - ' + extra;
+        }
+        return text;
+    }
 
     function toggleDeliveryDate(repairSelector, groupSelector, inputSelector) {
         const isOnCall = $(repairSelector).val() === 'On Call Service';
@@ -660,68 +766,173 @@ $(document).ready(function() {
     $('#assign_entity_id').on('change', function() { updateAssetManagerDisplay('#assign_entity_id', '#assign_entity_asset_manager_display'); });
     $('#reassign_entity_id').on('change', function() { updateAssetManagerDisplay('#reassign_entity_id', '#reassign_entity_asset_manager_display'); });
 
-    // Handle category change - show asset type-to-search (no longer populate select)
+    function resetSendEmployeeAsset() {
+        $('#asset_id').val('').trigger('change');
+        $('#selected_employee_db_id').val('');
+        $('#employee_name_display').val('');
+        $('#serial_display').val('').show();
+        $('#serial_select').hide().empty();
+        $('#employee_asset_autofill').hide();
+        $('#asset_error_info').text('');
+    }
+
+    function applyEmployeeAssets(data, options) {
+        const nameField = options.nameField;
+        const serialDisplay = options.serialDisplay;
+        const serialSelect = options.serialSelect;
+        const assetField = options.assetField;
+        const autofill = options.autofill;
+        const errorField = options.errorField;
+        const statusFilter = options.statusFilter;
+        const onAssetChosen = options.onAssetChosen;
+
+        const employee = data.employee || null;
+        let assets = data.assets || [];
+        if (statusFilter) {
+            assets = assets.filter(function(a) { return a.status === statusFilter; });
+        }
+
+        if (employee) {
+            $(nameField).val(employee.name || '');
+            if (options.employeeInput && employee.employee_id) {
+                $(options.employeeInput).val(employee.employee_id);
+            }
+        }
+
+        if (!employee || assets.length === 0) {
+            $(autofill).show();
+            $(serialDisplay).val('').show();
+            $(serialSelect).hide().empty();
+            $(assetField).val('');
+            if (errorField) {
+                $(errorField).text('No matching asset found for this employee in the selected category.');
+            }
+            if (onAssetChosen) onAssetChosen('');
+            return;
+        }
+
+        if (errorField) $(errorField).text('');
+        $(autofill).show();
+
+        if (assets.length === 1) {
+            $(serialSelect).hide().empty();
+            $(serialDisplay).val(assets[0].serial_number || assets[0].asset_id || '').show();
+            $(assetField).val(assets[0].id);
+            if (onAssetChosen) onAssetChosen(assets[0].id);
+            return;
+        }
+
+        $(serialDisplay).hide();
+        const opts = ['<option value="">Select serial number</option>'].concat(assets.map(function(a) {
+            return '<option value="' + a.id + '">' + (a.serial_number || a.asset_id) + '</option>';
+        }));
+        $(serialSelect).html(opts.join('')).show();
+        $(assetField).val('');
+        $(serialSelect).off('change.empAsset').on('change.empAsset', function() {
+            const id = $(this).val();
+            $(assetField).val(id);
+            if (onAssetChosen) onAssetChosen(id);
+        });
+    }
+
     $('#asset_category_id').on('change', function() {
         const categoryId = $(this).val();
-        
+        resetSendEmployeeAsset();
         if (!categoryId) {
             $('#asset_selection_section').hide();
             $('#maintenance_details_section').hide();
             return;
         }
-
         $('#asset_selection_section').show();
-        $('#asset_id').val('');
-        $('#asset_search_input').val('');
-        $('#asset_dropdown').hide().empty();
+        $('#employee_search_input').val('');
+        $('#employee_dropdown').hide().empty();
     });
 
-    // Send tab: type-to-search asset (serial number)
     (function() {
-        let assetSendDebounce;
-        $('#asset_search_input').on('input', function() {
+        let empDebounce;
+        $('#employee_search_input').on('input', function() {
             const q = $(this).val().trim();
-            const categoryId = $('#asset_category_id').val();
-            $('#asset_id').val('');
-            clearTimeout(assetSendDebounce);
-            $('#asset_dropdown').hide().empty();
-            if (!categoryId || q.length < 1) return;
-            assetSendDebounce = setTimeout(function() {
-                $('#asset_dropdown').html('<div class="list-group-item text-muted">Loading...</div>').show();
-                $.get(`/asset-transactions/get-assets-by-category/${categoryId}`, { q: q }, function(assets) {
-                    const assigned = (assets || []).filter(function(a) { return a.original_status === 'assigned'; });
-                    if (assigned.length === 0) {
-                        $('#asset_dropdown').html('<div class="list-group-item text-muted">No matching assets</div>').show();
-                    } else {
-                        const html = assigned.map(function(a) {
-                            const serial = (a.serial_number && String(a.serial_number).trim() !== '') ? a.serial_number : 'No Serial';
-                            const text = `${serial} (${a.asset_id}) - Assigned`;
-                            return `<a href="#" class="list-group-item list-group-item-action asset-send-item" data-id="${a.id}" data-status="${(a.original_status || '').replace(/"/g, '&quot;')}">${text.replace(/</g, '&lt;')}</a>`;
-                        }).join('');
-                        $('#asset_dropdown').html(html).show();
+            resetSendEmployeeAsset();
+            clearTimeout(empDebounce);
+            $('#employee_dropdown').hide().empty();
+            if (q.length < 1) return;
+            empDebounce = setTimeout(function() {
+                $('#employee_dropdown').html('<div class="list-group-item text-muted">Loading...</div>').show();
+                $.get('{{ route("employees.autocomplete") }}', { query: q }, function(list) {
+                    if (!list || list.length === 0) {
+                        $('#employee_dropdown').html('<div class="list-group-item text-muted">No matching employee</div>').show();
+                        return;
                     }
+                    const html = list.map(function(e) {
+                        const label = (e.employee_id || '') + ' - ' + (e.name || e.entity_name || '');
+                        return '<a href="#" class="list-group-item list-group-item-action emp-send-item" data-id="' + e.id + '" data-emp="' + (e.employee_id || '') + '" data-name="' + String(e.name || '').replace(/"/g, '&quot;') + '">' + label.replace(/</g, '&lt;') + '</a>';
+                    }).join('');
+                    $('#employee_dropdown').html(html).show();
                 }).fail(function() {
-                    $('#asset_dropdown').html('<div class="list-group-item text-danger">Error loading assets</div>').show();
+                    $('#employee_dropdown').html('<div class="list-group-item text-danger">Error loading employees</div>').show();
                 });
             }, 200);
         });
-        $('#asset_search_input').on('focus', function() {
-            const q = $(this).val().trim();
-            if (q.length >= 1 && $('#asset_dropdown').children().length) $('#asset_dropdown').show();
-        });
-        $(document).on('click', '#asset_dropdown .asset-send-item', function(e) {
+        $(document).on('click', '#employee_dropdown .emp-send-item', function(e) {
             e.preventDefault();
             const id = $(this).data('id');
-            const text = $(this).text();
-            $('#asset_id').val(id);
-            $('#asset_search_input').val(text);
-            $('#asset_dropdown').hide().empty();
-            $('#asset_id').trigger('change');
+            const empId = $(this).data('emp');
+            const name = $(this).data('name');
+            $('#selected_employee_db_id').val(id);
+            $('#employee_search_input').val(empId);
+            $('#employee_name_display').val(name);
+            $('#employee_dropdown').hide().empty();
+            const categoryId = $('#asset_category_id').val();
+            if (!categoryId) return;
+            $.get('/asset-transactions/get-employee-category-assets', {
+                employee_id: id,
+                category_id: categoryId,
+                status: 'assigned'
+            }, function(data) {
+                applyEmployeeAssets(data, {
+                    nameField: '#employee_name_display',
+                    serialDisplay: '#serial_display',
+                    serialSelect: '#serial_select',
+                    assetField: '#asset_id',
+                    autofill: '#employee_asset_autofill',
+                    errorField: '#asset_error_info',
+                    employeeInput: '#employee_search_input',
+                    onAssetChosen: function(assetId) {
+                        $('#asset_id').val(assetId).trigger('change');
+                    }
+                });
+            });
         });
         $(document).on('click', function(e) {
-            if (!$(e.target).closest('#asset_search_wrap').length) $('#asset_dropdown').hide();
+            if (!$(e.target).closest('#employee_search_wrap').length) $('#employee_dropdown').hide();
         });
-        $('#asset_search_input').on('keydown', function(e) { if (e.key === 'Escape') $('#asset_dropdown').hide(); });
+        $('#employee_search_input').on('blur', function() {
+            const typed = $(this).val().trim();
+            const categoryId = $('#asset_category_id').val();
+            if (!typed || !categoryId || $('#asset_id').val()) return;
+            setTimeout(function() {
+                if ($('#employee_dropdown').is(':visible')) return;
+                $.get('/asset-transactions/get-employee-category-assets', {
+                    employee_id: typed,
+                    category_id: categoryId,
+                    status: 'assigned'
+                }, function(data) {
+                    if (!data.employee) return;
+                    applyEmployeeAssets(data, {
+                        nameField: '#employee_name_display',
+                        serialDisplay: '#serial_display',
+                        serialSelect: '#serial_select',
+                        assetField: '#asset_id',
+                        autofill: '#employee_asset_autofill',
+                        errorField: '#asset_error_info',
+                        employeeInput: '#employee_search_input',
+                        onAssetChosen: function(assetId) {
+                            $('#asset_id').val(assetId).trigger('change');
+                        }
+                    });
+                });
+            }, 250);
+        });
     })();
 
     // Handle asset selection - auto-fill entity & asset manager from location (Location Master)
@@ -732,10 +943,15 @@ $(document).ready(function() {
             $('#maintenance_details_section').hide();
             $('#request_approval_section').hide();
             $('#send_entity_display_section').hide();
+            $('#send_asset_history_link').hide().attr('href', '#');
             $('#asset_error_info').text('');
             $('#submitBtn').prop('disabled', true);
             return;
         }
+
+        $('#send_asset_history_link')
+            .attr('href', '/asset-history/' + assetId + '?from=maintenance')
+            .show();
 
         // Get asset details (entity/asset manager from location when available)
         $.get(`/asset-transactions/get-asset-details/${assetId}`, function(data) {
@@ -871,8 +1087,7 @@ $(document).ready(function() {
                         $('#assign_asset_dropdown').html('<div class="list-group-item text-muted">No matching assets under maintenance</div>').show();
                     } else {
                         const html = list.map(function(a) {
-                            const serial = (a.serial_number && String(a.serial_number).trim() !== '') ? a.serial_number : 'No Serial';
-                            const text = `${serial} (${a.asset_id}) - Under Maintenance`;
+                            const text = assetSearchLabel(a, 'Under Maintenance');
                             return `<a href="#" class="list-group-item list-group-item-action assign-asset-item" data-id="${a.id}" data-transaction-id="${a.transaction_id || ''}">${text.replace(/</g, '&lt;')}</a>`;
                         }).join('');
                         $('#assign_asset_dropdown').html(html).show();
@@ -965,8 +1180,7 @@ $(document).ready(function() {
                         $('#reassign_asset_dropdown').html('<div class="list-group-item text-muted">No matching assets under maintenance</div>').show();
                     } else {
                         const html = underMaint.map(function(a) {
-                            const serial = (a.serial_number && String(a.serial_number).trim() !== '') ? a.serial_number : 'No Serial';
-                            const text = `${serial} (${a.asset_id}) - Under Maintenance`;
+                            const text = assetSearchLabel(a, 'Under Maintenance');
                             return `<a href="#" class="list-group-item list-group-item-action reassign-asset-item" data-id="${a.id}" data-status="${(a.original_status || '').replace(/"/g, '&quot;')}">${text.replace(/</g, '&lt;')}</a>`;
                         }).join('');
                         $('#reassign_asset_dropdown').html(html).show();
@@ -1137,6 +1351,96 @@ $(document).ready(function() {
         $('#reassignBtn').prop('disabled', true);
         $('#reassignBtn').html('<i class="bi bi-hourglass-split me-2"></i>Processing...');
     });
+
+    function loadHistoryForAsset(id) {
+        if (!id) {
+            $('#history_open_full').hide().attr('href', '#');
+            $('#history_content').html('<div class="alert alert-light border text-muted">Select an employee to load history.</div>');
+            return;
+        }
+        $('#history_open_full').attr('href', '/asset-history/' + id + '?from=maintenance').show();
+        $('#history_content').html('<div class="text-muted py-3">Loading history...</div>');
+        $.get('/asset-history/' + id, { partial: 1 }, function(html) {
+            $('#history_content').html(html);
+        }).fail(function() {
+            $('#history_content').html('<div class="alert alert-danger">Unable to load asset history.</div>');
+        });
+    }
+
+    $('#history_category_id').on('change', function() {
+        const categoryId = $(this).val();
+        $('#history_asset_id').val('');
+        $('#history_employee_search_input').val('');
+        $('#history_employee_db_id').val('');
+        $('#history_employee_name').val('');
+        $('#history_serial_display').val('').show();
+        $('#history_serial_select').hide().empty();
+        $('#history_autofill').hide();
+        $('#history_employee_dropdown').hide().empty();
+        $('#history_open_full').hide().attr('href', '#');
+        $('#history_content').html('<div class="alert alert-light border text-muted">Select an employee to load history.</div>');
+        if (categoryId) {
+            $('#history_asset_section').show();
+        } else {
+            $('#history_asset_section').hide();
+        }
+    });
+
+    (function() {
+        let historyEmpDebounce;
+        $('#history_employee_search_input').on('input', function() {
+            const q = $(this).val().trim();
+            $('#history_asset_id').val('');
+            clearTimeout(historyEmpDebounce);
+            $('#history_employee_dropdown').hide().empty();
+            if (q.length < 1) return;
+            historyEmpDebounce = setTimeout(function() {
+                $('#history_employee_dropdown').html('<div class="list-group-item text-muted">Loading...</div>').show();
+                $.get('{{ route("employees.autocomplete") }}', { query: q }, function(list) {
+                    if (!list || list.length === 0) {
+                        $('#history_employee_dropdown').html('<div class="list-group-item text-muted">No matching employee</div>').show();
+                        return;
+                    }
+                    const html = list.map(function(e) {
+                        const label = (e.employee_id || '') + ' - ' + (e.name || e.entity_name || '');
+                        return '<a href="#" class="list-group-item list-group-item-action hist-emp-item" data-id="' + e.id + '" data-emp="' + (e.employee_id || '') + '" data-name="' + String(e.name || '').replace(/"/g, '&quot;') + '">' + label.replace(/</g, '&lt;') + '</a>';
+                    }).join('');
+                    $('#history_employee_dropdown').html(html).show();
+                }).fail(function() {
+                    $('#history_employee_dropdown').html('<div class="list-group-item text-danger">Error loading employees</div>').show();
+                });
+            }, 200);
+        });
+        $(document).on('click', '#history_employee_dropdown .hist-emp-item', function(e) {
+            e.preventDefault();
+            const id = $(this).data('id');
+            $('#history_employee_db_id').val(id);
+            $('#history_employee_search_input').val($(this).data('emp'));
+            $('#history_employee_name').val($(this).data('name'));
+            $('#history_employee_dropdown').hide().empty();
+            const categoryId = $('#history_category_id').val();
+            if (!categoryId) return;
+            $.get('/asset-transactions/get-employee-category-assets', {
+                employee_id: id,
+                category_id: categoryId
+            }, function(data) {
+                applyEmployeeAssets(data, {
+                    nameField: '#history_employee_name',
+                    serialDisplay: '#history_serial_display',
+                    serialSelect: '#history_serial_select',
+                    assetField: '#history_asset_id',
+                    autofill: '#history_autofill',
+                    employeeInput: '#history_employee_search_input',
+                    onAssetChosen: loadHistoryForAsset
+                });
+            });
+        });
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#history_employee_search_wrap').length) {
+                $('#history_employee_dropdown').hide();
+            }
+        });
+    })();
 });
 </script>
 @endsection
