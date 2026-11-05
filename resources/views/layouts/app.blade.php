@@ -20,6 +20,31 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
 
     <style>
+        /* Tom Select: show full long option text (e.g. project names) */
+        .ts-wrapper {
+            width: 100%;
+        }
+        .ts-dropdown {
+            z-index: 1100 !important;
+            max-width: min(100vw - 280px, 900px);
+        }
+        .ts-dropdown .option,
+        .ts-dropdown .optgroup-header,
+        .ts-control,
+        .ts-control > div {
+            white-space: normal !important;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.35;
+        }
+        .ts-dropdown .option {
+            padding: 8px 12px;
+        }
+        .ts-control {
+            min-height: 38px;
+            padding: 6px 10px !important;
+        }
+
         :root {
             --primary: #1F2A44;       /* Navy Blue */
             --secondary: #C6A87D;     /* Beige / Gold */

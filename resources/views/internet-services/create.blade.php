@@ -34,7 +34,7 @@
         {{-- Project --}}
         <div class="mb-3">
             <label class="form-label">Project</label>
-            <select name="project_id" class="form-control" required>
+            <select name="project_id" class="form-control searchable-select" required data-placeholder="Type to search project...">
                 <option value="">-- select project --</option>
                 @foreach ($projects as $p)
                     <option value="{{ $p->id }}">

@@ -49,7 +49,8 @@
         {{-- Project --}}
         <div class="mb-3">
             <label class="form-label">Project</label>
-            <select name="project_id" class="form-control" required>
+            <select name="project_id" class="form-control searchable-select" required data-placeholder="Type to search project...">
+                <option value="">-- select project --</option>
                 @foreach ($projects as $p)
                     <option value="{{ $p->id }}" 
                         {{ $internetService->project_id == $p->id ? 'selected' : '' }}>
@@ -235,7 +236,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.querySelector(`select[name="entity"]`).value = data.entity || '';
                     }
                     if (document.querySelector(`select[name="project_id"]`)) {
-                        document.querySelector(`select[name="project_id"]`).value = data.project_id || '';
+                        const projectEl = document.querySelector(`select[name="project_id"]`);
+                        if (projectEl.tomselect) {
+                            projectEl.tomselect.setValue(data.project_id || '', true);
+                        } else {
+                            projectEl.value = data.project_id || '';
+                        }
                     }
                     if (serviceTypeSelect) {
                         serviceTypeSelect.value = data.service_type || '';
@@ -296,8 +302,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     // Sync Tom Select instances after setting values
-                    document.querySelectorAll('.employee-select').forEach(function(el) {
-                        if (el.tomselect) el.tomselect.sync();
+                    document.querySelectorAll('.employee-select, .searchable-select').forEach(function(el) {
+                        if (el.tomselect && el.name !== 'project_id') el.tomselect.sync();
                     });
                     
                     // Trigger cost calculation
