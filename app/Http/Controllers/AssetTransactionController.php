@@ -557,7 +557,7 @@ class AssetTransactionController extends Controller
                 $status = $t->asset->status ?? 'N/A';
                 $entityDisplay = trim(optional($t->location)->location_entity ?? $t->employee->entity_name ?? '') ?: 'N/A';
                 if ($entityDisplay !== 'N/A') {
-                    $entityDisplay = ucwords($entityDisplay);
+                    $entityDisplay = strtoupper($entityDisplay);
                 }
                 $asset = $t->asset;
                 fputcsv($file, [
@@ -711,7 +711,7 @@ class AssetTransactionController extends Controller
                         return [
                             'id' => $e->id,
                             'name' => strtolower($e->name ?? ''),
-                            'display_name' => ucwords($e->name ?? ''),
+                            'display_name' => strtoupper($e->name ?? ''),
                             'asset_manager_name' => $e->asset_manager_name ?? null,
                             'asset_manager_employee_id' => $e->asset_manager_employee_id ?? null,
                         ];
@@ -1448,7 +1448,7 @@ class AssetTransactionController extends Controller
             return [
                 'id' => $e->id,
                 'name' => strtolower($e->name ?? ''),
-                'display_name' => ucwords($e->name ?? ''),
+                'display_name' => strtoupper($e->name ?? ''),
                 'asset_manager_name' => $e->asset_manager_name ?? null,
                 'asset_manager_employee_id' => $e->asset_manager_employee_id ?? null,
             ];

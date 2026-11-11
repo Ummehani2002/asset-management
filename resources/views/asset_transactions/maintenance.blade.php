@@ -376,7 +376,7 @@
                             <select id="assign_entity_id" class="form-control">
                                 <option value="">-- Select Entity (optional) --</option>
                                 @foreach($entities ?? [] as $ent)
-                                    <option value="{{ $ent->id }}" data-asset-manager="{{ $ent->asset_manager_name ?? '' }}" data-asset-manager-id="{{ $ent->asset_manager_employee_id ?? '' }}" data-entity-name="{{ ucwords($ent->name) }}">{{ ucwords($ent->name) }}</option>
+                                    <option value="{{ $ent->id }}" data-asset-manager="{{ $ent->asset_manager_name ?? '' }}" data-asset-manager-id="{{ $ent->asset_manager_employee_id ?? '' }}" data-entity-name="{{ strtoupper($ent->name) }}">{{ strtoupper($ent->name) }}</option>
                                 @endforeach
                             </select>
                             <small class="text-muted">Select entity to see its asset manager. Reassign below if they're busy.</small>
@@ -453,7 +453,7 @@
                             <select id="reassign_entity_id" class="form-control">
                                 <option value="">-- Select Entity (optional) --</option>
                                 @foreach($entities ?? [] as $ent)
-                                    <option value="{{ $ent->id }}" data-asset-manager="{{ $ent->asset_manager_name ?? '' }}" data-asset-manager-id="{{ $ent->asset_manager_employee_id ?? '' }}" data-entity-name="{{ ucwords($ent->name) }}">{{ ucwords($ent->name) }}</option>
+                                    <option value="{{ $ent->id }}" data-asset-manager="{{ $ent->asset_manager_name ?? '' }}" data-asset-manager-id="{{ $ent->asset_manager_employee_id ?? '' }}" data-entity-name="{{ strtoupper($ent->name) }}">{{ strtoupper($ent->name) }}</option>
                                 @endforeach
                             </select>
                             <small class="text-muted">Select entity to see asset manager for that entity.</small>

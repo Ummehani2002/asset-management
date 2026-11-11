@@ -32,6 +32,6 @@ class AssetManagerController extends Controller
             'asset_manager_id' => $request->asset_manager_id ?: null,
         ]);
 
-        return redirect()->route('asset-manager.index')->with('success', 'Asset manager updated for ' . ucwords($entity->name) . '.');
+        return redirect()->route('asset-manager.index')->with('success', 'Asset manager updated for ' . strtoupper($entity->name) . '.');
     }
 }

@@ -23,7 +23,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Entity Name <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" value="{{ old('name', $entity->name) }}" required>
+                    <input type="text" name="name" class="form-control text-uppercase" value="{{ old('name', strtoupper($entity->name)) }}" style="text-transform: uppercase;" required>
                 </div>
             </div>
             <div class="text-end mt-3">

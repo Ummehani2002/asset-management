@@ -60,7 +60,7 @@
                     <select name="default_entity" class="form-control">
                         <option value="">-- Use Entity from Excel if available --</option>
                         @foreach($entities ?? [] as $ent)
-                            <option value="{{ $ent }}" {{ old('default_entity') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
+                            <option value="{{ $ent }}" {{ old('default_entity') == $ent ? 'selected' : '' }}>{{ strtoupper($ent) }}</option>
                         @endforeach
                         <option value="tanseeq" {{ old('default_entity') == 'tanseeq' ? 'selected' : '' }}>Tanseeq</option>
                         <option value="N/A" {{ old('default_entity') == 'N/A' ? 'selected' : '' }}>N/A</option>

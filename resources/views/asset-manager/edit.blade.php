@@ -23,7 +23,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Entity</label>
-                    <input type="text" class="form-control bg-light" value="{{ ucwords($entity->name) }}" readonly disabled>
+                    <input type="text" class="form-control bg-light" value="{{ strtoupper($entity->name) }}" readonly disabled>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Asset Manager (Employee)</label>

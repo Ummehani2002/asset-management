@@ -327,15 +327,6 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
         }
 
-        .topbar-label {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: #6c757d;
-            margin-right: 8px;
-        }
-
         .topbar-menu {
             display: flex;
             flex-wrap: nowrap;
@@ -355,7 +346,9 @@
             border-radius: 6px;
             color: var(--text-dark);
             text-decoration: none;
-            font-weight: 500;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
             border-bottom: 2px solid transparent;
         }
 
@@ -1102,7 +1095,6 @@
     <div class="content">
         {{-- Top bar: masters (horizontal) + admin + profile --}}
         <nav class="topbar no-print">
-            <span class="topbar-label">Masters</span>
             <ul class="topbar-menu">
                 <li>
                     <a href="{{ route('dashboard') }}" class="topbar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">

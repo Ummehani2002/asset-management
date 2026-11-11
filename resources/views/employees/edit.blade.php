@@ -73,7 +73,7 @@
                     <select name="entity_name" class="form-control searchable-select" data-placeholder="Type to search..." {{ $employee->is_active === false ? 'disabled' : '' }}>
                         <option value="">-- Select Entity --</option>
                         @foreach(\App\Helpers\EntityHelper::getEntities() as $ent)
-                            <option value="{{ $ent }}" {{ old('entity_name', $employee->entity_name) == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
+                            <option value="{{ $ent }}" {{ old('entity_name', $employee->entity_name) == $ent ? 'selected' : '' }}>{{ strtoupper($ent) }}</option>
                         @endforeach
                     </select>
                 </div>

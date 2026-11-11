@@ -56,7 +56,7 @@
                     <select name="entity" class="form-control">
                         <option value="">-- All entities --</option>
                         @foreach($entities ?? [] as $ent)
-                            <option value="{{ $ent }}" {{ request('entity') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
+                            <option value="{{ $ent }}" {{ request('entity') == $ent ? 'selected' : '' }}>{{ strtoupper($ent) }}</option>
                         @endforeach
                     </select>
                 </div>

@@ -25,7 +25,7 @@
                 <option value="">-- Select Entity --</option>
                 @foreach(\App\Helpers\EntityHelper::getEntities() as $entity)
                     <option value="{{ $entity }}" {{ old('entity') == $entity ? 'selected' : '' }}>
-                        {{ ucwords($entity) }}
+                        {{ strtoupper($entity) }}
                     </option>
                 @endforeach
             </select>

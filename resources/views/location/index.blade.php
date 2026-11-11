@@ -42,7 +42,7 @@
                     <select name="location_entity" class="form-control" required>
                         <option value="">-- Select Entity --</option>
                         @foreach($entities ?? [] as $ent)
-                            <option value="{{ $ent }}" {{ old('location_entity') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
+                            <option value="{{ $ent }}" {{ old('location_entity') == $ent ? 'selected' : '' }}>{{ strtoupper($ent) }}</option>
                         @endforeach
                     </select>
                 </div>

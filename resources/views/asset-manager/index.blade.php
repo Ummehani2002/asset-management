@@ -37,7 +37,7 @@
                             @foreach($entities as $ent)
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
-                                    <td>{{ ucwords($ent->name) }}</td>
+                                    <td>{{ strtoupper($ent->name) }}</td>
                                     <td>
                                         @if($ent->assetManager)
                                             {{ $ent->assetManager->name ?? $ent->assetManager->entity_name ?? 'N/A' }} ({{ $ent->assetManager->employee_id ?? '' }})

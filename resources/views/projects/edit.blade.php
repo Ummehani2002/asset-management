@@ -37,7 +37,7 @@
             <select name="entity" class="form-control">
                 <option value="">-- Select Entity --</option>
                 @foreach($entities ?? [] as $ent)
-                    <option value="{{ $ent }}" @if(old('entity', $project->entity) == $ent) selected @endif>{{ ucwords($ent) }}</option>
+                    <option value="{{ $ent }}" @if(old('entity', $project->entity) == $ent) selected @endif>{{ strtoupper($ent) }}</option>
                 @endforeach
             </select>
         </div>

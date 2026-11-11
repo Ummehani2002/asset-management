@@ -42,7 +42,7 @@
                 <select name="entity" class="form-control" onchange="this.form.submit()">
                     <option value="">All entities</option>
                     @foreach($entities as $ent)
-                        <option value="{{ $ent->id }}" {{ (isset($selectedEntityId) && $selectedEntityId == $ent->id) ? 'selected' : '' }}>{{ ucwords($ent->name) }}</option>
+                        <option value="{{ $ent->id }}" {{ (isset($selectedEntityId) && $selectedEntityId == $ent->id) ? 'selected' : '' }}>{{ strtoupper($ent->name) }}</option>
                     @endforeach
                 </select>
             </div>

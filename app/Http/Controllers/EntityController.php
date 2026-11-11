@@ -72,7 +72,8 @@ class EntityController extends Controller
 
             $added = 0;
             foreach ($entityNames as $name) {
-                if (Entity::where('name', $name)->exists()) continue;
+                $name = strtoupper(trim($name));
+                if ($name === '' || Entity::whereRaw('UPPER(name) = ?', [$name])->exists()) continue;
                 Entity::create(['name' => $name]);
                 $added++;
             }
@@ -109,7 +110,8 @@ class EntityController extends Controller
             }
             $added = 0;
             foreach ($entityNames as $name) {
-                if (Entity::where('name', $name)->exists()) continue;
+                $name = strtoupper(trim($name));
+                if ($name === '' || Entity::whereRaw('UPPER(name) = ?', [$name])->exists()) continue;
                 Entity::create(['name' => $name]);
                 $added++;
             }
@@ -121,11 +123,13 @@ class EntityController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge(['name' => strtoupper(trim((string) $request->name))]);
+
         $request->validate([
             'name' => 'required|string|max:100|unique:entities,name',
         ]);
 
-        Entity::create(['name' => trim($request->name)]);
+        Entity::create(['name' => $request->name]);
 
         return redirect()->route('entity-master.index')->with('success', 'Entity created successfully.');
     }
@@ -139,11 +143,13 @@ class EntityController extends Controller
     public function update(Request $request, $id)
     {
         $entity = Entity::findOrFail($id);
+        $request->merge(['name' => strtoupper(trim((string) $request->name))]);
+
         $request->validate([
             'name' => 'required|string|max:100|unique:entities,name,' . $entity->id,
         ]);
 
-        $entity->update(['name' => trim($request->name)]);
+        $entity->update(['name' => $request->name]);
 
         return redirect()->route('entity-master.index')->with('success', 'Entity updated successfully.');
     }

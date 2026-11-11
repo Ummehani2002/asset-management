@@ -42,7 +42,7 @@
             <div class="row">
                 <div class="col-md-10 mb-3">
                     <label class="form-label">Entity Name <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" value="{{ old('name') }}"  required>
+                    <input type="text" name="name" class="form-control text-uppercase" value="{{ old('name') }}" style="text-transform: uppercase;" required>
                 </div>
                 <div class="col-md-2 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-success w-100">
@@ -73,7 +73,7 @@
                             @foreach($entities as $ent)
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
-                                    <td>{{ ucwords($ent->name) }}</td>
+                                    <td class="text-uppercase">{{ $ent->name }}</td>
                                     <td>
                                         <a href="{{ route('entity-master.edit', $ent->id) }}" class="btn btn-sm btn-warning">
                                             <i class="bi bi-pencil"></i> Edit

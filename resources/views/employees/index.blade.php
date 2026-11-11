@@ -64,7 +64,7 @@
                     <select name="entity_name" class="form-control" required>
                         <option value="">-- Select Entity --</option>
                         @foreach(\App\Helpers\EntityHelper::getEntities() as $ent)
-                            <option value="{{ $ent }}" {{ old('entity_name') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
+                            <option value="{{ $ent }}" {{ old('entity_name') == $ent ? 'selected' : '' }}>{{ strtoupper($ent) }}</option>
                         @endforeach
                     </select>
                 </div>

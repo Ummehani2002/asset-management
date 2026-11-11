@@ -57,7 +57,7 @@ class EntityHelper
         $entities = self::getEntities();
         $options = [];
         foreach ($entities as $entity) {
-            $options[$entity] = ucwords($entity);
+            $options[$entity] = strtoupper($entity);
         }
         return $options;
     }

@@ -3,22 +3,20 @@
 @section('content')
 <div class="container-fluid master-page">
     <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h2><i class="bi bi-journal-text me-2"></i>Issue Notes & Return Notes</h2>
-                <p>View and manage all issue notes and return notes</p>
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{{ route('issue-note.create') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle me-2"></i>New Issue Note
-                </a>
-                <a href="{{ route('issue-note.create-return') }}" class="btn btn-success">
-                    <i class="bi bi-arrow-return-left me-2"></i>New Return Note
-                </a>
-                <a href="{{ route('preventive-maintenance.index') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-tools me-2"></i>Preventive Maintenance
-                </a>
-            </div>
+        <div>
+            <h2><i class="bi bi-journal-text me-2"></i>Issue Notes & Return Notes</h2>
+            <p>View and manage all issue notes and return notes</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap ms-auto">
+            <a href="{{ route('issue-note.create') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>New Issue Note
+            </a>
+            <a href="{{ route('issue-note.create-return') }}" class="btn btn-success">
+                <i class="bi bi-arrow-return-left me-2"></i>New Return Note
+            </a>
+            <a href="{{ route('preventive-maintenance.index') }}" class="btn btn-outline-primary">
+                <i class="bi bi-tools me-2"></i>Preventive Maintenance
+            </a>
         </div>
     </div>
 

@@ -162,7 +162,7 @@
                     <select id="assign_entity" class="form-control">
                         <option value="">-- Select Entity --</option>
                         @foreach($entities ?? [] as $ent)
-                            <option value="{{ $ent->name }}" @if($editEntityName && strtolower($ent->name) == strtolower($editEntityName)) selected @endif>{{ ucwords($ent->name) }}</option>
+                            <option value="{{ $ent->name }}" @if($editEntityName && strtolower($ent->name) == strtolower($editEntityName)) selected @endif>{{ strtoupper($ent->name) }}</option>
                         @endforeach
                     </select>
                 </div>

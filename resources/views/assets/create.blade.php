@@ -76,7 +76,7 @@
                         <option value="">-- Select Entity --</option>
                         @if(isset($entities))
                         @foreach($entities as $entity)
-                            <option value="{{ $entity->id }}">{{ ucwords($entity->name) }}</option>
+                            <option value="{{ $entity->id }}">{{ strtoupper($entity->name) }}</option>
                         @endforeach
                         @endif
                     </select>

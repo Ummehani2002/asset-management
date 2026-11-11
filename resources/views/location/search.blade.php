@@ -29,7 +29,7 @@
                     <select name="entity" class="form-control" required>
                         <option value="">-- Select Entity --</option>
                         @foreach($entities ?? [] as $ent)
-                            <option value="{{ $ent }}" {{ request('entity') == $ent ? 'selected' : '' }}>{{ ucwords($ent) }}</option>
+                            <option value="{{ $ent }}" {{ request('entity') == $ent ? 'selected' : '' }}>{{ strtoupper($ent) }}</option>
                         @endforeach
                     </select>
                  
