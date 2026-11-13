@@ -95,6 +95,31 @@ class BudgetExpenseController extends Controller
         }
     }
 
+    private function budgetAmountForYear(EntityBudget $budget, int $year): float
+    {
+        $yearColumn = 'budget_' . $year;
+        if (!Schema::hasColumn('entity_budgets', $yearColumn)) {
+            return 0.0;
+        }
+
+        return (float) ($budget->$yearColumn ?? 0);
+    }
+
+    private function totalExpensesForYear(int $entityBudgetId, int $year): float
+    {
+        return (float) BudgetExpense::where('entity_budget_id', $entityBudgetId)
+            ->whereYear('expense_date', $year)
+            ->sum('expense_amount');
+    }
+
+    private function insufficientBalanceMessage(float $totalWithVat, float $available, float $budgetAmount, int $year): string
+    {
+        return 'Insufficient budget balance for ' . $year
+            . '. Total including VAT (' . number_format($totalWithVat, 2) . ')'
+            . ' exceeds available balance (' . number_format(max($available, 0), 2) . ').'
+            . ' Budget amount: ' . number_format($budgetAmount, 2) . '.';
+    }
+
     public function store(Request $request)
     {
         try {
@@ -154,15 +179,20 @@ class BudgetExpenseController extends Controller
             }
             $grandTotalWithVat = round((float) $lines->sum('total_with_vat'), 2);
 
-            // Check available balance (all expenses under this budget) – deduct total including VAT
+            // Check available balance for the expense year only (year-column budget vs that year's expenses)
             $budget = EntityBudget::find($validated['entity_budget_id']);
-            $totalExpenses = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
+            $budgetYear = (int) date('Y', strtotime($lines->first()['parsed_date']));
+            $budgetAmount = $this->budgetAmountForYear($budget, $budgetYear);
+            $totalExpenses = $this->totalExpensesForYear($budget->id, $budgetYear);
+            $availableBalanceBefore = $budgetAmount - $totalExpenses;
 
-            $currentYear = (int) date('Y');
-            $yearColumn = 'budget_' . $currentYear;
-            $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
-            if (($totalExpenses + $grandTotalWithVat) > $budgetAmount) {
-                throw new \Exception('Insufficient budget balance. Total including VAT (' . number_format($grandTotalWithVat, 2) . ') exceeds available balance.');
+            if (($totalExpenses + $grandTotalWithVat) > $budgetAmount + 0.009) {
+                throw new \Exception($this->insufficientBalanceMessage(
+                    $grandTotalWithVat,
+                    $availableBalanceBefore,
+                    $budgetAmount,
+                    $budgetYear
+                ));
             }
 
             $savedExpenses = collect();
@@ -244,11 +274,20 @@ class BudgetExpenseController extends Controller
                 ->with('saved_expense', $latestExpense)
                 ->with('print_url', $printUrl);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 422);
+            }
+
+            return redirect()
+                ->route('budget-expenses.create')
+                ->withInput()
+                ->with('error', $e->getMessage());
         }
     }
 
@@ -336,20 +375,28 @@ class BudgetExpenseController extends Controller
         $vatAmount = round($amountBeforeVat * $vatPercent / 100, 2);
         $totalWithVat = $amountBeforeVat + $vatAmount;
 
-        $currentYear = (int) date('Y');
-        $yearColumn = 'budget_' . $currentYear;
-        $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
+        $budgetYear = (int) date('Y', strtotime($parsedDate));
+        $budgetAmount = $this->budgetAmountForYear($budget, $budgetYear);
 
-        // Total of all expenses under this budget (includes this expense's current stored amount)
-        $totalExpensesAll = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
-        // Existing amount for this expense only – we replace it, so do not deduct it twice
-        $oldAmountThisExpense = (float) $expense->expense_amount;
+        // Year-scoped total (includes this expense's current stored amount if same year)
+        $totalExpensesAll = $this->totalExpensesForYear($budget->id, $budgetYear);
+        $oldExpenseYear = (int) date('Y', strtotime((string) $expense->expense_date));
+        $oldAmountThisExpense = $oldExpenseYear === $budgetYear ? (float) $expense->expense_amount : 0.0;
         $totalWithoutThis = $totalExpensesAll - $oldAmountThisExpense;
-        if (($totalWithoutThis + $totalWithVat) > $budgetAmount) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Insufficient budget balance. Total including VAT (' . number_format($totalWithVat, 2) . ') would exceed available balance.'
-            ], 422);
+        $availableBalanceBefore = $budgetAmount - $totalWithoutThis;
+        if (($totalWithoutThis + $totalWithVat) > $budgetAmount + 0.009) {
+            $message = $this->insufficientBalanceMessage($totalWithVat, $availableBalanceBefore, $budgetAmount, $budgetYear);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message
+                ], 422);
+            }
+
+            return redirect()
+                ->route('budget-expenses.edit', $expense->id)
+                ->withInput()
+                ->with('error', $message);
         }
 
         $expenseData = [
@@ -442,24 +489,23 @@ class BudgetExpenseController extends Controller
             }
 
             $currentYear = (int) date('Y');
-            $yearColumn = 'budget_' . $currentYear;
-            $budgetAmount = Schema::hasColumn('entity_budgets', $yearColumn) ? ($budget->$yearColumn ?? 0) : 0;
+            $budgetAmount = $this->budgetAmountForYear($budget, $currentYear);
 
             // Get most recent expense only (for balance reference)
-            $expensesQuery = BudgetExpense::where('entity_budget_id', $budget->id);
+            $expensesQuery = BudgetExpense::where('entity_budget_id', $budget->id)
+                ->whereYear('expense_date', $currentYear);
             if ($request->filled('cost_head')) {
                 $expensesQuery->whereRaw('LOWER(cost_head) = LOWER(?)', [$request->cost_head]);
             }
             $expenses = $expensesQuery->orderBy('expense_date', 'desc')->orderBy('id', 'desc')->limit(1)->get();
 
-            // Total for this filter (this cost head only when cost_head selected)
-            $totalExpensesFiltered = $expenses->sum('expense_amount');
-            // Total all expenses under this budget (for available balance)
-            $totalExpensesAll = BudgetExpense::where('entity_budget_id', $budget->id)->sum('expense_amount');
+            // Total expenses for this budget year (for available balance)
+            $totalExpensesAll = $this->totalExpensesForYear($budget->id, $currentYear);
 
             $requestCostHead = $request->cost_head;
-            $formattedExpenses = $expenses->map(function ($expense) use ($budget, $budgetAmount, $requestCostHead) {
+            $formattedExpenses = $expenses->map(function ($expense) use ($budget, $budgetAmount, $requestCostHead, $currentYear) {
                 $balanceAfter = $budgetAmount - BudgetExpense::where('entity_budget_id', $budget->id)
+                    ->whereYear('expense_date', $currentYear)
                     ->where('created_at', '<=', $expense->created_at)
                     ->sum('expense_amount');
                 $costHeadDisplay = $expense->cost_head ? ucfirst($expense->cost_head) : ($budget->cost_head ? ucfirst($budget->cost_head) : ($requestCostHead ? ucfirst($requestCostHead) : '—'));

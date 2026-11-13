@@ -14,6 +14,12 @@
                 <a href="{{ route('budget-expenses.print', $expense->id) }}" target="_blank" class="btn btn-sm btn-outline-light ms-3"><i class="bi bi-printer me-1"></i>Print</a>
             </div>
         @endif
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
     </div>
 
     <form id="expenseForm" method="POST" action="{{ route('budget-expenses.update', $expense->id) }}" autocomplete="off">
