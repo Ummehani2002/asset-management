@@ -296,6 +296,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/budget-expenses/create', [BudgetExpenseController::class, 'create'])->name('budget-expenses.create');
     Route::get('/budget-expenses/history', [BudgetExpenseController::class, 'expenseHistory'])->name('budget-expenses.history');
+    // GET on store URL (e.g. refresh after a failed POST) should not 405 — send back to the form
+    Route::get('/budget-expenses/store', function () {
+        return redirect()->route('budget-expenses.create');
+    });
     Route::post('/budget-expenses/store', [BudgetExpenseController::class, 'store'])->name('budget-expenses.store');
     Route::get('/budget-expenses/get-details', [BudgetExpenseController::class, 'getBudgetDetails'])->name('budget-expenses.get-details');
     Route::get('/budget-expenses/{id}/edit', [BudgetExpenseController::class, 'edit'])->name('budget-expenses.edit');
